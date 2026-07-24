@@ -3,23 +3,29 @@ import { createContext, useContext, useState } from 'react';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [user, setUser] = useState(
+    localStorage.getItem('role') 
+      ? { role: localStorage.getItem('role'), name: localStorage.getItem('name'), id: localStorage.getItem('id') } 
+      : null
+  );
 
-  const login = (userData, accessToken) => {
-    setUser(userData);
+  const login = (accessToken, role, name, id) => {
+    setUser({ role, name, id });
     setToken(accessToken);
-    // Note: Storing in localStorage is not recommended for production, but used here for Phase 1 persistence.
-    // In production, this should ideally be an httpOnly cookie.
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('role', role);
+    localStorage.setItem('name', name);
+    if (id) localStorage.setItem('id', id);
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    localStorage.removeItem('name');
+    localStorage.removeItem('id');
   };
 
   return (

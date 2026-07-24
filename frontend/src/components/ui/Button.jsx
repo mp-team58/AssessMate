@@ -5,7 +5,7 @@ const Button = ({ children, type = 'button', disabled = false, className = '', .
     <button
       type={type}
       disabled={disabled}
-      className={`w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+      className={`w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
       {...props}
     >
       {children}

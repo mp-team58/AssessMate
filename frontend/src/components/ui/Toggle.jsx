@@ -2,14 +2,14 @@ import React from 'react';
 
 const Toggle = ({ activeRole, onChange }) => {
   return (
-    <div className="flex p-1 bg-slate-100 rounded-lg w-full mb-6">
+    <div className="flex p-1.5 bg-secondary-50 border border-secondary-100 rounded-xl w-full mb-8">
       <button
         type="button"
         onClick={() => onChange('host')}
-        className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${
           activeRole === 'host'
-            ? 'bg-white text-brand-600 shadow-sm'
-            : 'text-slate-500 hover:text-slate-700'
+            ? 'bg-white text-secondary-900 shadow-md'
+            : 'text-secondary-400 hover:text-secondary-600'
         }`}
       >
         Host
@@ -17,10 +17,10 @@ const Toggle = ({ activeRole, onChange }) => {
       <button
         type="button"
         onClick={() => onChange('candidate')}
-        className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${
           activeRole === 'candidate'
-            ? 'bg-white text-brand-600 shadow-sm'
-            : 'text-slate-500 hover:text-slate-700'
+            ? 'bg-white text-secondary-900 shadow-md'
+            : 'text-secondary-400 hover:text-secondary-600'
         }`}
       >
         Candidate

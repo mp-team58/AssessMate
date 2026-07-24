@@ -37,11 +37,19 @@ const Login = () => {
         response = await loginCandidate(data);
       }
       
-      login(response.data.user, response.data.token);
-      // Navigate to respective dashboard based on role
-      navigate(role === 'host' ? '/host/dashboard' : '/candidate/dashboard');
+      const { token, role: userRole, name, id } = response.data;
+      login(token, userRole, name, id);
+      // Navigate to respective dashboard based on role returned from backend
+      if (userRole === 'HOST') {
+        navigate('/host/dashboard');
+      } else if (userRole === 'CANDIDATE') {
+        navigate('/candidate/dashboard');
+      } else {
+        // Fallback just in case
+        navigate(role === 'host' ? '/host/dashboard' : '/candidate/dashboard');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to login. Please check your credentials.');
+      setError(err.response?.data?.message || err.message || 'Failed to login. Please check your credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -49,9 +57,9 @@ const Login = () => {
 
   return (
     <AuthLayout>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Welcome back</h2>
-        <p className="text-slate-500 text-sm">Login to your account to continue</p>
+      <div className="mb-10 text-center lg:text-left">
+        <h2 className="text-3xl font-extrabold text-secondary-900 mb-3 tracking-tight">Welcome back</h2>
+        <p className="text-secondary-500 text-base">Sign in to your account to continue</p>
       </div>
 
       <Toggle activeRole={role} onChange={setRole} />
@@ -87,10 +95,10 @@ const Login = () => {
         </Button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-slate-600">
+      <p className="mt-10 text-center text-sm font-medium text-secondary-500">
         Don't have an account?{' '}
-        <Link to="/signup" className="text-brand-600 hover:text-brand-500 font-medium">
-          Sign up instead
+        <Link to="/signup" className="text-brand-500 hover:text-brand-600 font-bold ml-1">
+          Create one now
         </Link>
       </p>
     </AuthLayout>

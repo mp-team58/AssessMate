@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://08k7867x-8080.inc1.devtunnels.ms/api';
 
 /**
  * A wrapper around the native fetch API to provide interceptor-like functionality
@@ -6,7 +6,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api
  */
 const apiClient = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
-  
+
   // Initialize headers
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type')) {
@@ -14,8 +14,10 @@ const apiClient = async (endpoint, options = {}) => {
   }
 
   // Request Interceptor Logic: Add Auth Token
-  const token = localStorage.getItem('accessToken');
-  if (token && !headers.has('Authorization')) {
+  const token = localStorage.getItem('token');
+  const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
+  
+  if (token && !headers.has('Authorization') && !isAuthEndpoint) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
@@ -38,7 +40,7 @@ const apiClient = async (endpoint, options = {}) => {
         // localStorage.setItem('accessToken', accessToken);
         // headers.set('Authorization', `Bearer ${accessToken}`);
         // return apiClient(endpoint, config); // Retry original request
-        
+
         // For now, throw to trigger logout/error handling
         throw new Error('Unauthorized');
       } catch (refreshError) {
@@ -52,8 +54,23 @@ const apiClient = async (endpoint, options = {}) => {
     const data = isJson ? await response.json() : await response.text();
 
     if (!response.ok) {
+      // Improve error message if backend returns HTML (like dev tunnels warning) or string
+      let errorMessage = 'API Error';
+      if (typeof data === 'string' && data.length > 0) {
+        errorMessage = `API Error (Status ${response.status}). The server returned an invalid format. Check if the Dev Tunnel is active or requires confirmation.`;
+        console.error('API Error Response:', data.substring(0, 500));
+      } else if (data && data.message) {
+        errorMessage = data.message;
+      } else if (data && data.error) {
+        errorMessage = `${data.error} (Status ${response.status})`;
+      } else if (data && typeof data === 'object') {
+        errorMessage = `API Error (Status ${response.status}): ${JSON.stringify(data).substring(0, 100)}`;
+      } else {
+        errorMessage = `API Error (Status ${response.status})`;
+      }
+
       // Simulate Axios error structure
-      const error = new Error(data.message || 'API Error');
+      const error = new Error(errorMessage);
       error.response = { status: response.status, data };
       throw error;
     }

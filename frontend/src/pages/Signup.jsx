@@ -47,11 +47,19 @@ const Signup = () => {
         response = await signupCandidate(payload);
       }
       
-      login(response.data.user, response.data.token);
-      // Navigate to respective dashboard based on role
-      navigate(role === 'host' ? '/host/dashboard' : '/candidate/dashboard');
+      const { token, role: userRole, name, id } = response.data;
+      login(token, userRole, name, id);
+      // Navigate to respective dashboard based on role returned from backend
+      if (userRole === 'HOST') {
+        navigate('/host/dashboard');
+      } else if (userRole === 'CANDIDATE') {
+        navigate('/candidate/dashboard');
+      } else {
+        // Fallback just in case
+        navigate(role === 'host' ? '/host/dashboard' : '/candidate/dashboard');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to sign up. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Failed to sign up. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -59,9 +67,9 @@ const Signup = () => {
 
   return (
     <AuthLayout>
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Sign up</h2>
-        <p className="text-slate-500 text-sm">Join AssessAI to get started</p>
+      <div className="mb-10 text-center lg:text-left">
+        <h2 className="text-3xl font-extrabold text-secondary-900 mb-3 tracking-tight">Create an account</h2>
+        <p className="text-secondary-500 text-base">Join AssessMate to get started</p>
       </div>
 
       <Toggle activeRole={role} onChange={setRole} />
@@ -106,10 +114,10 @@ const Signup = () => {
         </Button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-slate-600">
+      <p className="mt-10 text-center text-sm font-medium text-secondary-500">
         Already have an account?{' '}
-        <Link to="/login" className="text-brand-600 hover:text-brand-500 font-medium">
-          Login instead
+        <Link to="/login" className="text-brand-500 hover:text-brand-600 font-bold ml-1">
+          Log in instead
         </Link>
       </p>
     </AuthLayout>

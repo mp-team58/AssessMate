@@ -55,27 +55,28 @@ public class AuthService {
 
     // Login existing user
     public AuthResponse login(LoginRequest req) {
-
-        // Find user by email
         User user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Verify password
-        if (!passwordEncoder.matches(
-                req.getPassword(),
-                user.getPassword())) {
-
+        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             throw new RuntimeException("Invalid password");
         }
 
-        // Generate JWT token
+        // Check if selected role matches actual account role
+        if (req.getRole() != null && !req.getRole().isEmpty()) {
+            if (!user.getRole().name().equals(req.getRole())) {
+                throw new RuntimeException(
+                        "This account is registered as " +
+                                user.getRole().name() +
+                                ". Please select the correct role."
+                );
+            }
+        }
+
         String token = jwtUtil.generateToken(
                 user.getEmail(),
                 user.getRole().name()
         );
-
-        // Return response
         return new AuthResponse(
                 token,
                 user.getRole().name(),

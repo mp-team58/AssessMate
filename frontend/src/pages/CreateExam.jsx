@@ -6,26 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { createExam } from '../services/examService';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-
-// Utility component for select inputs
-const Select = React.forwardRef(({ label, error, className = '', options, ...props }, ref) => (
-  <div className={`flex flex-col space-y-1 ${className}`}>
-    <label className="text-sm font-semibold text-secondary-800">{label}</label>
-    <select
-      ref={ref}
-      className={`px-4 py-2 bg-[#F3EDE0] border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 transition-shadow text-secondary-900
-        ${error ? 'border-red-400 focus:ring-red-500' : 'border-secondary-200'}
-      `}
-      {...props}
-    >
-      {options.map(opt => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
-      ))}
-    </select>
-    {error && <span className="text-xs text-red-500">{error.message}</span>}
-  </div>
-));
-Select.displayName = 'Select';
+import Select from '../components/ui/Select';
 
 // Validation Schema
 const schema = yup.object().shape({
@@ -38,7 +19,8 @@ const schema = yup.object().shape({
     otherwise: (s) => s.notRequired().nullable()
   }),
   scheduledDate: yup.string().required('Date is required'),
-  scheduledTime: yup.string().required('Time is required'),
+  scheduledHour: yup.string().required('Hour is required'),
+  scheduledMinute: yup.string().required('Minute is required'),
   gracePeriodMinutes: yup.number().typeError('Must be a number').min(0).integer().required('Grace period is required'),
   easyPercent: yup.number().typeError('Must be a number').min(0).max(100).required(),
   mediumPercent: yup.number().typeError('Must be a number').min(0).max(100).required(),
@@ -55,6 +37,12 @@ const schema = yup.object().shape({
   easySeconds: yup.number().typeError('Required').min(1).required(),
   mediumSeconds: yup.number().typeError('Required').min(1).required(),
   hardSeconds: yup.number().typeError('Required').min(1).required(),
+  hasCodingSection: yup.boolean(),
+  codingDurationMinutes: yup.number().typeError('Must be a number').when('hasCodingSection', {
+    is: true,
+    then: (s) => s.positive('Must be > 0').integer().required('Coding duration is required'),
+    otherwise: (s) => s.notRequired().nullable()
+  }),
 }).test(
   'sum-percents',
   'Difficulty percentages must add up to 100',
@@ -73,13 +61,15 @@ const CreateExam = () => {
   const [successModal, setSuccessModal] = useState(null); // { joinCode, examId }
   const navigate = useNavigate();
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
     mode: 'onChange',
     defaultValues: {
       timerType: 'WHOLE_EXAM',
       durationMinutes: 60,
       gracePeriodMinutes: 10,
+      scheduledHour: '10',
+      scheduledMinute: '00',
       easyPercent: 50,
       mediumPercent: 30,
       hardPercent: 20,
@@ -95,11 +85,14 @@ const CreateExam = () => {
       easySeconds: 30,
       mediumSeconds: 60,
       hardSeconds: 90,
+      hasCodingSection: false,
+      codingDurationMinutes: null,
     }
   });
 
   const timerType = watch('timerType');
   const negativeMarkEnabled = watch('negativeMark');
+  const hasCodingSection = watch('hasCodingSection');
   
   const easyPct = watch('easyPercent') || 0;
   const medPct = watch('mediumPercent') || 0;
@@ -111,7 +104,7 @@ const CreateExam = () => {
     setError('');
     try {
       // Format to "YYYY-MM-DDTHH:mm:ss"
-      const scheduledStart = `${data.scheduledDate}T${data.scheduledTime}:00`;
+      const scheduledStart = `${data.scheduledDate}T${data.scheduledHour}:${data.scheduledMinute}:00`;
 
       const payload = {
         title: data.title,
@@ -134,7 +127,9 @@ const CreateExam = () => {
         mediumSeconds: Number(data.mediumSeconds),
         hardSeconds: Number(data.hardSeconds),
         negativeMark: Boolean(data.negativeMark),
-        deviceAccess: data.deviceAccess
+        deviceAccess: data.deviceAccess,
+        hasCodingSection: Boolean(data.hasCodingSection),
+        codingDurationMinutes: data.hasCodingSection ? Number(data.codingDurationMinutes) : null
       };
 
       const response = await createExam(payload);
@@ -155,24 +150,24 @@ const CreateExam = () => {
   const handleContinue = () => {
     if (successModal) {
       localStorage.setItem('currentExamId', successModal.examId);
-      navigate('/host/generate-questions');
+      navigate(`/host/exams/${successModal.examId}/questions`);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto font-sans relative z-10">
-      <div className="w-full">
-        
-        <button onClick={() => navigate('/host/dashboard')} className="text-secondary-600 hover:text-brand-600 mb-6 flex items-center gap-2 font-bold text-sm transition-colors">
+    <div className="max-w-7xl mx-auto font-sans relative z-10">
+      <header className="mb-8">
+        <button onClick={() => navigate('/host/dashboard')} className="text-secondary-600 hover:text-brand-600 mb-4 flex items-center gap-2 font-bold text-sm transition-colors">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
           Back to Dashboard
         </button>
+        <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Create New Exam</h1>
+        <p className="text-secondary-600 mt-2 text-base">Configure your assessment details and structure.</p>
+      </header>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-secondary-200 p-8 md:p-10">
-          <h1 className="text-3xl font-extrabold text-secondary-900 mb-2">Create New Exam</h1>
-          <p className="text-secondary-600 mb-8 text-base">Configure your assessment details and structure.</p>
+      <div className="bg-white rounded-2xl p-8 shadow-lg border border-secondary-200">
 
           {error && (
             <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 shadow-sm border border-red-100">
@@ -195,11 +190,32 @@ const CreateExam = () => {
               <h2 className="text-lg font-bold text-secondary-900 border-b border-secondary-200 pb-2 mb-6">Timing & Access</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input type="date" label="Scheduled Date" {...register('scheduledDate')} error={errors.scheduledDate} />
-                <Input type="time" label="Scheduled Time" {...register('scheduledTime')} error={errors.scheduledTime} />
+                
+                <div>
+                  <label className="block text-[14px] font-semibold text-secondary-800 mb-2">Scheduled Time</label>
+                  <div className="flex items-start gap-2">
+                    <Select 
+                      className="flex-1 !mb-0" 
+                      value={watch('scheduledHour')}
+                      onChange={(val) => setValue('scheduledHour', val, { shouldValidate: true })}
+                      error={errors.scheduledHour}
+                      options={Array.from({ length: 24 }, (_, i) => ({ value: i.toString().padStart(2, '0'), label: i.toString().padStart(2, '0') }))} 
+                    />
+                    <span className="text-xl font-bold text-secondary-400 mt-2">:</span>
+                    <Select 
+                      className="flex-1 !mb-0" 
+                      value={watch('scheduledMinute')}
+                      onChange={(val) => setValue('scheduledMinute', val, { shouldValidate: true })}
+                      error={errors.scheduledMinute}
+                      options={Array.from({ length: 60 }, (_, i) => ({ value: i.toString().padStart(2, '0'), label: i.toString().padStart(2, '0') }))} 
+                    />
+                  </div>
+                </div>
                 
                 <Select 
                   label="Timer Type" 
-                  {...register('timerType')} 
+                  value={watch('timerType')}
+                  onChange={(val) => setValue('timerType', val, { shouldValidate: true })} 
                   error={errors.timerType}
                   options={[
                     { value: 'WHOLE_EXAM', label: 'Whole Exam' },
@@ -214,7 +230,8 @@ const CreateExam = () => {
                 <Input type="number" label="Grace Period (Minutes)" {...register('gracePeriodMinutes')} error={errors.gracePeriodMinutes} />
                 <Select 
                   label="Device Access" 
-                  {...register('deviceAccess')} 
+                  value={watch('deviceAccess')}
+                  onChange={(val) => setValue('deviceAccess', val, { shouldValidate: true })} 
                   error={errors.deviceAccess}
                   options={[
                     { value: 'BOTH', label: 'Desktop & Mobile' },
@@ -247,11 +264,25 @@ const CreateExam = () => {
                 </div>
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-[#F9F2EA] rounded-xl border border-secondary-200 mt-6 mb-6">
-                <label className="flex items-center gap-3 cursor-pointer font-bold text-secondary-800">
-                  <input type="checkbox" {...register('negativeMark')} className="w-5 h-5 text-brand-600 rounded border-secondary-300 focus:ring-brand-500" />
-                  Enable Negative Marking
-                </label>
+              <div className="flex flex-col md:flex-row gap-6 items-stretch mt-6 mb-6">
+                <div className="flex-1 flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-[#F9F2EA] rounded-xl border border-secondary-200">
+                  <label className="flex items-center gap-3 cursor-pointer font-bold text-secondary-800">
+                    <input type="checkbox" {...register('negativeMark')} className="w-5 h-5 text-brand-600 rounded border-secondary-300 focus:ring-brand-500" />
+                    Enable Negative Marking
+                  </label>
+                </div>
+                
+                <div className="flex-1 flex flex-col sm:flex-row gap-4 items-start sm:items-center p-5 bg-[#F9F2EA] rounded-xl border border-secondary-200">
+                  <label className="flex items-center gap-3 cursor-pointer font-bold text-secondary-800 shrink-0">
+                    <input type="checkbox" {...register('hasCodingSection')} className="w-5 h-5 text-brand-600 rounded border-secondary-300 focus:ring-brand-500" />
+                    Add Coding Section
+                  </label>
+                  {hasCodingSection && (
+                    <div className="w-full sm:w-auto mt-3 sm:mt-0 sm:ml-auto">
+                      <Input type="number" placeholder="Duration (Min)" {...register('codingDurationMinutes')} error={errors.codingDurationMinutes} containerClassName="!mb-0" className="py-2 px-3 w-full sm:max-w-[140px]" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Difficulty Table */}
@@ -334,7 +365,6 @@ const CreateExam = () => {
             </div>
           </form>
         </div>
-      </div>
 
       {/* Success Modal */}
       {successModal && (

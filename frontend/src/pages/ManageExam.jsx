@@ -75,15 +75,23 @@ const ManageExam = () => {
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">{exam.title}</h1>
             <span className={`px-3 py-1 text-xs font-semibold rounded-full uppercase tracking-wider
-              ${exam.status === 'LIVE' ? 'bg-green-100 text-green-700' : 
-                exam.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-700' : 
-                'bg-red-100 text-red-700'}`}>
+              ${exam.status === 'LIVE' ? 'bg-green-100 text-green-700' :
+                exam.status === 'DRAFT' ? 'bg-yellow-100 text-yellow-700' :
+                  'bg-red-100 text-red-700'}`}>
               {exam.status}
             </span>
           </div>
           <p className="text-secondary-600 font-medium">{exam.subject}</p>
+          {exam.hasCodingSection && (
+            <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-brand-50 text-brand-700 text-sm font-semibold border border-brand-100">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              Coding Section Included ({exam.codingDurationMinutes} min)
+            </div>
+          )}
         </div>
-        
+
         <div className="flex gap-3">
           {exam.status === 'DRAFT' && (
             <Button onClick={handlePublish} className="bg-brand-600 hover:bg-brand-700 text-white">
@@ -104,16 +112,15 @@ const ManageExam = () => {
           {exam.status === 'DRAFT' && (
             <Button 
               onClick={() => {
-                localStorage.setItem('currentExamId', exam.id);
-                navigate('/host/generate-questions');
-              }} 
-              variant="outline"
+                navigate(`/host/exams/${exam.id}/questions`);
+              }}
+              className="!w-auto flex-shrink-0"
             >
               Add / Generate Questions
             </Button>
           )}
         </div>
-        
+
         <div className="text-center py-12 bg-secondary-50 rounded-xl border border-dashed border-secondary-300">
           <p className="text-secondary-500 mb-2 font-medium">No questions added yet.</p>
           <p className="text-sm text-secondary-400">Add questions to this exam before publishing it to candidates.</p>

@@ -5,11 +5,29 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    /* Globally scales down all Tailwind rem values (padding, margins, text sizes) to make the app look properly sized at 100% zoom */
+    font-size: 13px; 
+  }
   body {
-    @apply font-sans antialiased text-secondary-800 bg-[#F3EDE0] text-[15px] leading-relaxed;
+    @apply font-sans antialiased text-secondary-800 bg-[#F3EDE0] leading-relaxed;
   }
   
   h1, h2, h3, h4, h5, h6 {
     @apply tracking-tight font-bold text-secondary-900;
   }
+}
+
+/* Custom styling for native date/time pickers */
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.4) sepia(1) saturate(3) hue-rotate(330deg);
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }

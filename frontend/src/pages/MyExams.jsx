@@ -38,10 +38,10 @@ const MyExams = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-4xl font-extrabold text-secondary-900 tracking-tight">My Exams</h1>
-          <p className="text-secondary-600 mt-2 text-lg">Manage your drafts and live assessments</p>
+          <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">My Exams</h1>
+          <p className="text-secondary-600 mt-2 text-base">Manage your drafts and live assessments</p>
         </div>
       </header>
 
@@ -56,10 +56,10 @@ const MyExams = () => {
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div>
           </div>
         ) : exams.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center shadow-lg border border-secondary-200">
-            <h3 className="text-2xl font-bold text-secondary-900 mb-2">No exams yet</h3>
-            <p className="text-secondary-600 mb-8 text-lg">Create your first exam to get started</p>
-            <Button onClick={() => navigate('/host/create-exam')} className="w-auto px-8 py-3 text-lg">Create Exam</Button>
+          <div className="bg-white rounded-2xl p-8 text-center shadow-lg border border-secondary-200">
+            <h3 className="text-xl font-bold text-secondary-900 mb-2">No exams yet</h3>
+            <p className="text-secondary-600 mb-6 text-base">Create your first exam to get started</p>
+            <Button onClick={() => navigate('/host/create-exam')} className="w-auto px-6 py-2.5 text-base">Create Exam</Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">

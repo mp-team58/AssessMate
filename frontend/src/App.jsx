@@ -5,6 +5,7 @@ import Signup from './pages/Signup';
 import HostDashboard from './pages/HostDashboard';
 import CreateExam from './pages/CreateExam';
 import GenerateQuestions from './pages/GenerateQuestions';
+import ExamQuestions from './pages/ExamQuestions';
 import CandidateDashboard from './pages/CandidateDashboard';
 import DashboardLayout from './layouts/DashboardLayout';
 import MyExams from './pages/MyExams';
@@ -24,6 +25,7 @@ function App() {
         <Route path="/host/exams/:id/manage" element={<ManageExam />} />
         <Route path="/host/create-exam" element={<CreateExam />} />
         <Route path="/host/generate-questions" element={<GenerateQuestions />} />
+        <Route path="/host/exams/:examId/questions" element={<ExamQuestions />} />
       </Route>
 
       {/* Candidate Routes */}

@@ -10,23 +10,23 @@ const AuthLayout = ({ children }) => {
       <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-brand-500 rounded-full blur-[120px] opacity-20"></div>
 
       {/* Floating App Window */}
-      <div className="relative w-full max-w-5xl bg-[#ffffff] rounded-[2rem] shadow-2xl flex flex-col lg:flex-row overflow-hidden min-h-[700px] z-10 border border-secondary-200">
+      <div className="relative w-full max-w-4xl bg-[#ffffff] rounded-3xl shadow-2xl flex flex-col lg:flex-row overflow-hidden min-h-[500px] z-10 border border-secondary-200">
         
         {/* Left Marketing Panel (Light Theme) */}
-        <div className="hidden lg:flex lg:w-1/2 bg-[#ffffff] p-12 xl:p-16 flex-col justify-between border-r border-secondary-100">
+        <div className="hidden lg:flex lg:w-1/2 bg-[#ffffff] p-8 lg:p-10 flex-col justify-between border-r border-secondary-100">
           
           {/* Logo */}
-          <div className="flex items-center gap-3 text-2xl font-bold tracking-tight text-secondary-900">
-            <BookOpenCheck className="w-10 h-10 text-brand-500" />
+          <div className="flex items-center gap-3 text-xl font-bold tracking-tight text-secondary-900">
+            <BookOpenCheck className="w-8 h-8 text-brand-500" />
             <span>AssessMate<span className="text-brand-500">.</span></span>
           </div>
 
           <div className="mt-12 mb-auto pr-4">
-            <h1 className="text-4xl lg:text-5xl font-extrabold mb-6 leading-[1.2] text-secondary-900 tracking-tight">
+            <h1 className="text-3xl lg:text-4xl font-extrabold mb-6 leading-[1.2] text-secondary-900 tracking-tight">
               Intelligent assessment, <br className="hidden xl:block" />
               <span className="text-brand-500">uncompromised</span> integrity.
             </h1>
-            <p className="text-secondary-500 text-lg leading-relaxed font-medium">
+            <p className="text-secondary-500 text-base leading-relaxed font-medium">
               Create assessments in seconds and ensure fair play with our advanced vision algorithms.
             </p>
           </div>
@@ -37,7 +37,7 @@ const AuthLayout = ({ children }) => {
         </div>
 
         {/* Right Form Panel */}
-        <div className="flex-1 flex flex-col justify-center items-center p-8 lg:p-16 bg-[#ffffff] relative">
+        <div className="flex-1 flex flex-col justify-center items-center p-6 lg:p-10 bg-[#ffffff] relative">
           <div className="w-full max-w-md">
             {children}
           </div>

@@ -20,7 +20,7 @@ const DashboardLayout = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F3EDE0] flex flex-col md:flex-row font-sans">
+    <div className="h-screen overflow-hidden bg-[#F3EDE0] flex flex-col md:flex-row font-sans">
       {/* Mobile Header */}
       <div className="md:hidden bg-[#362E20] text-[#F3EDE0] flex items-center justify-between p-4 sticky top-0 z-50 shadow-md">
         <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
@@ -87,11 +87,11 @@ const DashboardLayout = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className="flex-1 flex flex-col overflow-y-auto relative h-full">
         <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-[#DEC430] rounded-full blur-[140px] opacity-10 pointer-events-none"></div>
         <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-500 rounded-full blur-[140px] opacity-10 pointer-events-none"></div>
         
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 lg:p-12 z-10">
+        <div className="flex-1 p-6 md:p-8 lg:p-10 z-10 w-full max-w-[1600px] mx-auto">
           <Outlet />
         </div>
       </main>

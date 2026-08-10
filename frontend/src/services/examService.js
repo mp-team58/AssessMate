@@ -14,6 +14,8 @@ import apiClient from './apiClient';
  * @property {boolean} negativeMark
  * @property {number} negativeMarkValue
  * @property {string} deviceAccess
+ * @property {boolean} hasCodingSection
+ * @property {number} [codingDurationMinutes]
  */
 
 export const createExam = async (payload) => {

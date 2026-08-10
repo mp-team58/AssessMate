@@ -57,9 +57,9 @@ const Login = () => {
 
   return (
     <AuthLayout>
-      <div className="mb-10 text-center lg:text-left">
-        <h2 className="text-3xl font-extrabold text-secondary-900 mb-3 tracking-tight">Welcome back</h2>
-        <p className="text-secondary-500 text-base">Sign in to your account to continue</p>
+      <div className="mb-8 text-center lg:text-left">
+        <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Welcome back</h2>
+        <p className="text-secondary-500 text-sm">Sign in to your account to continue</p>
       </div>
 
       <Toggle activeRole={role} onChange={setRole} />
@@ -90,12 +90,12 @@ const Login = () => {
           </div>
         </div>
 
-        <Button type="submit" disabled={isLoading} className="mt-6">
+        <Button type="submit" disabled={isLoading} className="mt-6 w-full">
           {isLoading ? 'Signing in...' : `Login as ${role === 'host' ? 'Host' : 'Candidate'}`}
         </Button>
       </form>
 
-      <p className="mt-10 text-center text-sm font-medium text-secondary-500">
+      <p className="mt-8 text-center text-sm font-medium text-secondary-500">
         Don't have an account?{' '}
         <Link to="/signup" className="text-brand-500 hover:text-brand-600 font-bold ml-1">
           Create one now

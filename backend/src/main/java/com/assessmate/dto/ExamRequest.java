@@ -45,4 +45,8 @@ public class ExamRequest {
     // Exam Rules
     private Boolean negativeMark;
     private DeviceAccess deviceAccess;
+
+    // Coding Section
+    private Boolean hasCodingSection;
+    private Integer codingDurationMinutes;
 }

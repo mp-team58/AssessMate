@@ -58,4 +58,8 @@ public class ExamResponse {
     private LocalDateTime createdAt;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
+
+    // Coding Section
+    private Boolean hasCodingSection;
+    private Integer codingDurationMinutes;
 }

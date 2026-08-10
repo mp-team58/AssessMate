@@ -106,6 +106,11 @@ public class ExamService {
                         req.getDeviceAccess() != null
                                 ? req.getDeviceAccess() : DeviceAccess.BOTH)
                 .joinCode(generateUniqueJoinCode())
+                .hasCodingSection(
+                        req.getHasCodingSection() != null
+                                ? req.getHasCodingSection() : false)
+                .codingDurationMinutes(
+                        req.getCodingDurationMinutes())
                 .status(ExamStatus.DRAFT)
                 .build();
 
@@ -230,6 +235,8 @@ public class ExamService {
                 .hardSeconds(exam.getHardSeconds())
                 .negativeMark(exam.getNegativeMark())
                 .deviceAccess(exam.getDeviceAccess())
+                .hasCodingSection(exam.getHasCodingSection())
+                .codingDurationMinutes(exam.getCodingDurationMinutes())
                 .joinCode(exam.getJoinCode())
                 .status(exam.getStatus())
                 .createdAt(exam.getCreatedAt())

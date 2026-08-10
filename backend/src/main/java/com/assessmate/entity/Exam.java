@@ -73,6 +73,12 @@ public class Exam {
     @Builder.Default
     private Integer hardSeconds = 90;
 
+    // Coding Section
+    @Builder.Default
+    private Boolean hasCodingSection = false;
+
+    private Integer codingDurationMinutes;
+
     // Exam Rules
     @Builder.Default
     private Boolean negativeMark = false;

@@ -5,6 +5,8 @@ import com.assessmate.dto.ExamResponse;
 import com.assessmate.entity.*;
 import com.assessmate.repository.ExamRepository;
 import com.assessmate.repository.UserRepository;
+import com.assessmate.repository.QuestionRepository;
+import com.assessmate.entity.Difficulty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
@@ -18,6 +20,7 @@ public class ExamService {
 
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
+    private final QuestionRepository questionRepository;
 
     // Create Exam
     public ExamResponse createExam(
@@ -141,23 +144,75 @@ public class ExamService {
     // Publish exam
     public ExamResponse publishExam(
             Long id, String hostEmail) {
+
         Exam exam = examRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Exam not found")
-                );
-        if (!exam.getHost().getEmail().equals(hostEmail)) {
+                        new RuntimeException("Exam not found"));
+
+        if (!exam.getHost().getEmail()
+                .equals(hostEmail)) {
             throw new RuntimeException(
-                    "Not authorized to publish this exam"
-            );
+                    "Not authorized to publish this exam");
         }
+
         if (exam.getStatus() != ExamStatus.DRAFT) {
             throw new RuntimeException(
-                    "Only DRAFT exams can be published"
-            );
+                    "Only DRAFT exams can be published");
         }
+
+        int total = exam.getTotalQuestions();
+        int easyRequired = total
+                * exam.getEasyPercent() / 100;
+        int mediumRequired = total
+                * exam.getMediumPercent() / 100;
+        int hardRequired = total
+                * exam.getHardPercent() / 100;
+        int remainder = total - easyRequired
+                - mediumRequired - hardRequired;
+        hardRequired += remainder;
+
+        long easyCount = questionRepository
+                .countByExamIdAndDifficulty(
+                        id, Difficulty.EASY);
+        long mediumCount = questionRepository
+                .countByExamIdAndDifficulty(
+                        id, Difficulty.MEDIUM);
+        long hardCount = questionRepository
+                .countByExamIdAndDifficulty(
+                        id, Difficulty.HARD);
+
+        if (easyCount < easyRequired) {
+            throw new RuntimeException(
+                    "Need " + (easyRequired - easyCount)
+                            + " more Easy questions to publish");
+        }
+        if (mediumCount < mediumRequired) {
+            throw new RuntimeException(
+                    "Need " + (mediumRequired - mediumCount)
+                            + " more Medium questions to publish");
+        }
+        if (hardCount < hardRequired) {
+            throw new RuntimeException(
+                    "Need " + (hardRequired - hardCount)
+                            + " more Hard questions to publish");
+        }
+
+        // Exact total check
+        long totalCount = easyCount
+                + mediumCount + hardCount;
+        if (totalCount != total) {
+            throw new RuntimeException(
+                    "Exactly " + total + " questions " +
+                            "are required to publish. " +
+                            "Currently have " + totalCount +
+                            ". Remove extra questions or " +
+                            "adjust the exam total.");
+        }
+
         exam.setStatus(ExamStatus.LIVE);
         exam.setStartedAt(LocalDateTime.now());
-        return mapToResponse(examRepository.save(exam));
+        return mapToResponse(
+                examRepository.save(exam));
     }
 
     // End exam

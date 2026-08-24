@@ -37,4 +37,10 @@ public class User {
     public void prePersist() {
         createdAt = LocalDateTime.now();
     }
+
+    @Column(length = 512)
+    private String activeToken;
+// stores current valid JWT token
+// replaced on every new login
+// null = user is logged out
 }

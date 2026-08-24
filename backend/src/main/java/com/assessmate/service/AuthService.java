@@ -1,10 +1,7 @@
 package com.assessmate.service;
 
-import com.assessmate.dto.AuthResponse;
-import com.assessmate.dto.LoginRequest;
-import com.assessmate.dto.RegisterRequest;
-import com.assessmate.entity.Role;
-import com.assessmate.entity.User;
+import com.assessmate.dto.*;
+import com.assessmate.entity.*;
 import com.assessmate.repository.UserRepository;
 import com.assessmate.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -19,69 +16,95 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    // Register a new user
-    public AuthResponse register(RegisterRequest req) {
+    public AuthResponse register(
+            RegisterRequest req) {
 
-        // Check if email already exists
-        if (userRepository.existsByEmail(req.getEmail())) {
-            throw new RuntimeException("Email already registered");
+        if (userRepository.existsByEmail(
+                req.getEmail())) {
+            throw new RuntimeException(
+                    "Email already registered");
         }
 
-        // Create User object
         User user = User.builder()
                 .name(req.getName())
                 .email(req.getEmail())
-                .password(passwordEncoder.encode(req.getPassword()))
+                .password(passwordEncoder.encode(
+                        req.getPassword()))
                 .role(Role.valueOf(req.getRole()))
                 .build();
 
-        // Save user to database
         userRepository.save(user);
 
-        // Generate JWT token
+        // Generate token
         String token = jwtUtil.generateToken(
                 user.getEmail(),
-                user.getRole().name()
-        );
+                user.getRole().name());
 
-        // Return response
+        // Save token to database
+        user.setActiveToken(token);
+        userRepository.save(user);
+
         return new AuthResponse(
                 token,
                 user.getRole().name(),
                 user.getName(),
-                user.getId()
-        );
+                user.getId());
     }
 
-    // Login existing user
     public AuthResponse login(LoginRequest req) {
-        User user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid password");
+        User user = userRepository
+                .findByEmail(req.getEmail())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "User not found"));
+
+        if (!passwordEncoder.matches(
+                req.getPassword(),
+                user.getPassword())) {
+            throw new RuntimeException(
+                    "Invalid password");
         }
 
-        // Check if selected role matches actual account role
-        if (req.getRole() != null && !req.getRole().isEmpty()) {
-            if (!user.getRole().name().equals(req.getRole())) {
+        // Role check
+        if (req.getRole() != null
+                && !req.getRole().isEmpty()) {
+            if (!user.getRole().name()
+                    .equals(req.getRole())) {
                 throw new RuntimeException(
-                        "This account is registered as " +
-                                user.getRole().name() +
-                                ". Please select the correct role."
-                );
+                        "This account is registered as "
+                                + user.getRole().name()
+                                + ". Please select "
+                                + "the correct role.");
             }
         }
 
+        // Generate new token
+        // This invalidates all previous tokens
         String token = jwtUtil.generateToken(
                 user.getEmail(),
-                user.getRole().name()
-        );
+                user.getRole().name());
+
+        // Replace old token in database
+        user.setActiveToken(token);
+        userRepository.save(user);
+
         return new AuthResponse(
                 token,
                 user.getRole().name(),
                 user.getName(),
-                user.getId()
-        );
+                user.getId());
+    }
+
+    public void logout(String email) {
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "User not found"));
+
+        // Clear token from database
+        user.setActiveToken(null);
+        userRepository.save(user);
     }
 }

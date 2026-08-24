@@ -7,6 +7,8 @@ import com.assessmate.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.security.Principal;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -34,5 +36,15 @@ public class AuthController {
         return ResponseEntity.ok(
                 authService.login(request)
         );
+    }
+
+    // Logout — clears active token
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(
+            Principal principal) {
+        authService.logout(principal.getName());
+        return ResponseEntity.ok(
+                Map.of("message",
+                        "Logged out successfully"));
     }
 }

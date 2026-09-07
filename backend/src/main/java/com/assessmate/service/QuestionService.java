@@ -2,6 +2,7 @@ package com.assessmate.service;
 
 import com.assessmate.dto.*;
 import com.assessmate.entity.*;
+import com.assessmate.entity.ExamStatus;
 import com.assessmate.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -467,6 +468,9 @@ public class QuestionService {
                 hardAdded, hardRequired,
                 canPublish);
 
+        long unverifiedCount = questionRepository
+                .countByExamIdAndIsVerifiedFalse(examId);
+
         return QuestionStatsResponse.builder()
                 .totalRequired(total)
                 .totalAdded(totalAdded)
@@ -479,6 +483,7 @@ public class QuestionService {
                 .hardRequired(hardRequired)
                 .hardAdded(hardAdded)
                 .hardStatus(hardStatus)
+                .unverifiedCount(unverifiedCount)
                 .canPublish(canPublish)
                 .message(message)
                 .build();
@@ -756,5 +761,42 @@ public class QuestionService {
                 .isVerified(q.getIsVerified())
                 .createdAt(q.getCreatedAt())
                 .build();
+    }
+
+    // ─────────────────────────────────────────
+    // MARK QUESTION AS VERIFIED
+    // Only host who owns the question can do this
+    // ─────────────────────────────────────────
+
+    public QuestionResponse markAsVerified(
+            Long questionId,
+            String hostEmail) {
+
+        Question question = questionRepository
+            .findById(questionId)
+            .orElseThrow(() ->
+                new RuntimeException(
+                    "Question not found"));
+
+        // Ownership check
+        if (!question.getCreatedBy().getEmail()
+                .equals(hostEmail)) {
+            throw new RuntimeException(
+                "You are not authorized to " +
+                "verify this question");
+        }
+
+        // Check exam is still DRAFT
+        if (question.getExam() != null
+                && question.getExam().getStatus()
+                    != ExamStatus.DRAFT) {
+            throw new RuntimeException(
+                "Cannot modify questions after " +
+                "exam is published");
+        }
+
+        question.setIsVerified(true);
+        return mapToResponse(
+            questionRepository.save(question));
     }
 }

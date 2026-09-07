@@ -24,6 +24,9 @@ public class QuestionStatsResponse {
     private Long hardAdded;
     private String hardStatus;
 
+    private Long unverifiedCount;
+    // number of questions not yet verified
+
     private Boolean canPublish;
     private String message;
 }

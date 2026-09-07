@@ -146,73 +146,91 @@ public class ExamService {
             Long id, String hostEmail) {
 
         Exam exam = examRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException("Exam not found"));
+            .orElseThrow(() ->
+                new RuntimeException(
+                    "Exam not found"));
 
         if (!exam.getHost().getEmail()
                 .equals(hostEmail)) {
             throw new RuntimeException(
-                    "Not authorized to publish this exam");
+                "Not authorized to publish " +
+                "this exam");
         }
 
         if (exam.getStatus() != ExamStatus.DRAFT) {
             throw new RuntimeException(
-                    "Only DRAFT exams can be published");
+                "Only DRAFT exams can be published");
         }
 
         int total = exam.getTotalQuestions();
-        int easyRequired = total
-                * exam.getEasyPercent() / 100;
-        int mediumRequired = total
-                * exam.getMediumPercent() / 100;
+
+        // Calculate required per difficulty
+        int easyRequired = (int) (total
+            * exam.getEasyPercent() / 100.0);
+        int mediumRequired = (int) (total
+            * exam.getMediumPercent() / 100.0);
         int hardRequired = total
-                * exam.getHardPercent() / 100;
-        int remainder = total - easyRequired
-                - mediumRequired - hardRequired;
-        hardRequired += remainder;
+            - easyRequired - mediumRequired;
 
+        // Count actual questions per difficulty
         long easyCount = questionRepository
-                .countByExamIdAndDifficulty(
-                        id, Difficulty.EASY);
+            .countByExamIdAndDifficulty(
+                id, Difficulty.EASY);
         long mediumCount = questionRepository
-                .countByExamIdAndDifficulty(
-                        id, Difficulty.MEDIUM);
+            .countByExamIdAndDifficulty(
+                id, Difficulty.MEDIUM);
         long hardCount = questionRepository
-                .countByExamIdAndDifficulty(
-                        id, Difficulty.HARD);
+            .countByExamIdAndDifficulty(
+                id, Difficulty.HARD);
 
+        // Check minimum requirements
         if (easyCount < easyRequired) {
             throw new RuntimeException(
-                    "Need " + (easyRequired - easyCount)
-                            + " more Easy questions to publish");
+                "Need " + (easyRequired - easyCount)
+                + " more Easy questions to publish");
         }
         if (mediumCount < mediumRequired) {
             throw new RuntimeException(
-                    "Need " + (mediumRequired - mediumCount)
-                            + " more Medium questions to publish");
+                "Need "
+                + (mediumRequired - mediumCount)
+                + " more Medium questions to publish");
         }
         if (hardCount < hardRequired) {
             throw new RuntimeException(
-                    "Need " + (hardRequired - hardCount)
-                            + " more Hard questions to publish");
+                "Need " + (hardRequired - hardCount)
+                + " more Hard questions to publish");
         }
 
-        // Exact total check
+        // Check exact total
         long totalCount = easyCount
-                + mediumCount + hardCount;
+            + mediumCount + hardCount;
         if (totalCount != total) {
             throw new RuntimeException(
-                    "Exactly " + total + " questions " +
-                            "are required to publish. " +
-                            "Currently have " + totalCount +
-                            ". Remove extra questions or " +
-                            "adjust the exam total.");
+                "Exactly " + total + " questions "
+                + "are required to publish. "
+                + "Currently have " + totalCount
+                + ". Remove extra questions or "
+                + "adjust the exam total.");
+        }
+
+        // Problem 2 — Block if ANY question
+        // is unverified
+        long unverifiedCount = questionRepository
+            .countByExamIdAndIsVerifiedFalse(id);
+        if (unverifiedCount > 0) {
+            throw new RuntimeException(
+                unverifiedCount + " question(s) "
+                + "are not verified. Please review "
+                + "and verify all questions before "
+                + "publishing. Go to the question "
+                + "management page and mark each "
+                + "question as verified.");
         }
 
         exam.setStatus(ExamStatus.LIVE);
         exam.setStartedAt(LocalDateTime.now());
         return mapToResponse(
-                examRepository.save(exam));
+            examRepository.save(exam));
     }
 
     // End exam

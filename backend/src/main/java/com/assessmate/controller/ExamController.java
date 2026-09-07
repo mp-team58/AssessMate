@@ -18,7 +18,8 @@ public class ExamController {
 
     private final ExamService examService;
 
-    @PostMapping("/create")
+    // Create a new exam
+    @PostMapping
     public ResponseEntity<ExamResponse> createExam(
             @RequestBody ExamRequest req,
             Principal principal) {
@@ -27,7 +28,8 @@ public class ExamController {
         );
     }
 
-    @GetMapping("/my")
+    // Get current host's exams
+    @GetMapping
     public ResponseEntity<List<ExamResponse>> getMyExams(
             Principal principal) {
         return ResponseEntity.ok(
@@ -35,6 +37,7 @@ public class ExamController {
         );
     }
 
+    // Get single exam details
     @GetMapping("/{id}")
     public ResponseEntity<ExamResponse> getExamById(
             @PathVariable Long id) {
@@ -43,7 +46,8 @@ public class ExamController {
         );
     }
 
-    @PutMapping("/{id}/publish")
+    // Publish exam
+    @PostMapping("/{id}/publish")
     public ResponseEntity<ExamResponse> publishExam(
             @PathVariable Long id,
             Principal principal) {
@@ -52,7 +56,8 @@ public class ExamController {
         );
     }
 
-    @PutMapping("/{id}/end")
+    // End exam
+    @PostMapping("/{id}/end")
     public ResponseEntity<ExamResponse> endExam(
             @PathVariable Long id,
             Principal principal) {
@@ -61,6 +66,7 @@ public class ExamController {
         );
     }
 
+    // Delete exam
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteExam(
             @PathVariable Long id,

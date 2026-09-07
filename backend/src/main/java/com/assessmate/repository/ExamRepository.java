@@ -10,6 +10,8 @@ import java.util.Optional;
 @Repository
 public interface ExamRepository extends JpaRepository<Exam, Long> {
     Optional<Exam> findByJoinCode(String joinCode);
+
     List<Exam> findByHostId(Long hostId);
+
     List<Exam> findByStatus(ExamStatus status);
 }

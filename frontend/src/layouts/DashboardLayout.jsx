@@ -16,7 +16,7 @@ const DashboardLayout = () => {
     { name: 'Dashboard', path: '/host/dashboard', icon: LayoutDashboard },
     { name: 'My Exams', path: '/host/my-exams', icon: FileText },
     { name: 'Create Exam', path: '/host/create-exam', icon: FileText },
-    // Settings can be added later
+    { name: 'Question Bank', path: '/host/question-bank', icon: BookOpenCheck },
   ];
 
   return (

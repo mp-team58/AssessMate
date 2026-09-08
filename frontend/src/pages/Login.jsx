@@ -36,7 +36,7 @@ const Login = () => {
       } else {
         response = await loginCandidate(data);
       }
-      
+
       const { token, role: userRole, name, id } = response.data;
       login(token, userRole, name, id);
       // Navigate to respective dashboard based on role returned from backend
@@ -66,7 +66,7 @@ const Login = () => {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
-        
+
         <Input
           label="Email Address"
           type="email"
@@ -74,7 +74,7 @@ const Login = () => {
           {...register('email')}
           error={errors.email}
         />
-        
+
         <div>
           <Input
             label="Password"

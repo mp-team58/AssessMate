@@ -8,17 +8,22 @@ const apiClient = async (endpoint, options = {}) => {
   const url = `${BASE_URL}${endpoint}`;
 
   // Initialize headers
-  const headers = new Headers(options.headers || {});
-  if (!headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
+  const headers = { ...(options.headers || {}) };
+
+  // Normalize header keys for safe checking
+  const getHeader = (key) => Object.keys(headers).find(k => k.toLowerCase() === key.toLowerCase());
+
+  if (!getHeader('content-type') && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
   }
 
   // Request Interceptor Logic: Add Auth Token
   const token = localStorage.getItem('token');
   const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
-  
-  if (token && !headers.has('Authorization') && !isAuthEndpoint) {
-    headers.set('Authorization', `Bearer ${token}`);
+  const isTemplateEndpoint = endpoint.includes('/questions/excel/template');
+
+  if (token && token !== 'null' && token !== 'undefined' && !getHeader('authorization') && !isAuthEndpoint && !isTemplateEndpoint) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const config = {
@@ -26,32 +31,38 @@ const apiClient = async (endpoint, options = {}) => {
     headers,
   };
 
+  if (endpoint.includes('/questions/manual') || endpoint.includes('/questions/bank/add')) {
+    console.log(`[apiClient DEBUG] Sending request to ${url}`);
+    console.log('[apiClient DEBUG] Headers being passed to fetch:', config.headers);
+    console.log('[apiClient DEBUG] Body type:', config.body instanceof FormData ? 'FormData' : typeof config.body);
+  }
+
   try {
     let response = await fetch(url, config);
 
-    // Response Interceptor Logic: Handle 401 Unauthorized
-    if (response.status === 401 && !config._retry) {
-      config._retry = true;
-      try {
-        // Implement silent refresh logic here when backend is ready
-        // const refreshResponse = await fetch(`${BASE_URL}/auth/refresh`, { method: 'POST' });
-        // if (!refreshResponse.ok) throw new Error('Refresh failed');
-        // const { accessToken } = await refreshResponse.json();
-        // localStorage.setItem('accessToken', accessToken);
-        // headers.set('Authorization', `Bearer ${accessToken}`);
-        // return apiClient(endpoint, config); // Retry original request
-
-        // For now, throw to trigger logout/error handling
-        throw new Error('Unauthorized');
-      } catch (refreshError) {
-        // window.location.href = '/login';
-        throw refreshError;
-      }
+    // Parse JSON or Blob response
+    let data;
+    if (config.responseType === 'blob') {
+      data = await response.blob();
+    } else {
+      const isJson = response.headers.get('content-type')?.includes('application/json');
+      data = isJson ? await response.json() : await response.text();
     }
 
-    // Parse JSON response if applicable
-    const isJson = response.headers.get('content-type')?.includes('application/json');
-    const data = isJson ? await response.json() : await response.text();
+    // Response Interceptor Logic: Handle 401 Unauthorized
+    if (response.status === 401) {
+      const msg = (data && data.message) ? data.message : "";
+      if (msg.includes("Session expired") || msg.includes("another device")) {
+        localStorage.clear();
+        window.location.href = "/login";
+        alert("Your session was ended because you logged in from another device.");
+      }
+
+      if (!config._retry) {
+        config._retry = true;
+        // Keep existing refresh logic stub if needed, but the above covers the specific request
+      }
+    }
 
     if (!response.ok) {
       // Improve error message if backend returns HTML (like dev tunnels warning) or string
@@ -63,10 +74,16 @@ const apiClient = async (endpoint, options = {}) => {
         errorMessage = data.message;
       } else if (data && data.error) {
         errorMessage = `${data.error} (Status ${response.status})`;
-      } else if (data && typeof data === 'object') {
+      } else if (data && typeof data === 'object' && Object.keys(data).length > 0) {
         errorMessage = `API Error (Status ${response.status}): ${JSON.stringify(data).substring(0, 100)}`;
       } else {
-        errorMessage = `API Error (Status ${response.status})`;
+        if (response.status === 403) {
+          errorMessage = '403 Forbidden: You do not have permission, or your login session is invalid. Try logging out and logging in again.';
+        } else if (response.status === 401) {
+          errorMessage = '401 Unauthorized: Your session has expired or is invalid. Please log in again.';
+        } else {
+          errorMessage = `API Error (Status ${response.status}): The backend returned an empty error response.`;
+        }
       }
 
       // Simulate Axios error structure
@@ -84,8 +101,9 @@ const apiClient = async (endpoint, options = {}) => {
 
 // Convenience methods similar to Axios
 apiClient.get = (url, config) => apiClient(url, { ...config, method: 'GET' });
-apiClient.post = (url, data, config) => apiClient(url, { ...config, method: 'POST', body: JSON.stringify(data) });
-apiClient.put = (url, data, config) => apiClient(url, { ...config, method: 'PUT', body: JSON.stringify(data) });
+apiClient.post = (url, data, config) => apiClient(url, { ...config, method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) });
+apiClient.put = (url, data, config) => apiClient(url, { ...config, method: 'PUT', body: data instanceof FormData ? data : JSON.stringify(data) });
+apiClient.patch = (url, data, config) => apiClient(url, { ...config, method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) });
 apiClient.delete = (url, config) => apiClient(url, { ...config, method: 'DELETE' });
 
 export default apiClient;

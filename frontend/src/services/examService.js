@@ -19,11 +19,11 @@ import apiClient from './apiClient';
  */
 
 export const createExam = async (payload) => {
-  return apiClient.post('/exams/create', payload);
+  return apiClient.post('/exams', payload);
 };
 
 export const getMyExams = async () => {
-  return apiClient.get('/exams/my');
+  return apiClient.get('/exams');
 };
 
 export const getExamById = async (id) => {
@@ -35,9 +35,9 @@ export const deleteExam = async (id) => {
 };
 
 export const publishExam = async (id) => {
-  return apiClient.put(`/exams/${id}/publish`);
+  return apiClient.post(`/exams/${id}/publish`);
 };
 
 export const endExam = async (id) => {
-  return apiClient.put(`/exams/${id}/end`);
+  return apiClient.post(`/exams/${id}/end`);
 };

@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getExamById, publishExam, endExam } from '../services/examService';
+import { getExamQuestionStats, getExamQuestions } from '../services/questionService';
 import Button from '../components/ui/Button';
+import QuestionCard from '../components/QuestionCard';
 
 const ManageExam = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [exam, setExam] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -16,6 +20,12 @@ const ManageExam = () => {
     try {
       const response = await getExamById(id);
       setExam(response.data);
+      const [statsRes, questionsRes] = await Promise.all([
+        getExamQuestionStats(id),
+        getExamQuestions(id)
+      ]);
+      setStats(statsRes.data || statsRes);
+      setQuestions(questionsRes.data || questionsRes);
     } catch (err) {
       setError(err.message || 'Failed to fetch exam details.');
     } finally {
@@ -28,11 +38,15 @@ const ManageExam = () => {
   }, [id]);
 
   const handlePublish = async () => {
-    // In the future: Check if questions exist before publishing
-    // if (!exam.questions || exam.questions.length === 0) {
-    //   alert("You must add questions before publishing!");
-    //   return;
-    // }
+    if (stats?.unverifiedCount > 0) {
+      alert("You must verify all AI generated questions before publishing!");
+      return;
+    }
+    if (stats?.totalAdded < stats?.totalRequired) {
+      alert(`You need ${stats.totalRequired} questions to publish this exam, but only have ${stats.totalAdded}.`);
+      return;
+    }
+    
     try {
       const response = await publishExam(id);
       setExam({ ...exam, status: 'LIVE', startedAt: response.data.startedAt || new Date().toISOString() });
@@ -121,10 +135,38 @@ const ManageExam = () => {
           )}
         </div>
 
-        <div className="text-center py-12 bg-secondary-50 rounded-xl border border-dashed border-secondary-300">
-          <p className="text-secondary-500 mb-2 font-medium">No questions added yet.</p>
-          <p className="text-sm text-secondary-400">Add questions to this exam before publishing it to candidates.</p>
-        </div>
+        {stats && stats.totalAdded > 0 ? (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center bg-secondary-50 p-4 rounded-xl border border-secondary-200">
+              <p className="text-sm text-secondary-600 font-medium">
+                {stats.easyAdded} Easy, {stats.mediumAdded} Medium, {stats.hardAdded} Hard
+              </p>
+              {stats.unverifiedCount > 0 && (
+                <p className="text-sm text-amber-600 font-semibold">
+                  ⚠️ {stats.unverifiedCount} question(s) need review before publishing.
+                </p>
+              )}
+            </div>
+            
+            <div className="grid gap-4 mt-6">
+              {questions.map((q, index) => (
+                <div key={q.id} className="relative group">
+                  <div className="absolute top-4 left-4 z-10 w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm border border-brand-200">
+                    {index + 1}
+                  </div>
+                  <div className="pl-10">
+                    <QuestionCard question={q} showSource={true} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-secondary-50 rounded-xl border border-dashed border-secondary-300">
+            <p className="text-secondary-500 mb-2 font-medium">No questions added yet.</p>
+            <p className="text-sm text-secondary-400">Add questions to this exam before publishing it to candidates.</p>
+          </div>
+        )}
       </div>
     </div>
   );

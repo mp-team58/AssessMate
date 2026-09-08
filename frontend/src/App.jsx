@@ -10,6 +10,7 @@ import CandidateDashboard from './pages/CandidateDashboard';
 import DashboardLayout from './layouts/DashboardLayout';
 import MyExams from './pages/MyExams';
 import ManageExam from './pages/ManageExam';
+import QuestionBank from './pages/QuestionBank';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
         <Route path="/host/exams/:id/manage" element={<ManageExam />} />
         <Route path="/host/create-exam" element={<CreateExam />} />
         <Route path="/host/generate-questions" element={<GenerateQuestions />} />
+        <Route path="/host/question-bank" element={<QuestionBank />} />
         <Route path="/host/exams/:examId/questions" element={<ExamQuestions />} />
       </Route>
 

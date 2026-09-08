@@ -1,419 +1,457 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import Input from '../components/ui/Input';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  getExamQuestions, getExamQuestionStats, addQuestionManually,
+  addBankQuestionsToExam, editQuestion, deleteQuestion, getBankQuestions, verifyQuestion
+} from '../services/questionService';
+import { getExamById, publishExam } from '../services/examService';
+import QuestionForm from '../components/QuestionForm';
+import QuestionCard from '../components/QuestionCard';
+import ExcelUpload from '../components/ExcelUpload';
+import AIGeneration from '../components/AIGeneration';
 import Button from '../components/ui/Button';
-import Select from '../components/ui/Select';
-import { Edit2, Trash2, Plus, Cpu, FileText, CheckCircle } from 'lucide-react';
+import { Edit2, Trash2, Plus, Cpu, Library, Search, Filter, Rocket, FileSpreadsheet } from 'lucide-react';
 
 const ExamQuestions = () => {
   const { examId } = useParams();
-  
-  // Mock exam info
-  const [examInfo] = useState({
-    title: 'Midterm Assessment 2026',
-    subject: 'Computer Science',
-    id: examId || 'EXM-1234',
-    totalQuestions: 20
-  });
+  const navigate = useNavigate();
 
-  const [questions, setQuestions] = useState([
-    {
-      id: '1',
-      text: 'What is the Virtual DOM in React?',
-      type: 'MCQ',
-      difficulty: 'MEDIUM',
-      topic: 'React Core',
-      explanation: 'The Virtual DOM is a lightweight copy of the actual DOM used for performance optimization.',
-      options: {
-        A: 'A direct copy of the browser DOM',
-        B: 'A lightweight JavaScript representation of the DOM',
-        C: 'A new HTML5 feature',
-        D: 'A database for React state'
-      },
-      correctAnswer: 'B'
-    },
-    {
-      id: '2',
-      text: 'Which hook is used to manage side effects in React?',
-      type: 'MCQ',
-      difficulty: 'EASY',
-      topic: 'React Hooks',
-      explanation: 'useEffect is used for side effects like fetching data, subscriptions, or manually changing the DOM.',
-      options: {
-        A: 'useState',
-        B: 'useContext',
-        C: 'useEffect',
-        D: 'useReducer'
-      },
-      correctAnswer: 'C'
+  const [examInfo, setExamInfo] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [activeTab, setActiveTab] = useState(null); // 'manual', 'bank', 'ai'
+  const [editingQuestion, setEditingQuestion] = useState(null);
+
+  // Bank Tab State
+  const [bankQuestions, setBankQuestions] = useState([]);
+  const [selectedBankIds, setSelectedBankIds] = useState([]);
+  const [bankFilters, setBankFilters] = useState({ difficulty: '', type: '', search: '' });
+  const [isBankLoading, setIsBankLoading] = useState(false);
+
+  const fetchExamData = async () => {
+    setIsLoading(true);
+    try {
+      const [examRes, questionsRes, statsRes] = await Promise.all([
+        getExamById(examId),
+        getExamQuestions(examId),
+        getExamQuestionStats(examId)
+      ]);
+      setExamInfo(examRes.data || examRes);
+      setQuestions(questionsRes.data || questionsRes);
+      setStats(statsRes.data || statsRes);
+    } catch (error) {
+      console.error('Failed to fetch exam data', error);
+      alert('Error loading exam data. It might not be in DRAFT status or you are not authorized.');
+    } finally {
+      setIsLoading(false);
     }
-  ]);
-  const [activeTab, setActiveTab] = useState('manual'); // 'manual', 'ai', 'excel'
-  
-  const initialFormState = {
-    text: '',
-    type: 'MCQ',
-    difficulty: 'EASY',
-    topic: '',
-    explanation: '',
-    options: {
-      A: '',
-      B: '',
-      C: '',
-      D: ''
-    },
-    correctAnswer: 'A'
   };
 
-  const [formData, setFormData] = useState(initialFormState);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  useEffect(() => {
+    fetchExamData();
+  }, [examId]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    if (['A', 'B', 'C', 'D'].includes(name)) {
-      setFormData(prev => ({
-        ...prev,
-        options: {
-          ...prev.options,
-          [name]: value
+  // Fetch bank questions when Bank tab is active
+  useEffect(() => {
+    if (activeTab === 'bank') {
+      const fetchBank = async () => {
+        setIsBankLoading(true);
+        try {
+          const activeFilters = Object.fromEntries(
+            Object.entries(bankFilters).filter(([_, v]) => v !== '')
+          );
+          const res = await getBankQuestions(activeFilters);
+          setBankQuestions(res.data || res);
+        } catch (error) {
+          console.error('Failed to fetch bank questions', error);
+        } finally {
+          setIsBankLoading(false);
         }
-      }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      };
+      const delay = setTimeout(fetchBank, 400);
+      return () => clearTimeout(delay);
+    }
+  }, [activeTab, bankFilters]);
+
+  const handleManualSubmit = async (formData) => {
+    try {
+      await addQuestionManually(examId, formData);
+      setActiveTab(null);
+      fetchExamData();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'Failed to add question');
     }
   };
 
-  const validateForm = () => {
-    if (!formData.text.trim()) return false;
-    if (!formData.options.A.trim() || !formData.options.B.trim() || !formData.options.C.trim() || !formData.options.D.trim()) return false;
-    return true;
-  };
-
-  const handleSave = (addAnother = false) => {
-    if (!validateForm()) {
-      alert("Please fill in all required fields (Question Text and all 4 Options).");
-      return;
-    }
-
-    if (isEditing) {
-      setQuestions(questions.map(q => q.id === editingId ? { ...formData, id: editingId } : q));
-      setIsEditing(false);
-      setEditingId(null);
-    } else {
-      const newQuestion = { ...formData, id: Date.now().toString() };
-      setQuestions([...questions, newQuestion]);
-    }
-
-    if (addAnother || isEditing) {
-      setFormData(initialFormState);
+  const handleEditSubmit = async (formData) => {
+    try {
+      await editQuestion(editingQuestion.id, formData);
+      setEditingQuestion(null);
+      fetchExamData();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'Failed to edit question');
     }
   };
 
-  const handleEdit = (question) => {
-    setIsEditing(true);
-    setEditingId(question.id);
-    setFormData(question);
-    setActiveTab('manual');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this question?")) {
-      setQuestions(questions.filter(q => q.id !== id));
-      if (isEditing && editingId === id) {
-        handleReset();
+      try {
+        await deleteQuestion(id);
+        fetchExamData();
+      } catch (error) {
+        console.error(error);
+        alert(error.message || 'Failed to delete question');
       }
     }
   };
 
-  const handleReset = () => {
-    setFormData(initialFormState);
-    setIsEditing(false);
-    setEditingId(null);
+  const handleVerify = async (id) => {
+    try {
+      await verifyQuestion(id);
+      fetchExamData();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'Failed to verify question');
+    }
   };
 
-  const progressPercentage = (questions.length / examInfo.totalQuestions) * 100;
+  const handleBankSubmit = async () => {
+    if (selectedBankIds.length === 0) return;
+    try {
+      await addBankQuestionsToExam(parseInt(examId), selectedBankIds);
+      setSelectedBankIds([]);
+      setActiveTab(null);
+      fetchExamData();
+    } catch (error) {
+      console.error(error);
+      alert(error.message || 'Failed to add from bank');
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!stats?.canPublish) return;
+    if (window.confirm("Are you sure you want to publish this exam? You won't be able to edit questions after publishing.")) {
+      try {
+        await publishExam(examId);
+        navigate('/host/my-exams');
+      } catch (error) {
+        console.error(error);
+        alert(error.message || 'Failed to publish exam');
+      }
+    }
+  };
+
+  const renderProgressBar = (label, added, required, status) => {
+    const percent = required > 0 ? Math.min((added / required) * 100, 100) : 0;
+    const isExcess = status === 'EXCESS';
+    const isComplete = status === 'COMPLETE';
+
+    let colorClass = 'bg-brand-500';
+    if (isExcess) colorClass = 'bg-red-500';
+    if (isComplete) colorClass = 'bg-green-500';
+
+    return (
+      <div className="mb-4">
+        <div className="flex justify-between text-sm font-medium mb-1">
+          <span className="text-secondary-700">{label}</span>
+          <span className={isExcess ? 'text-red-600 font-bold' : isComplete ? 'text-green-600 font-bold' : 'text-secondary-600'}>
+            {added} / {required} {isComplete && '✅'}
+          </span>
+        </div>
+        <div className="w-full bg-secondary-100 rounded-full h-2">
+          <div
+            className={`${colorClass} h-2 rounded-full transition-all duration-500`}
+            style={{ width: `${percent}%` }}
+          ></div>
+        </div>
+      </div>
+    );
+  };
+
+  if (isLoading && !examInfo) {
+    return <div className="p-8 text-center text-gray-500">Loading exam data...</div>;
+  }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-500">
-      
-      {/* Top Section */}
+    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-500 pb-20">
+
+      {/* Top Section: Exam Info & Stats */}
       <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 p-6 md:p-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-xl font-bold text-secondary-900">{examInfo.title}</h1>
+            <h1 className="text-2xl font-bold text-secondary-900">{examInfo?.title || `Exam #${examId}`}</h1>
             <div className="flex items-center gap-3 mt-2 text-sm text-secondary-600">
-              <span className="bg-brand-50 text-brand-700 px-2 py-1 rounded-md font-medium">{examInfo.subject}</span>
-              <span className="font-mono text-xs bg-secondary-100 px-2 py-1 rounded-md">ID: {examInfo.id}</span>
-            </div>
-          </div>
-          <div className="w-full md:w-64">
-            <div className="flex justify-between text-sm font-medium mb-2">
-              <span className="text-secondary-700">Progress</span>
-              <span className="text-brand-600">{questions.length} of {examInfo.totalQuestions} added</span>
-            </div>
-            <div className="w-full bg-secondary-100 rounded-full h-2.5">
-              <div 
-                className="bg-brand-600 h-2.5 rounded-full transition-all duration-500" 
-                style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-              ></div>
+              <span className="bg-brand-50 text-brand-700 px-2 py-1 rounded-md font-medium">{examInfo?.subject || 'Subject'}</span>
+              <span className="font-mono text-xs bg-secondary-100 px-2 py-1 rounded-md">Join Code: {examInfo?.joinCode || 'N/A'}</span>
             </div>
           </div>
         </div>
 
-        {/* Add Question Methods */}
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        {stats && (
+          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+            <h3 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Question Requirements</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+              {renderProgressBar('Easy Questions', stats.easyAdded, stats.easyRequired, stats.easyStatus)}
+              {renderProgressBar('Medium Questions', stats.mediumAdded, stats.mediumRequired, stats.mediumStatus)}
+              {renderProgressBar('Hard Questions', stats.hardAdded, stats.hardRequired, stats.hardStatus)}
+              {renderProgressBar('Total Questions', stats.totalAdded, stats.totalRequired, stats.canPublish ? 'COMPLETE' : 'INCOMPLETE')}
+            </div>
+
+            <div className={`mt-4 p-3 rounded-lg text-sm font-medium ${stats.canPublish && stats.unverifiedCount === 0 ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+              {stats.canPublish && stats.unverifiedCount === 0 ? "All questions verified. Ready to publish!" : stats.message}
+            </div>
+          </div>
+        )}
+
+        {stats?.unverifiedCount > 0 && (
+          <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-900">
+            <span className="text-xl">⚠️</span>
+            <p className="font-semibold text-sm pt-0.5">{stats.unverifiedCount} question(s) need review before publish.</p>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-3 mt-6">
           <button
-            onClick={() => setActiveTab('manual')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${
-              activeTab === 'manual' 
-                ? 'bg-brand-600 text-white shadow-md' 
+            onClick={() => { setActiveTab(activeTab === 'manual' ? null : 'manual'); setEditingQuestion(null); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${activeTab === 'manual'
+                ? 'bg-brand-600 text-white shadow-md'
                 : 'bg-white text-secondary-600 border border-secondary-200 hover:bg-secondary-50'
-            }`}
+              }`}
           >
-            <Plus /> Manual Entry
+            <Plus className="w-5 h-5" /> Add Manually
           </button>
           <button
-            onClick={() => setActiveTab('ai')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${
-              activeTab === 'ai' 
-                ? 'bg-brand-600 text-white shadow-md' 
+            onClick={() => { setActiveTab(activeTab === 'bank' ? null : 'bank'); setEditingQuestion(null); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${activeTab === 'bank'
+                ? 'bg-brand-600 text-white shadow-md'
                 : 'bg-white text-secondary-600 border border-secondary-200 hover:bg-secondary-50'
-            }`}
+              }`}
           >
-            <Cpu /> AI Generate
+            <Library className="w-5 h-5" /> From Bank
           </button>
           <button
-            onClick={() => setActiveTab('excel')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${
-              activeTab === 'excel' 
-                ? 'bg-brand-600 text-white shadow-md' 
+            onClick={() => { setActiveTab(activeTab === 'excel' ? null : 'excel'); setEditingQuestion(null); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${activeTab === 'excel'
+                ? 'bg-brand-600 text-white shadow-md'
                 : 'bg-white text-secondary-600 border border-secondary-200 hover:bg-secondary-50'
-            }`}
+              }`}
           >
-            <FileText /> Excel Upload
+            <FileSpreadsheet className="w-5 h-5" /> Excel Upload
+          </button>
+          <button
+            onClick={() => { setActiveTab(activeTab === 'ai' ? null : 'ai'); setEditingQuestion(null); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${activeTab === 'ai'
+                ? 'bg-brand-600 text-white shadow-md'
+                : 'bg-white text-secondary-600 border border-secondary-200 hover:bg-secondary-50'
+              }`}
+          >
+            <Cpu className="w-5 h-5" /> AI Generate
           </button>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      {activeTab === 'manual' ? (
-        <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 p-6 md:p-8">
-          <h2 className="text-lg font-bold text-secondary-900 mb-6 flex items-center gap-2">
-            {isEditing ? <><Edit2 className="text-brand-600"/> Edit Question</> : <><Plus className="text-brand-600"/> Add New Question</>}
+      {/* Editing / Adding Manual Section */}
+      {(activeTab === 'manual' || editingQuestion) && (
+        <div className="bg-white rounded-2xl shadow-sm border border-brand-200 p-6 md:p-8 relative">
+          <button
+            onClick={() => { setActiveTab(null); setEditingQuestion(null); }}
+            className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+          >
+            Close
+          </button>
+          <h2 className="text-xl font-bold text-secondary-900 mb-6 flex items-center gap-2">
+            {editingQuestion ? <><Edit2 className="text-brand-600 w-6 h-6" /> Edit Question</> : <><Plus className="text-brand-600 w-6 h-6" /> Add New Question</>}
           </h2>
-          
-          <div className="space-y-6">
-            {/* Row 1: Type, Difficulty, Topic */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <Select
-                  label="Question Type"
-                  value={formData.type}
-                  onChange={(val) => setFormData(prev => ({ ...prev, type: val }))}
-                  options={[
-                    { value: 'MCQ', label: 'Multiple Choice (MCQ)' }
-                  ]}
-                  className="!mb-0"
-                />
-              </div>
-              <div>
-                <Select
-                  label="Difficulty"
-                  value={formData.difficulty}
-                  onChange={(val) => setFormData(prev => ({ ...prev, difficulty: val }))}
-                  options={[
-                    { value: 'EASY', label: 'Easy' },
-                    { value: 'MEDIUM', label: 'Medium' },
-                    { value: 'HARD', label: 'Hard' }
-                  ]}
-                  className="!mb-0"
-                />
-              </div>
-              <div>
-                <Input 
-                  label="Topic (Optional)" 
-                  name="topic" 
-                  value={formData.topic} 
-                  onChange={handleInputChange}
-                  placeholder="e.g. React Hooks"
-                  containerClassName="mb-0"
-                />
-              </div>
-            </div>
 
-            {/* Row 2: Question Text */}
-            <div>
-              <label className="block text-sm font-semibold text-secondary-700 mb-2">Question Text *</label>
-              <textarea
-                name="text"
-                value={formData.text}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 text-[15px] bg-white border border-secondary-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 min-h-[100px]"
-                placeholder="Type your question here..."
-              ></textarea>
-            </div>
-
-            {/* Row 3: Options */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {['A', 'B', 'C', 'D'].map((opt) => (
-                <div key={opt}>
-                  <Input 
-                    label={`Option ${opt} *`}
-                    name={opt}
-                    value={formData.options[opt]}
-                    onChange={handleInputChange}
-                    placeholder={`Enter option ${opt}`}
-                    containerClassName="mb-0"
-                  />
-                </div>
-              ))}
-            </div>
-
-            {/* Row 4: Correct Answer & Explanation */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-secondary-700 mb-2">Correct Answer *</label>
-                <div className="flex gap-2">
-                  {['A', 'B', 'C', 'D'].map(opt => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, correctAnswer: opt }))}
-                      className={`flex-1 py-3 rounded-xl font-bold transition-all ${
-                        formData.correctAnswer === opt
-                          ? 'bg-green-500 text-white shadow-md'
-                          : 'bg-secondary-100 text-secondary-600 hover:bg-secondary-200'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-secondary-700 mb-2">Explanation (Optional)</label>
-                <textarea
-                  name="explanation"
-                  value={formData.explanation}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 text-[15px] bg-white border border-secondary-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 min-h-[60px]"
-                  placeholder="Explain why the correct answer is right..."
-                ></textarea>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-secondary-100">
-              <div className="w-full md:w-auto">
-                <Button onClick={() => handleSave(false)} className="w-full">
-                  {isEditing ? 'Update Question' : 'Save Question'}
-                </Button>
-              </div>
-              {!isEditing && (
-                <div className="w-full md:w-auto">
-                  <Button 
-                    onClick={() => handleSave(true)}
-                    className="w-full bg-secondary-800 hover:bg-secondary-900"
-                  >
-                    Save & Add Another
-                  </Button>
-                </div>
-              )}
-              <div className="w-full md:w-auto">
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="w-full px-6 py-3 font-bold text-secondary-600 hover:text-secondary-900 hover:bg-secondary-100 rounded-xl transition-all"
-                >
-                  {isEditing ? 'Cancel Edit' : 'Reset Form'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-secondary-200 p-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-50 text-brand-600 mb-4">
-            {activeTab === 'ai' ? <Cpu size={32} /> : <FileText size={32} />}
-          </div>
-          <h2 className="text-lg font-bold text-secondary-900 mb-2">
-            {activeTab === 'ai' ? 'AI Generate Questions' : 'Excel Upload'}
-          </h2>
-          <p className="text-secondary-500 mb-6">
-            This feature is coming soon. Stay tuned!
-          </p>
-          <span className="inline-block bg-brand-100 text-brand-700 text-sm font-semibold px-4 py-1.5 rounded-full">
-            Coming Soon
-          </span>
+          <QuestionForm
+            initialData={editingQuestion}
+            onSubmit={editingQuestion ? handleEditSubmit : handleManualSubmit}
+            onCancel={() => { setActiveTab(null); setEditingQuestion(null); }}
+            isExamContext={true}
+            examId={examId}
+          />
         </div>
       )}
 
+      {/* Excel Upload Section */}
+      {activeTab === 'excel' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-brand-200 p-6 md:p-8 relative">
+          <button
+            onClick={() => setActiveTab(null)}
+            className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+          >
+            Close
+          </button>
+          <h2 className="text-xl font-bold text-secondary-900 mb-6 flex items-center gap-2">
+            <FileSpreadsheet className="text-brand-600 w-6 h-6" /> Upload Questions via Excel
+          </h2>
+
+          <ExcelUpload
+            examId={examId}
+            onUploadSuccess={() => {
+              fetchExamData();
+            }}
+            onClose={() => setActiveTab(null)}
+          />
+        </div>
+      )}
+
+      {/* Add From Bank Section */}
+      {activeTab === 'bank' && !editingQuestion && (
+        <div className="bg-white rounded-2xl shadow-sm border border-purple-200 p-6 md:p-8 relative">
+          <button
+            onClick={() => setActiveTab(null)}
+            className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
+          >
+            Close
+          </button>
+          <h2 className="text-xl font-bold text-secondary-900 mb-6 flex items-center gap-2">
+            <Library className="text-purple-600 w-6 h-6" /> Select from Question Bank
+          </h2>
+
+          <div className="flex flex-wrap gap-4 mb-6">
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search bank..."
+                  value={bankFilters.search}
+                  onChange={(e) => setBankFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm"
+                />
+              </div>
+            </div>
+            <select
+              value={bankFilters.difficulty}
+              onChange={(e) => setBankFilters(prev => ({ ...prev, difficulty: e.target.value }))}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+            >
+              <option value="">All Difficulties</option>
+              <option value="EASY">Easy</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HARD">Hard</option>
+            </select>
+            <select
+              value={bankFilters.type}
+              onChange={(e) => setBankFilters(prev => ({ ...prev, type: e.target.value }))}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+            >
+              <option value="">All Types</option>
+              <option value="SINGLE_CHOICE">Single Choice</option>
+              <option value="MULTIPLE_SELECT">Multiple Select</option>
+            </select>
+          </div>
+
+          <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-3 mb-6 border-y border-gray-100 py-4">
+            {isBankLoading ? (
+              <div className="text-center text-gray-500 py-8">Loading bank questions...</div>
+            ) : bankQuestions.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">No matching questions found in bank.</div>
+            ) : (
+              bankQuestions.map(q => (
+                <QuestionCard
+                  key={q.id}
+                  question={q}
+                  selectable={true}
+                  selected={selectedBankIds.includes(q.id)}
+                  onSelect={(id) => {
+                    setSelectedBankIds(prev =>
+                      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+                    );
+                  }}
+                />
+              ))
+            )}
+          </div>
+
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-gray-600">
+              {selectedBankIds.length} question(s) selected
+            </span>
+            <Button
+              onClick={handleBankSubmit}
+              disabled={selectedBankIds.length === 0}
+            >
+              Add Selected Questions
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* AI Generate Section */}
+      {activeTab === 'ai' && (
+        <AIGeneration
+          examId={examId}
+          stats={stats}
+          onGenerationSuccess={fetchExamData}
+          onEdit={(q) => { setEditingQuestion(q); setActiveTab(null); window.scrollTo(0, 0); }}
+          onDelete={handleDelete}
+          onClose={() => setActiveTab(null)}
+        />
+      )}
+
       {/* Questions List */}
-      {questions.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-bold text-secondary-900 flex items-center justify-between">
-            <span>Added Questions ({questions.length})</span>
-          </h3>
-          
+      <div className="space-y-4 pt-4">
+        <h3 className="text-xl font-bold text-secondary-900">
+          Exam Questions ({questions.length})
+        </h3>
+
+        {questions.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-300">
+            <p className="text-gray-500">No questions added yet. Add some to get started!</p>
+          </div>
+        ) : (
           <div className="grid gap-4">
             {questions.map((q, index) => (
-              <div key={q.id} className="bg-white rounded-2xl shadow-sm border border-secondary-200 p-5 hover:border-brand-300 transition-all group">
-                <div className="flex flex-col md:flex-row justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-sm font-bold text-brand-600">Q{index + 1}.</span>
-                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                        q.difficulty === 'EASY' ? 'bg-green-100 text-green-700' :
-                        q.difficulty === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {q.difficulty}
-                      </span>
-                      {q.topic && (
-                        <span className="text-xs font-medium bg-secondary-100 text-secondary-600 px-2.5 py-0.5 rounded-full">
-                          {q.topic}
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-medium text-secondary-900 text-[15px] leading-relaxed mb-4">
-                      {q.text}
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                      {['A', 'B', 'C', 'D'].map(opt => (
-                        <div key={opt} className={`px-3 py-2 rounded-lg border ${
-                          q.correctAnswer === opt 
-                            ? 'bg-green-50 border-green-200 text-green-800 font-medium flex items-center justify-between' 
-                            : 'bg-secondary-50 border-secondary-200 text-secondary-700'
-                        }`}>
-                          <span><span className="font-bold mr-2">{opt}.</span> {q.options[opt]}</span>
-                          {q.correctAnswer === opt && <CheckCircle className="text-green-600" />}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="flex md:flex-col gap-2 md:w-32 md:border-l md:border-secondary-100 md:pl-4 justify-start md:justify-center">
-                    <button 
-                      onClick={() => handleEdit(q)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 rounded-xl transition-all"
-                    >
-                      <Edit2 size={16} /> Edit
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(q.id)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all"
-                    >
-                      <Trash2 size={16} /> Delete
-                    </button>
-                  </div>
+              <div key={q.id} className="relative group">
+                <div className="absolute top-4 left-4 z-10 w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm border border-brand-200">
+                  {index + 1}
+                </div>
+                <div className="pl-10">
+                  <QuestionCard
+                    question={q}
+                    showSource={true}
+                    onEdit={() => { setEditingQuestion(q); setActiveTab(null); window.scrollTo(0, 0); }}
+                    onDelete={handleDelete}
+                    onVerify={handleVerify}
+                  />
                 </div>
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Bottom Publish Bar */}
+      <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className={`text-sm font-medium ${stats?.canPublish && stats?.unverifiedCount === 0 ? 'text-green-600' : 'text-amber-600'}`}>
+            {stats?.canPublish && stats?.unverifiedCount === 0 ? "All questions verified. Ready to publish!" : (stats?.message || 'Checking publish requirements...')}
+          </div>
+          <div className="relative group">
+            <Button
+              onClick={handlePublish}
+              disabled={!stats?.canPublish || stats?.unverifiedCount > 0}
+              className={`flex items-center gap-2 px-8 ${stats?.canPublish && stats?.unverifiedCount === 0 ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20 shadow-lg' : ''}`}
+            >
+              <Rocket className="w-5 h-5" /> Publish Exam
+            </Button>
+            {stats?.unverifiedCount > 0 && (
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                Verify all questions before publishing
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
+
     </div>
   );
 };

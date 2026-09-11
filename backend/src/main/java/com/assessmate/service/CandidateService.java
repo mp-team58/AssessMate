@@ -1,6 +1,8 @@
 package com.assessmate.service;
 
 import com.assessmate.dto.JoinExamResponse;
+import com.assessmate.dto.CandidateExamQuestionsResponse;
+import com.assessmate.dto.CandidateQuestionDTO;
 import com.assessmate.entity.*;
 import com.assessmate.repository.ExamEnrollmentRepository;
 import com.assessmate.repository.ExamRepository;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +20,7 @@ public class CandidateService {
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
     private final ExamEnrollmentRepository enrollmentRepository;
+    private final com.assessmate.repository.QuestionRepository questionRepository;
 
     public JoinExamResponse joinExam(String joinCode, String candidateEmail) {
         User candidate = userRepository.findByEmail(candidateEmail)
@@ -80,6 +84,59 @@ public class CandidateService {
                 .deviceAccess(exam.getDeviceAccess())
                 .personalEndTime(enrollment.getPersonalEndTime())
                 .instructions("Please read all questions carefully. Do not switch tabs. Your face must be visible at all times.")
+                .build();
+    }
+
+    public CandidateExamQuestionsResponse getExamQuestions(Long enrollmentId, String candidateEmail) {
+        ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+
+        if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
+            throw new RuntimeException("You do not have access to this enrollment.");
+        }
+
+        if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
+            throw new RuntimeException("You can only get questions for an ongoing exam.");
+        }
+
+        List<Question> examQuestions = questionRepository.findByExamId(enrollment.getExam().getId());
+
+        List<CandidateQuestionDTO> candidateQuestions = new java.util.ArrayList<>(examQuestions.stream().map(q -> {
+            List<CandidateQuestionDTO.OptionDTO> options = new java.util.ArrayList<>();
+            if (q.getType() == QuestionType.SINGLE_CHOICE || q.getType() == QuestionType.MULTIPLE_SELECT) {
+                if (q.getOptionA() != null && !q.getOptionA().trim().isEmpty()) {
+                    options.add(CandidateQuestionDTO.OptionDTO.builder().key("A").value(q.getOptionA()).build());
+                }
+                if (q.getOptionB() != null && !q.getOptionB().trim().isEmpty()) {
+                    options.add(CandidateQuestionDTO.OptionDTO.builder().key("B").value(q.getOptionB()).build());
+                }
+                if (q.getOptionC() != null && !q.getOptionC().trim().isEmpty()) {
+                    options.add(CandidateQuestionDTO.OptionDTO.builder().key("C").value(q.getOptionC()).build());
+                }
+                if (q.getOptionD() != null && !q.getOptionD().trim().isEmpty()) {
+                    options.add(CandidateQuestionDTO.OptionDTO.builder().key("D").value(q.getOptionD()).build());
+                }
+                java.util.Collections.shuffle(options);
+            }
+
+            return CandidateQuestionDTO.builder()
+                    .id(q.getId())
+                    .questionText(q.getQuestionText())
+                    .imageUrl(q.getImageUrl())
+                    .type(q.getType())
+                    .marks(q.getMarks())
+                    .negativeMarks(q.getNegativeMarks())
+                    .timeSeconds(q.getTimeSeconds())
+                    .options(options)
+                    .build();
+        }).toList());
+
+        // Shuffle the questions randomly
+        java.util.Collections.shuffle(candidateQuestions);
+
+        return CandidateExamQuestionsResponse.builder()
+                .questions(candidateQuestions)
+                .personalEndTime(enrollment.getPersonalEndTime())
                 .build();
     }
 }

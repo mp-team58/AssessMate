@@ -22,4 +22,11 @@ public class CandidateController {
             Principal principal) {
         return ResponseEntity.ok(candidateService.joinExam(code, principal.getName()));
     }
+
+    @GetMapping("/exam/{enrollmentId}/questions")
+    public ResponseEntity<com.assessmate.dto.CandidateExamQuestionsResponse> getExamQuestions(
+            @PathVariable Long enrollmentId,
+            Principal principal) {
+        return ResponseEntity.ok(candidateService.getExamQuestions(enrollmentId, principal.getName()));
+    }
 }

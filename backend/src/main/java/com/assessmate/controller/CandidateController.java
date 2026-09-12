@@ -37,4 +37,13 @@ public class CandidateController {
         candidateService.logProctorEvent(request, principal.getName());
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/submit/{enrollmentId}")
+    public ResponseEntity<Void> submitExam(
+            @PathVariable Long enrollmentId,
+            @RequestBody com.assessmate.dto.SubmitExamRequest request,
+            Principal principal) {
+        candidateService.submitExam(enrollmentId, request, principal.getName());
+        return ResponseEntity.ok().build();
+    }
 }

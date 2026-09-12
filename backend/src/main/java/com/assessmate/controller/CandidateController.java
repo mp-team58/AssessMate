@@ -46,4 +46,17 @@ public class CandidateController {
         candidateService.submitExam(enrollmentId, request, principal.getName());
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/result/{enrollmentId}")
+    public ResponseEntity<com.assessmate.dto.ResultResponseDTO> getExamResult(
+            @PathVariable Long enrollmentId,
+            Principal principal) {
+        return ResponseEntity.ok(candidateService.getExamResult(enrollmentId, principal.getName()));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<java.util.List<com.assessmate.dto.CandidateHistoryDTO>> getCandidateHistory(
+            Principal principal) {
+        return ResponseEntity.ok(candidateService.getCandidateHistory(principal.getName()));
+    }
 }

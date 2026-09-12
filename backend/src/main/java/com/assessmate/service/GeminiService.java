@@ -110,6 +110,40 @@ public class GeminiService {
         return callGemini(prompt, null);
     }
 
+    public GeminiFeedbackResult generateFeedback(String wrongAnswersText) {
+        String prompt = "You are an expert tutor. Analyze the following incorrect answers from a candidate's exam.\n" +
+            "1. Identify the candidate's weak topics (return as a JSON array of strings).\n" +
+            "2. Provide encouraging, constructive AI feedback and revision suggestions (return as a single string).\n\n" +
+            "Incorrect answers:\n" + wrongAnswersText + "\n\n" +
+            "Return ONLY a valid JSON object with the exact keys: \"weakTopics\" (array of strings) and \"aiFeedback\" (string). Do not return markdown fences.";
+        
+        String responseBody = callGeminiRaw(prompt, null);
+        JsonObject response = gson.fromJson(responseBody, JsonObject.class);
+        String text = extractGeneratedText(response);
+        if (text == null) return new GeminiFeedbackResult("[]", "Keep practicing!");
+        
+        text = text.trim();
+        if (text.startsWith("```json")) text = text.substring(7);
+        else if (text.startsWith("```")) text = text.substring(3);
+        if (text.endsWith("```")) text = text.substring(0, text.length() - 3);
+        text = text.trim();
+        
+        try {
+            JsonObject root = gson.fromJson(text, JsonObject.class);
+            List<String> weakTopics = new ArrayList<>();
+            if (root.has("weakTopics") && root.get("weakTopics").isJsonArray()) {
+                 for (JsonElement el : root.getAsJsonArray("weakTopics")) {
+                     weakTopics.add(el.getAsString());
+                 }
+            }
+            String aiFeedback = root.has("aiFeedback") && !root.get("aiFeedback").isJsonNull() ? root.get("aiFeedback").getAsString() : "Keep practicing!";
+            return new GeminiFeedbackResult(gson.toJson(weakTopics), aiFeedback);
+        } catch(Exception e) {
+            log.error("Failed to parse Gemini feedback", e);
+            return new GeminiFeedbackResult("[]", "Keep practicing!");
+        }
+    }
+
     // ─────────────────────────────────────────
     // PROMPT BUILDER
     // ─────────────────────────────────────────
@@ -262,7 +296,12 @@ public class GeminiService {
     // UNIFIED GEMINI CALL
     // ─────────────────────────────────────────
 
-    private List<GeneratedQuestion> callGemini(
+    private List<GeneratedQuestion> callGemini(String prompt, byte[] imageBytes) {
+        String responseBody = callGeminiRaw(prompt, imageBytes);
+        return parseGeminiResponse(responseBody);
+    }
+
+    private String callGeminiRaw(
             String prompt,
             byte[] imageBytes) {
 
@@ -361,7 +400,7 @@ public class GeminiService {
                 throw new RuntimeException("AI service error " + response.code() + ". Please try again.");
             }
 
-            return parseGeminiResponse(responseBody);
+            return responseBody;
 
         } catch (IOException e) {
             log.error("Gemini connection error: {}", e.getMessage());
@@ -523,5 +562,12 @@ public class GeminiService {
         private String explanation;
         private String topic;
         private Double tolerance;
+    }
+
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    public static class GeminiFeedbackResult {
+        private String weakTopicsJson;
+        private String aiFeedback;
     }
 }

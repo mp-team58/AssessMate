@@ -10,8 +10,11 @@ import com.assessmate.repository.UserRepository;
 import com.assessmate.repository.ProctoringLogRepository;
 import com.assessmate.repository.CandidateAnswerRepository;
 import com.assessmate.repository.ResultRepository;
+import com.assessmate.service.GeminiService;
 import com.assessmate.dto.ProctorEventRequest;
 import com.assessmate.dto.SubmitExamRequest;
+import com.assessmate.dto.ResultResponseDTO;
+import com.assessmate.dto.CandidateHistoryDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +32,7 @@ public class CandidateService {
     private final ProctoringLogRepository proctoringLogRepository;
     private final CandidateAnswerRepository candidateAnswerRepository;
     private final ResultRepository resultRepository;
+    private final GeminiService geminiService;
 
     public JoinExamResponse joinExam(String joinCode, String candidateEmail) {
         User candidate = userRepository.findByEmail(candidateEmail)
@@ -253,5 +257,93 @@ public class CandidateService {
                 .passed(passed)
                 .build();
         resultRepository.save(result);
+    }
+
+    public ResultResponseDTO getExamResult(Long enrollmentId, String candidateEmail) {
+        ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+
+        if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
+            throw new RuntimeException("You do not have access to this enrollment.");
+        }
+
+        if (enrollment.getStatus() != EnrollmentStatus.SUBMITTED) {
+            throw new RuntimeException("Exam is not submitted yet.");
+        }
+
+        Result result = resultRepository.findByEnrollmentId(enrollmentId)
+                .orElseThrow(() -> new RuntimeException("Result not found."));
+
+        if (result.getAiFeedback() == null || result.getAiFeedback().isEmpty()) {
+            List<CandidateAnswer> wrongAnswers = candidateAnswerRepository.findByEnrollmentId(enrollmentId)
+                    .stream()
+                    .filter(a -> Boolean.FALSE.equals(a.getIsCorrect()))
+                    .toList();
+
+            if (!wrongAnswers.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (CandidateAnswer ans : wrongAnswers) {
+                    sb.append("Question: ").append(ans.getQuestion().getQuestionText()).append("\n");
+                    sb.append("Candidate answered: ").append(ans.getCandidateAnswer()).append("\n");
+                    sb.append("Correct answer was: ").append(ans.getQuestion().getCorrectAnswer()).append("\n");
+                    if (ans.getQuestion().getTopic() != null) {
+                        sb.append("Topic: ").append(ans.getQuestion().getTopic()).append("\n");
+                    }
+                    sb.append("\n");
+                }
+
+                GeminiService.GeminiFeedbackResult feedback = geminiService.generateFeedback(sb.toString());
+                result.setAiFeedback(feedback.getAiFeedback());
+                result.setWeakTopicsJson(feedback.getWeakTopicsJson());
+                resultRepository.save(result);
+            } else {
+                result.setAiFeedback("Perfect score! Keep up the excellent work.");
+                result.setWeakTopicsJson("[]");
+                resultRepository.save(result);
+            }
+        }
+
+        return ResultResponseDTO.builder()
+                .enrollmentId(enrollment.getId())
+                .examTitle(enrollment.getExam().getTitle())
+                .totalScore(result.getTotalScore())
+                .maxScore(result.getMaxScore())
+                .percentage(result.getPercentage())
+                .passed(result.getPassed())
+                .weakTopicsJson(result.getWeakTopicsJson())
+                .aiFeedback(result.getAiFeedback())
+                .build();
+    }
+
+    public List<CandidateHistoryDTO> getCandidateHistory(String candidateEmail) {
+        User candidate = userRepository.findByEmail(candidateEmail)
+                .orElseThrow(() -> new RuntimeException("Candidate not found"));
+
+        List<ExamEnrollment> enrollments = enrollmentRepository.findAll().stream()
+                .filter(e -> e.getCandidate().getId().equals(candidate.getId()))
+                .toList();
+
+        return enrollments.stream().map(e -> {
+            Double totalScore = null;
+            Double percentage = null;
+            
+            if (e.getStatus() == EnrollmentStatus.SUBMITTED) {
+                Result r = resultRepository.findByEnrollmentId(e.getId()).orElse(null);
+                if (r != null) {
+                    totalScore = r.getTotalScore();
+                    percentage = r.getPercentage();
+                }
+            }
+
+            return CandidateHistoryDTO.builder()
+                    .enrollmentId(e.getId())
+                    .examTitle(e.getExam().getTitle())
+                    .subject(e.getExam().getSubject())
+                    .joinedAt(e.getJoinedAt())
+                    .status(e.getStatus())
+                    .totalScore(totalScore)
+                    .percentage(percentage)
+                    .build();
+        }).toList();
     }
 }

@@ -7,6 +7,8 @@ import com.assessmate.entity.*;
 import com.assessmate.repository.ExamEnrollmentRepository;
 import com.assessmate.repository.ExamRepository;
 import com.assessmate.repository.UserRepository;
+import com.assessmate.repository.ProctoringLogRepository;
+import com.assessmate.dto.ProctorEventRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,7 @@ public class CandidateService {
     private final UserRepository userRepository;
     private final ExamEnrollmentRepository enrollmentRepository;
     private final com.assessmate.repository.QuestionRepository questionRepository;
+    private final ProctoringLogRepository proctoringLogRepository;
 
     public JoinExamResponse joinExam(String joinCode, String candidateEmail) {
         User candidate = userRepository.findByEmail(candidateEmail)
@@ -138,5 +141,28 @@ public class CandidateService {
                 .questions(candidateQuestions)
                 .personalEndTime(enrollment.getPersonalEndTime())
                 .build();
+    }
+
+    public void logProctorEvent(ProctorEventRequest request, String candidateEmail) {
+        ExamEnrollment enrollment = enrollmentRepository.findById(request.getEnrollmentId())
+                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+
+        if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
+            throw new RuntimeException("You do not have access to this enrollment.");
+        }
+
+        if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
+            throw new RuntimeException("You can only log events for an ongoing exam.");
+        }
+
+        LocalDateTime eventTime = request.getTimestamp() != null ? request.getTimestamp() : LocalDateTime.now();
+
+        ProctoringLog log = ProctoringLog.builder()
+                .enrollment(enrollment)
+                .eventType(request.getEventType())
+                .flaggedAt(eventTime)
+                .build();
+
+        proctoringLogRepository.save(log);
     }
 }

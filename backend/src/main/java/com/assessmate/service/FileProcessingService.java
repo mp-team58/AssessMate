@@ -13,7 +13,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -44,9 +43,11 @@ public class FileProcessingService {
 
         validateFile(file);
 
-        String filename = file
-                .getOriginalFilename()
-                .toLowerCase();
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null) {
+            throw new IllegalArgumentException("File name cannot be null");
+        }
+        String filename = originalFilename.toLowerCase();
 
         // Route by extension
         // Only supported formats listed here
@@ -517,8 +518,10 @@ public class FileProcessingService {
         Collections.sort(inOrder);
 
         return inOrder.stream()
-                .map(chunks::get)
-                .collect(Collectors.toList());
+                .filter(java.util.Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .mapToObj(chunks::get)
+                .toList();
     }
 
     // ─────────────────────────────────────────
@@ -624,11 +627,8 @@ public class FileProcessingService {
                 .split("\\s+");
         for (String word : words) {
             String trimmed = word.trim();
-            if (trimmed.length() >= 2
-                    && !STOP_WORDS.contains(
-                            trimmed)) {
-                freq.merge(trimmed, 1,
-                        Integer::sum);
+            if (trimmed.length() >= 2 && !STOP_WORDS.contains(trimmed)) {
+                freq.put(trimmed, freq.getOrDefault(trimmed, 0) + 1);
             }
         }
         return freq;

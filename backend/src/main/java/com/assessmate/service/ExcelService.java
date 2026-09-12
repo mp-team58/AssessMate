@@ -557,8 +557,6 @@ public class ExcelService {
 
     private String normalizeMultipleAnswers(
             String answer) {
-        StringBuilder result =
-                new StringBuilder();
         String[] parts = answer.split(",");
         List<String> seen = new ArrayList<>();
         for (String part : parts) {

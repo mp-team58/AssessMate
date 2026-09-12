@@ -29,4 +29,12 @@ public class CandidateController {
             Principal principal) {
         return ResponseEntity.ok(candidateService.getExamQuestions(enrollmentId, principal.getName()));
     }
+
+    @PostMapping("/proctor/log")
+    public ResponseEntity<Void> logProctorEvent(
+            @RequestBody com.assessmate.dto.ProctorEventRequest request,
+            Principal principal) {
+        candidateService.logProctorEvent(request, principal.getName());
+        return ResponseEntity.ok().build();
+    }
 }

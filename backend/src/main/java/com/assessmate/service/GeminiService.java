@@ -145,6 +145,33 @@ public class GeminiService {
     }
 
     // ─────────────────────────────────────────
+    // GENERATE CODING PROBLEM
+    // Works for both topic and description input
+    // ─────────────────────────────────────────
+
+    public CodingProblemGenerated
+            generateCodingProblem(
+                String input,
+                String inputType,
+                String difficulty,
+                int testCaseCount) {
+
+        String prompt = buildCodingPrompt(
+            input, inputType,
+            difficulty, testCaseCount);
+
+        String responseBody = callGeminiRaw(prompt, null);
+        JsonObject response = gson.fromJson(responseBody, JsonObject.class);
+        String responseText = extractGeneratedText(response);
+
+        if (responseText == null) {
+            throw new RuntimeException("AI returned no results. Please try again.");
+        }
+
+        return parseCodingProblem(responseText);
+    }
+
+    // ─────────────────────────────────────────
     // PROMPT BUILDER
     // ─────────────────────────────────────────
 
@@ -266,6 +293,116 @@ public class GeminiService {
 
     return prompt.toString();
 }
+
+    private String buildCodingPrompt(
+            String input,
+            String inputType,
+            String difficulty,
+            int testCaseCount) {
+
+        StringBuilder prompt = new StringBuilder();
+
+        prompt.append(
+            "You are an expert competitive " +
+            "programming problem setter.\n\n");
+
+        if ("TOPIC".equals(inputType)) {
+            prompt.append(
+                "Create a programming problem " +
+                "about the following topic:\n");
+            prompt.append("<topic>\n")
+                .append(input)
+                .append("\n</topic>\n\n");
+        } else {
+            prompt.append(
+                "Create a programming problem " +
+                "based on the following " +
+                "description/requirements:\n");
+            prompt.append("<description>\n")
+                .append(input)
+                .append("\n</description>\n\n");
+        }
+
+        if (difficulty != null
+                && !difficulty.isEmpty()) {
+            prompt.append(
+                "Difficulty level: ")
+                .append(difficulty)
+                .append("\n\n");
+        }
+
+        prompt.append("<instructions>\n");
+        prompt.append(
+            "Generate a complete programming " +
+            "problem with:\n");
+        prompt.append(
+            "- Clear problem statement\n");
+        prompt.append(
+            "- Input/output format\n");
+        prompt.append(
+            "- Constraints\n");
+        prompt.append(
+            "- " + testCaseCount
+            + " test cases total\n");
+        prompt.append(
+            "  First test case: visible " +
+            "(sample), rest: hidden\n");
+        prompt.append(
+            "- Expected outputs must be " +
+            "EXACTLY correct\n");
+        prompt.append(
+            "- Use simple stdin/stdout format\n");
+        prompt.append("</instructions>\n\n");
+
+        prompt.append(
+            "Return ONLY valid JSON. " +
+            "No markdown, no extra text:\n");
+        prompt.append("{\n");
+        prompt.append(
+            "  \"title\": \"problem title\",\n");
+        prompt.append(
+            "  \"description\": \"full problem " +
+            "statement with input/output format\",\n");
+        prompt.append(
+            "  \"constraints\": \"constraints " +
+            "like 1 <= n <= 10^5\",\n");
+        prompt.append(
+            "  \"sampleInput\": \"first test " +
+            "case input\",\n");
+        prompt.append(
+            "  \"sampleOutput\": \"first test " +
+            "case output\",\n");
+        prompt.append(
+            "  \"explanation\": \"explanation " +
+            "of the sample\",\n");
+        prompt.append(
+            "  \"suggestedDifficulty\": " +
+            "\"EASY or MEDIUM or HARD\",\n");
+        prompt.append(
+            "  \"suggestedMarks\": 10,\n");
+        prompt.append(
+            "  \"suggestedTimeLimit\": 2,\n");
+        prompt.append(
+            "  \"testCases\": [\n");
+        prompt.append(
+            "    {\n");
+        prompt.append(
+            "      \"input\": \"exact stdin input\",\n");
+        prompt.append(
+            "      \"expectedOutput\": " +
+            "\"exact stdout output\",\n");
+        prompt.append(
+            "      \"isHidden\": false,\n");
+        prompt.append(
+            "      \"points\": 1\n");
+        prompt.append(
+            "    }\n");
+        prompt.append(
+            "  ]\n");
+        prompt.append("}\n");
+
+        return prompt.toString();
+    }
 
     private String buildJsonFormatInstructions(
             int totalQuestions) {
@@ -487,6 +624,107 @@ public class GeminiService {
         }
     }
 
+    private CodingProblemGenerated
+            parseCodingProblem(String text) {
+
+        // Clean markdown if present
+        text = text.trim();
+        if (text.startsWith("```json")) {
+            text = text.substring(7);
+        } else if (text.startsWith("```")) {
+            text = text.substring(3);
+        }
+        if (text.endsWith("```")) {
+            text = text.substring(
+                0, text.length() - 3);
+        }
+        text = text.trim();
+
+        try {
+            JsonObject obj = gson.fromJson(
+                text, JsonObject.class);
+
+            CodingProblemGenerated problem =
+                new CodingProblemGenerated();
+
+            problem.setTitle(
+                getStr(obj, "title"));
+            problem.setDescription(
+                getStr(obj, "description"));
+            problem.setConstraints(
+                getStr(obj, "constraints"));
+            problem.setSampleInput(
+                getStr(obj, "sampleInput"));
+            problem.setSampleOutput(
+                getStr(obj, "sampleOutput"));
+            problem.setExplanation(
+                getStr(obj, "explanation"));
+            problem.setSuggestedDifficulty(
+                getStr(obj, "suggestedDifficulty"));
+
+            if (obj.has("suggestedMarks")
+                    && !obj.get("suggestedMarks")
+                        .isJsonNull()) {
+                problem.setSuggestedMarks(
+                    obj.get("suggestedMarks")
+                        .getAsDouble());
+            }
+
+            if (obj.has("suggestedTimeLimit")
+                    && !obj.get("suggestedTimeLimit")
+                        .isJsonNull()) {
+                problem.setSuggestedTimeLimit(
+                    obj.get("suggestedTimeLimit")
+                        .getAsInt());
+            }
+
+            // Parse test cases
+            if (obj.has("testCases")
+                    && !obj.get("testCases")
+                        .isJsonNull()) {
+                List<com.assessmate.dto.TestCaseRequest> testCases =
+                    new ArrayList<>();
+                JsonArray tcs =
+                    obj.getAsJsonArray("testCases");
+                for (JsonElement elem : tcs) {
+                    JsonObject tc =
+                        elem.getAsJsonObject();
+                    com.assessmate.dto.TestCaseRequest tcReq =
+                        new com.assessmate.dto.TestCaseRequest();
+                    tcReq.setInput(
+                        getStr(tc, "input"));
+                    tcReq.setExpectedOutput(
+                        getStr(tc, "expectedOutput"));
+                    tcReq.setIsHidden(
+                        tc.has("isHidden")
+                        && !tc.get("isHidden")
+                            .isJsonNull()
+                        ? tc.get("isHidden")
+                            .getAsBoolean()
+                        : true);
+                    tcReq.setPoints(
+                        tc.has("points")
+                        && !tc.get("points")
+                            .isJsonNull()
+                        ? tc.get("points").getAsInt()
+                        : 1);
+                    testCases.add(tcReq);
+                }
+                problem.setTestCases(testCases);
+            }
+
+            return problem;
+
+        } catch (Exception e) {
+            log.error(
+                "Failed to parse coding problem: {}",
+                e.getMessage());
+            throw new RuntimeException(
+                "AI returned unexpected format. " +
+                "Please try again.");
+        }
+    }
+
     private String extractGeneratedText(JsonObject response) {
         if (response == null) return null;
 
@@ -569,5 +807,20 @@ public class GeminiService {
     public static class GeminiFeedbackResult {
         private String weakTopicsJson;
         private String aiFeedback;
+    }
+
+    // Inner class for generated problem
+    @lombok.Data
+    public static class CodingProblemGenerated {
+        private String title;
+        private String description;
+        private String constraints;
+        private String sampleInput;
+        private String sampleOutput;
+        private String explanation;
+        private String suggestedDifficulty;
+        private Double suggestedMarks;
+        private Integer suggestedTimeLimit;
+        private List<com.assessmate.dto.TestCaseRequest> testCases;
     }
 }

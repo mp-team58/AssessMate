@@ -30,7 +30,7 @@ public class AuthService {
                 .email(req.getEmail())
                 .password(passwordEncoder.encode(
                         req.getPassword()))
-                .role(Role.valueOf(req.getRole()))
+                .role(Role.valueOf(req.getRole().toUpperCase()))
                 .build();
 
         userRepository.save(user);
@@ -70,7 +70,7 @@ public class AuthService {
         if (req.getRole() != null
                 && !req.getRole().isEmpty()) {
             if (!user.getRole().name()
-                    .equals(req.getRole())) {
+                    .equalsIgnoreCase(req.getRole())) {
                 throw new RuntimeException(
                         "This account is registered as "
                                 + user.getRole().name()

@@ -3,12 +3,18 @@ package com.assessmate.service;
 import com.assessmate.dto.ExamRequest;
 import com.assessmate.dto.ExamResponse;
 import com.assessmate.entity.*;
-import com.assessmate.repository.ExamRepository;
-import com.assessmate.repository.UserRepository;
-import com.assessmate.repository.QuestionRepository;
 import com.assessmate.entity.Difficulty;
+import com.assessmate.exception.BadRequestException;
+import com.assessmate.exception.ForbiddenException;
+import com.assessmate.exception.ResourceNotFoundException;
+import com.assessmate.repository.CodingQuestionRepository;
+import com.assessmate.repository.ExamRepository;
+import com.assessmate.repository.QuestionRepository;
+import com.assessmate.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
@@ -21,26 +27,24 @@ public class ExamService {
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
     private final QuestionRepository questionRepository;
+    private final CodingQuestionRepository codingQuestionRepository;
 
     // Create Exam
-    public ExamResponse createExam(
-            ExamRequest req, String hostEmail) {
+    public ExamResponse createExam(ExamRequest req, String hostEmail) {
 
         // Validate difficulty adds to 100
         int total = req.getEasyPercent()
                 + req.getMediumPercent()
                 + req.getHardPercent();
         if (total != 100) {
-            throw new RuntimeException(
-                    "Difficulty percentages must add up to 100. " +
-                            "Current total: " + total
+            throw new BadRequestException(
+                    "Difficulty percentages must add up to 100. Current total: " + total
             );
         }
 
         // Validate scheduledStart is in future
-        if (req.getScheduledStart()
-                .isBefore(LocalDateTime.now())) {
-            throw new RuntimeException(
+        if (req.getScheduledStart().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException(
                     "Scheduled start time must be in the future"
             );
         }
@@ -48,16 +52,22 @@ public class ExamService {
         // Validate duration for WHOLE_EXAM
         if (req.getTimerType() == TimerType.WHOLE_EXAM
                 && req.getDurationMinutes() == null) {
-            throw new RuntimeException(
-                    "Duration in minutes is required " +
-                            "for whole exam timer"
+            throw new BadRequestException(
+                    "Duration in minutes is required for whole exam timer"
             );
         }
 
-        User host = userRepository.findByEmail(hostEmail)
-                .orElseThrow(() ->
-                        new RuntimeException("Host not found")
+        // Validate coding section fields
+        if (Boolean.TRUE.equals(req.getHasCodingSection())) {
+            if (req.getCodingQuestionsCount() == null || req.getCodingQuestionsCount() < 1) {
+                throw new BadRequestException(
+                        "Coding questions count must be at least 1 when coding section is enabled."
                 );
+            }
+        }
+
+        User host = userRepository.findByEmail(hostEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Host not found"));
 
         Exam exam = Exam.builder()
                 .host(host)
@@ -112,8 +122,8 @@ public class ExamService {
                 .hasCodingSection(
                         req.getHasCodingSection() != null
                                 ? req.getHasCodingSection() : false)
-                .codingDurationMinutes(
-                        req.getCodingDurationMinutes())
+                .codingDurationMinutes(req.getCodingDurationMinutes())
+                .codingQuestionsCount(req.getCodingQuestionsCount())
                 .status(ExamStatus.DRAFT)
                 .build();
 
@@ -123,9 +133,7 @@ public class ExamService {
     // Get all exams by host
     public List<ExamResponse> getMyExams(String hostEmail) {
         User host = userRepository.findByEmail(hostEmail)
-                .orElseThrow(() ->
-                        new RuntimeException("Host not found")
-                );
+                .orElseThrow(() -> new ResourceNotFoundException("Host not found"));
         return examRepository.findByHostId(host.getId())
                 .stream()
                 .map(this::mapToResponse)
@@ -135,120 +143,43 @@ public class ExamService {
     // Get single exam by ID
     public ExamResponse getExamById(Long id) {
         Exam exam = examRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException("Exam not found")
-                );
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found"));
         return mapToResponse(exam);
     }
 
     // Publish exam
-    public ExamResponse publishExam(
-            Long id, String hostEmail) {
-
-        Exam exam = examRepository.findById(id)
-            .orElseThrow(() ->
-                new RuntimeException(
-                    "Exam not found"));
-
-        if (!exam.getHost().getEmail()
-                .equals(hostEmail)) {
-            throw new RuntimeException(
-                "Not authorized to publish " +
-                "this exam");
-        }
+    @Transactional
+    public ExamResponse publishExam(Long id, String hostEmail) {
+        Exam exam = findExamForHost(id, hostEmail);
 
         if (exam.getStatus() != ExamStatus.DRAFT) {
-            throw new RuntimeException(
-                "Only DRAFT exams can be published");
+            throw new BadRequestException("Only DRAFT exams can be published.");
         }
 
-        int total = exam.getTotalQuestions();
+        // Validate MCQ questions
+        validateMcqQuestions(exam);
 
-        // Calculate required per difficulty
-        int easyRequired = (int) (total
-            * exam.getEasyPercent() / 100.0);
-        int mediumRequired = (int) (total
-            * exam.getMediumPercent() / 100.0);
-        int hardRequired = total
-            - easyRequired - mediumRequired;
+        // Validate coding section if enabled
+        validateCodingSection(exam);
 
-        // Count actual questions per difficulty
-        long easyCount = questionRepository
-            .countByExamIdAndDifficulty(
-                id, Difficulty.EASY);
-        long mediumCount = questionRepository
-            .countByExamIdAndDifficulty(
-                id, Difficulty.MEDIUM);
-        long hardCount = questionRepository
-            .countByExamIdAndDifficulty(
-                id, Difficulty.HARD);
-
-        // Check minimum requirements
-        if (easyCount < easyRequired) {
-            throw new RuntimeException(
-                "Need " + (easyRequired - easyCount)
-                + " more Easy questions to publish");
-        }
-        if (mediumCount < mediumRequired) {
-            throw new RuntimeException(
-                "Need "
-                + (mediumRequired - mediumCount)
-                + " more Medium questions to publish");
-        }
-        if (hardCount < hardRequired) {
-            throw new RuntimeException(
-                "Need " + (hardRequired - hardCount)
-                + " more Hard questions to publish");
-        }
-
-        // Check exact total
-        long totalCount = easyCount
-            + mediumCount + hardCount;
-        if (totalCount != total) {
-            throw new RuntimeException(
-                "Exactly " + total + " questions "
-                + "are required to publish. "
-                + "Currently have " + totalCount
-                + ". Remove extra questions or "
-                + "adjust the exam total.");
-        }
-
-        // Problem 2 — Block if ANY question
-        // is unverified
-        long unverifiedCount = questionRepository
-            .countByExamIdAndIsVerifiedFalse(id);
+        // Validate no unverified questions
+        long unverifiedCount = questionRepository.countByExamIdAndIsVerifiedFalse(exam.getId());
         if (unverifiedCount > 0) {
-            throw new RuntimeException(
-                unverifiedCount + " question(s) "
-                + "are not verified. Please review "
-                + "and verify all questions before "
-                + "publishing. Go to the question "
-                + "management page and mark each "
-                + "question as verified.");
+            throw new BadRequestException(
+                    unverifiedCount + " question(s) are not verified. Please verify all questions before publishing."
+            );
         }
 
         exam.setStatus(ExamStatus.LIVE);
         exam.setStartedAt(LocalDateTime.now());
-        return mapToResponse(
-            examRepository.save(exam));
+        return mapToResponse(examRepository.save(exam));
     }
 
     // End exam
-    public ExamResponse endExam(
-            Long id, String hostEmail) {
-        Exam exam = examRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException("Exam not found")
-                );
-        if (!exam.getHost().getEmail().equals(hostEmail)) {
-            throw new RuntimeException(
-                    "Not authorized to end this exam"
-            );
-        }
+    public ExamResponse endExam(Long id, String hostEmail) {
+        Exam exam = findExamForHost(id, hostEmail);
         if (exam.getStatus() != ExamStatus.LIVE) {
-            throw new RuntimeException(
-                    "Only LIVE exams can be ended"
-            );
+            throw new BadRequestException("Only LIVE exams can be ended.");
         }
         exam.setStatus(ExamStatus.ENDED);
         exam.setEndedAt(LocalDateTime.now());
@@ -257,28 +188,75 @@ public class ExamService {
 
     // Delete exam
     public void deleteExam(Long id, String hostEmail) {
+        Exam exam = findExamForHost(id, hostEmail);
+        examRepository.delete(exam);
+    }
+
+    // Find exam and verify host ownership
+    private Exam findExamForHost(Long id, String hostEmail) {
         Exam exam = examRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException("Exam not found")
-                );
+                .orElseThrow(() -> new ResourceNotFoundException("Exam not found."));
         if (!exam.getHost().getEmail().equals(hostEmail)) {
-            throw new RuntimeException(
-                    "Not authorized to delete this exam"
+            throw new ForbiddenException("Not authorized to modify this exam.");
+        }
+        return exam;
+    }
+
+    // Validate MCQ requirements
+    private void validateMcqQuestions(Exam exam) {
+        int total = exam.getTotalQuestions();
+        int easyRequired = (int) (total * exam.getEasyPercent() / 100.0);
+        int mediumRequired = (int) (total * exam.getMediumPercent() / 100.0);
+        int hardRequired = total - easyRequired - mediumRequired;
+
+        long easyCount = questionRepository.countByExamIdAndDifficulty(exam.getId(), Difficulty.EASY);
+        long mediumCount = questionRepository.countByExamIdAndDifficulty(exam.getId(), Difficulty.MEDIUM);
+        long hardCount = questionRepository.countByExamIdAndDifficulty(exam.getId(), Difficulty.HARD);
+
+        if (easyCount < easyRequired) {
+            throw new BadRequestException("Need " + (easyRequired - easyCount) + " more Easy questions.");
+        }
+        if (mediumCount < mediumRequired) {
+            throw new BadRequestException("Need " + (mediumRequired - mediumCount) + " more Medium questions.");
+        }
+        if (hardCount < hardRequired) {
+            throw new BadRequestException("Need " + (hardRequired - hardCount) + " more Hard questions.");
+        }
+
+        long totalCount = easyCount + mediumCount + hardCount;
+        if (totalCount != total) {
+            throw new BadRequestException(
+                    "Exactly " + total + " questions required. Currently have " + totalCount + "."
             );
         }
-        examRepository.delete(exam);
+    }
+
+    // Validate Coding section pool size
+    private void validateCodingSection(Exam exam) {
+        if (!Boolean.TRUE.equals(exam.getHasCodingSection())) {
+            return;
+        }
+
+        Integer requested = exam.getCodingQuestionsCount();
+        if (requested == null || requested < 1) {
+            throw new BadRequestException("Coding questions count must be set when coding section is enabled.");
+        }
+
+        long poolSize = codingQuestionRepository.countByExamId(exam.getId());
+        if (poolSize < requested) {
+            throw new BadRequestException(
+                    "Coding section requires at least " + requested
+                            + " problems in the pool. Currently have " + poolSize + "."
+            );
+        }
     }
 
     // Generate unique 6 digit join code
     private String generateUniqueJoinCode() {
         String code;
         do {
-            code = String.valueOf(
-                    100000 + new Random().nextInt(900000)
-            );
-        } while (
-                examRepository.findByJoinCode(code).isPresent()
-        );
+            code = String.valueOf(100000 + new Random().nextInt(900000));
+        } while (examRepository.findByJoinCode(code).isPresent());
         return code;
     }
 
@@ -310,6 +288,7 @@ public class ExamService {
                 .deviceAccess(exam.getDeviceAccess())
                 .hasCodingSection(exam.getHasCodingSection())
                 .codingDurationMinutes(exam.getCodingDurationMinutes())
+                .codingQuestionsCount(exam.getCodingQuestionsCount())
                 .joinCode(exam.getJoinCode())
                 .status(exam.getStatus())
                 .createdAt(exam.getCreatedAt())

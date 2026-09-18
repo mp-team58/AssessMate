@@ -1,15 +1,18 @@
 package com.assessmate.controller;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+
 import com.assessmate.service.ExcelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/questions/excel")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+
 public class ExcelController {
 
     private final ExcelService excelService;

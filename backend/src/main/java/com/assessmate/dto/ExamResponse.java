@@ -62,4 +62,5 @@ public class ExamResponse {
     // Coding Section
     private Boolean hasCodingSection;
     private Integer codingDurationMinutes;
+    private Integer codingQuestionsCount;
 }

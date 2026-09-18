@@ -1,6 +1,7 @@
 package com.assessmate.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import lombok.*;
 import java.time.LocalDateTime;
 
@@ -78,6 +79,9 @@ public class Exam {
     private Boolean hasCodingSection = false;
 
     private Integer codingDurationMinutes;
+
+    @Min(1)
+    private Integer codingQuestionsCount;
 
     // Exam Rules
     @Builder.Default

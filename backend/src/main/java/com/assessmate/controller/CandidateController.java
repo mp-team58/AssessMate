@@ -1,5 +1,7 @@
 package com.assessmate.controller;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+
 import com.assessmate.dto.JoinExamResponse;
 import com.assessmate.service.CandidateService;
 import lombok.RequiredArgsConstructor;
@@ -8,10 +10,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/candidate")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+
 public class CandidateController {
 
     private final CandidateService candidateService;

@@ -2,6 +2,7 @@ package com.assessmate.dto;
 
 import com.assessmate.entity.DeviceAccess;
 import com.assessmate.entity.TimerType;
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -49,4 +50,7 @@ public class ExamRequest {
     // Coding Section
     private Boolean hasCodingSection;
     private Integer codingDurationMinutes;
+
+    @Min(1)
+    private Integer codingQuestionsCount;
 }

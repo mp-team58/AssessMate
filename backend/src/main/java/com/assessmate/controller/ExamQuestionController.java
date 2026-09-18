@@ -1,5 +1,7 @@
 package com.assessmate.controller;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+
 import com.assessmate.dto.*;
 import com.assessmate.service.AIQuestionService;
 import com.assessmate.service.ExcelService;
@@ -13,10 +15,11 @@ import java.io.IOException;
 import java.security.Principal;
 import java.util.List;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/exams/{examId}/questions")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+
 public class ExamQuestionController {
 
     private final QuestionService questionService;

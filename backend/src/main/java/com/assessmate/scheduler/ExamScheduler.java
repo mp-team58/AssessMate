@@ -12,11 +12,18 @@ import org.springframework.stereotype.Component;
 public class ExamScheduler {
 
     private final CandidateService candidateService;
+    private final com.assessmate.service.ExamSubmissionService examSubmissionService;
 
     // Run every 60 seconds
     @Scheduled(fixedRate = 60000)
     public void autoSubmitExams() {
         log.info("Running scheduled task to check for expired exams...");
-        candidateService.autoSubmitExpiredExams();
+        candidateService.getExpiredEnrollments().forEach(enrollment -> {
+            try {
+                examSubmissionService.submitExpiredExam(enrollment.getId(), enrollment.getCandidate().getEmail());
+            } catch (Exception e) {
+                log.error("Failed to auto-submit enrollment {}", enrollment.getId(), e);
+            }
+        });
     }
 }

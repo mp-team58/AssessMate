@@ -5,7 +5,10 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "proctoring_logs")
+@Table(name = "proctoring_logs",
+        indexes = {
+                @Index(name = "idx_proctoring_enrollment", columnList = "enrollment_id")
+        })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,4 +30,6 @@ public class ProctoringLog {
 
     @Column(nullable = false)
     private LocalDateTime flaggedAt;
+
+    private LocalDateTime clientReportedAt;
 }

@@ -29,12 +29,22 @@ public class Result {
 
     private Double percentage;
     private Boolean passed;
+    private Boolean lateSubmission;
+
+    private Long timeTakenSeconds;
+    private Integer correctCount;
+    private Integer wrongCount;
+    private Integer unansweredCount;
 
     @Column(name = "weak_topics_json", columnDefinition = "TEXT")
     private String weakTopicsJson;
 
     @Column(name = "ai_feedback", columnDefinition = "TEXT")
     private String aiFeedback;
+
+    @Column(name = "feedback_status")
+    @Builder.Default
+    private String feedbackStatus = "PENDING"; // READY, PENDING, FAILED
 
     @Column(name = "generated_at")
     @Builder.Default

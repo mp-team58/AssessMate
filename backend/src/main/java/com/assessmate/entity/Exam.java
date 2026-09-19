@@ -83,6 +83,9 @@ public class Exam {
     @Builder.Default
     private Boolean negativeMark = false;
 
+    @Builder.Default
+    private Double passingPercentage = 50.0;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private DeviceAccess deviceAccess = DeviceAccess.BOTH;

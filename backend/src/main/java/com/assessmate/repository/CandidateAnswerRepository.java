@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface CandidateAnswerRepository extends JpaRepository<CandidateAnswer, Long> {
     List<CandidateAnswer> findByEnrollmentId(Long enrollmentId);
+    void deleteByEnrollmentId(Long enrollmentId);
 }

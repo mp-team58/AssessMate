@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 @Slf4j
 public class AIQuestionService {
 
@@ -197,7 +198,7 @@ public class AIQuestionService {
         }
 
         String textToSend = selected.stream()
-            .map(TextChunk::getText)
+            .map(chunk -> chunk.getText())
             .collect(Collectors.joining("\n\n"));
 
         List<GeneratedQuestion> generated =
@@ -410,7 +411,7 @@ public class AIQuestionService {
         }
 
         String textToSend = selected.stream()
-            .map(TextChunk::getText)
+            .map(chunk -> chunk.getText())
             .collect(Collectors.joining("\n\n"));
 
         List<GeneratedQuestion> generated =

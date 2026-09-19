@@ -11,7 +11,7 @@ import java.security.Principal;
 @RestController
 @RequestMapping("/api/candidate")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class CandidateController {
 
     private final CandidateService candidateService;

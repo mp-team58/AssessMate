@@ -9,7 +9,7 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/questions/excel")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class ExcelController {
 
     private final ExcelService excelService;

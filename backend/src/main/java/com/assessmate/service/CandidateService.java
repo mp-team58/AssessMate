@@ -10,7 +10,6 @@ import com.assessmate.repository.UserRepository;
 import com.assessmate.repository.ProctoringLogRepository;
 import com.assessmate.repository.CandidateAnswerRepository;
 import com.assessmate.repository.ResultRepository;
-import com.assessmate.service.GeminiService;
 import com.assessmate.dto.ProctorEventRequest;
 import com.assessmate.dto.SubmitExamRequest;
 import com.assessmate.dto.ResultResponseDTO;
@@ -23,6 +22,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class CandidateService {
 
     private final ExamRepository examRepository;
@@ -207,9 +207,9 @@ public class CandidateService {
                     isCorrect = candidateAnswerStr.equalsIgnoreCase(q.getCorrectAnswer().trim());
                 } else if (q.getType() == QuestionType.MULTIPLE_SELECT) {
                     java.util.List<String> candOpts = java.util.Arrays.stream(candidateAnswerStr.split(","))
-                            .map(String::trim).map(String::toUpperCase).sorted().toList();
+                            .map(s -> s.trim()).map(s -> s.toUpperCase()).sorted().toList();
                     java.util.List<String> corrOpts = java.util.Arrays.stream(q.getCorrectAnswer().split(","))
-                            .map(String::trim).map(String::toUpperCase).sorted().toList();
+                            .map(s -> s.trim()).map(s -> s.toUpperCase()).sorted().toList();
                     isCorrect = candOpts.equals(corrOpts);
                 } else if (q.getType() == QuestionType.NUMERICAL) {
                     try {

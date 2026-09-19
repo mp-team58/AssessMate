@@ -16,7 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/exams/{examId}/questions")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "*")
 public class ExamQuestionController {
 
     private final QuestionService questionService;

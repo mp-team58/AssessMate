@@ -23,6 +23,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @SuppressWarnings("null")
+@lombok.extern.slf4j.Slf4j
 public class CandidateService {
 
     private final ExamRepository examRepository;
@@ -345,5 +346,22 @@ public class CandidateService {
                     .percentage(percentage)
                     .build();
         }).toList();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void autoSubmitExpiredExams() {
+        List<ExamEnrollment> expiredEnrollments = enrollmentRepository
+                .findByStatusAndPersonalEndTimeBefore(EnrollmentStatus.ONGOING, LocalDateTime.now());
+
+        for (ExamEnrollment enrollment : expiredEnrollments) {
+            try {
+                log.info("Auto-submitting expired exam enrollment: {}", enrollment.getId());
+                SubmitExamRequest emptyRequest = new SubmitExamRequest();
+                emptyRequest.setAnswers(new java.util.HashMap<>());
+                submitExam(enrollment.getId(), emptyRequest, enrollment.getCandidate().getEmail());
+            } catch (Exception e) {
+                log.error("Failed to auto-submit enrollment {}", enrollment.getId(), e);
+            }
+        }
     }
 }

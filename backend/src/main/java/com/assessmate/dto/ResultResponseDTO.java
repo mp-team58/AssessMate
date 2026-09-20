@@ -12,6 +12,12 @@ public class ResultResponseDTO {
     private Double maxScore;
     private Double percentage;
     private Boolean passed;
+    private Boolean lateSubmission;
+    private Long timeTakenSeconds;
+    private Integer correctCount;
+    private Integer wrongCount;
+    private Integer unansweredCount;
     private String weakTopicsJson;
     private String aiFeedback;
+    private String feedbackStatus;
 }

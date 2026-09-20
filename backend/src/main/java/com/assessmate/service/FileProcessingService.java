@@ -16,6 +16,7 @@ import java.util.*;
 
 @Service
 @Slf4j
+@SuppressWarnings("null")
 public class FileProcessingService {
 
     private static final long MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -518,9 +519,9 @@ public class FileProcessingService {
         Collections.sort(inOrder);
 
         return inOrder.stream()
-                .filter(java.util.Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .mapToObj(chunks::get)
+                .filter(obj -> obj != null)
+                .mapToInt(i -> i.intValue())
+                .mapToObj(idx -> chunks.get(idx))
                 .toList();
     }
 

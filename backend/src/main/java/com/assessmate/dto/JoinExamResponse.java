@@ -18,6 +18,7 @@ public class JoinExamResponse {
     private Integer totalQuestions;
     private Boolean hasCodingSection;
     private Boolean negativeMark;
+    private Double passingPercentage;
     private DeviceAccess deviceAccess;
     private LocalDateTime personalEndTime;
     private String instructions;

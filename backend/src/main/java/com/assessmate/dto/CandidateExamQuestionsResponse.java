@@ -10,4 +10,5 @@ import java.util.List;
 public class CandidateExamQuestionsResponse {
     private List<CandidateQuestionDTO> questions;
     private LocalDateTime personalEndTime;
+    private Long remainingSeconds;
 }

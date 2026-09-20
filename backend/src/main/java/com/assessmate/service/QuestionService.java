@@ -19,6 +19,7 @@ import com.assessmate.exception.ResourceNotFoundException;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class QuestionService {
 
     private final QuestionRepository
@@ -127,8 +128,8 @@ public class QuestionService {
     private String normalizeMultipleAnswers(
             String answer) {
         return Arrays.stream(answer.split(","))
-                .map(String::trim)
-                .map(String::toUpperCase)
+                .map(s -> s.trim())
+                .map(s -> s.toUpperCase())
                 .filter(s -> !s.isEmpty())
                 .distinct()
                 .sorted()

@@ -34,6 +34,11 @@ public class ExamController {
         return ResponseEntity.ok(examService.getExamById(id, principal.getName()));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ExamResponse> updateExam(@PathVariable Long id, @Valid @RequestBody ExamRequest req, Principal principal) {
+        return ResponseEntity.ok(examService.updateExam(id, req, principal.getName()));
+    }
+
     @PostMapping("/{id}/publish")
     public ResponseEntity<ExamResponse> publishExam(@PathVariable Long id, Principal principal) {
         return ResponseEntity.ok(examService.publishExam(id, principal.getName()));

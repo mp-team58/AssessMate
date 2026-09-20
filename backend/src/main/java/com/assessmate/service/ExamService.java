@@ -98,6 +98,63 @@ public class ExamService {
         return mapToResponse(examRepository.save(exam));
     }
 
+    @Transactional
+    public ExamResponse updateExam(Long id, ExamRequest req, String hostEmail) {
+        Exam exam = findExamForHost(id, hostEmail);
+
+        if (exam.getStatus() != ExamStatus.DRAFT) {
+            throw new BadRequestException("Only DRAFT exams can be edited.");
+        }
+
+        int total = req.getEasyPercent() + req.getMediumPercent() + req.getHardPercent();
+        if (total != 100) {
+            throw new BadRequestException("Difficulty percentages must add up to 100. Current total: " + total);
+        }
+
+        if (req.getScheduledStart().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException("Scheduled start time must be in the future");
+        }
+
+        if (req.getTimerType() == TimerType.WHOLE_EXAM && req.getDurationMinutes() == null) {
+            throw new BadRequestException("Duration in minutes is required for whole exam timer");
+        }
+
+        if (Boolean.TRUE.equals(req.getHasCodingSection())) {
+            if (req.getCodingQuestionsCount() == null || req.getCodingQuestionsCount() < 1) {
+                throw new BadRequestException("Coding questions count must be at least 1 when coding section is enabled.");
+            }
+        }
+
+        exam.setTitle(req.getTitle());
+        exam.setSubject(req.getSubject());
+        exam.setScheduledStart(req.getScheduledStart());
+        exam.setGracePeriodMinutes(req.getGracePeriodMinutes() != null ? req.getGracePeriodMinutes() : 10);
+        exam.setTimerType(req.getTimerType() != null ? req.getTimerType() : TimerType.WHOLE_EXAM);
+        exam.setDurationMinutes(req.getDurationMinutes());
+        exam.setTotalQuestions(req.getTotalQuestions());
+        exam.setEasyPercent(req.getEasyPercent());
+        exam.setMediumPercent(req.getMediumPercent());
+        exam.setHardPercent(req.getHardPercent());
+        exam.setEasyMark(req.getEasyMark() != null ? req.getEasyMark() : 1.0);
+        exam.setMediumMark(req.getMediumMark() != null ? req.getMediumMark() : 2.0);
+        exam.setHardMark(req.getHardMark() != null ? req.getHardMark() : 3.0);
+        exam.setEasyNegative(req.getEasyNegative() != null ? req.getEasyNegative() : 0.25);
+        exam.setMediumNegative(req.getMediumNegative() != null ? req.getMediumNegative() : 0.50);
+        exam.setHardNegative(req.getHardNegative() != null ? req.getHardNegative() : 1.00);
+        exam.setEasySeconds(req.getEasySeconds() != null ? req.getEasySeconds() : 30);
+        exam.setMediumSeconds(req.getMediumSeconds() != null ? req.getMediumSeconds() : 60);
+        exam.setHardSeconds(req.getHardSeconds() != null ? req.getHardSeconds() : 90);
+        exam.setNegativeMark(req.getNegativeMark() != null ? req.getNegativeMark() : false);
+        exam.setDeviceAccess(req.getDeviceAccess() != null ? req.getDeviceAccess() : DeviceAccess.BOTH);
+        exam.setHasCodingSection(req.getHasCodingSection() != null ? req.getHasCodingSection() : false);
+        exam.setCodingDurationMinutes(req.getCodingDurationMinutes());
+        exam.setCodingQuestionsCount(req.getCodingQuestionsCount());
+        exam.setPassingPercentage(req.getPassingPercentage() != null ? req.getPassingPercentage() : 50.0);
+
+        return mapToResponse(examRepository.save(exam));
+    }
+
+
     public List<ExamResponse> getMyExams(String hostEmail) {
         User host = userRepository.findByEmail(hostEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Host not found"));

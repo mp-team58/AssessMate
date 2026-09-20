@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Settings, LogOut, Menu, X, BookOpenCheck } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, Menu, X, BookOpenCheck } from 'lucide-react';
 import { logout } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
 const DashboardLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -43,7 +45,10 @@ const DashboardLayout = () => {
           <div className="bg-brand-500/20 p-2 rounded-lg">
             <BookOpenCheck className="w-7 h-7 text-brand-400" />
           </div>
-          <span className="text-2xl font-extrabold tracking-tight">AssessMate</span>
+          <div>
+            <span className="text-2xl font-extrabold tracking-tight block leading-tight">AssessMate</span>
+            <span className="text-xs text-brand-300 font-semibold tracking-wider uppercase">Host</span>
+          </div>
         </div>
 
         {/* Sidebar Links */}
@@ -60,14 +65,24 @@ const DashboardLayout = () => {
                   : 'text-secondary-200 hover:bg-secondary-800/50 hover:text-[#F3EDE0]'}
               `}
             >
-              <item.icon className={`w-5 h-5`} />
+              <item.icon className="w-5 h-5" />
               {item.name}
             </NavLink>
           ))}
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-secondary-700/50">
+        {/* Sidebar Footer with Host Profile & Sign Out */}
+        <div className="p-4 border-t border-secondary-700/50 space-y-2">
+          <div className="px-4 py-3 bg-secondary-900/50 rounded-xl border border-secondary-700/50 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-brand-500/25 border border-brand-400/40 text-brand-300 font-bold flex items-center justify-center text-sm">
+              {user?.name ? user.name[0].toUpperCase() : 'H'}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-bold text-[#F3EDE0] truncate">{user?.name || 'Host'}</p>
+              <p className="text-xs text-secondary-400 font-medium">Host</p>
+            </div>
+          </div>
+
           <button 
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 text-secondary-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl font-medium transition-colors duration-200"
@@ -87,7 +102,7 @@ const DashboardLayout = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-y-auto relative h-full">
+      <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative h-full">
         <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-[#DEC430] rounded-full blur-[140px] opacity-10 pointer-events-none"></div>
         <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-500 rounded-full blur-[140px] opacity-10 pointer-events-none"></div>
         

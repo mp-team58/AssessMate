@@ -11,11 +11,19 @@ import DashboardLayout from './layouts/DashboardLayout';
 import MyExams from './pages/MyExams';
 import ManageExam from './pages/ManageExam';
 import QuestionBank from './pages/QuestionBank';
+import { ToastProvider } from './contexts/ToastContext';
+
+import CandidateLayout from './layouts/CandidateLayout';
+import MyAssessments from './pages/MyAssessments';
+import JoinAssessment from './pages/JoinAssessment';
+import ActiveExam from './pages/ActiveExam';
+import ExamResult from './pages/ExamResult';
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+    <ToastProvider>
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       
@@ -30,9 +38,18 @@ function App() {
         <Route path="/host/exams/:examId/questions" element={<ExamQuestions />} />
       </Route>
 
-      {/* Candidate Routes */}
-      <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
-    </Routes>
+      {/* Candidate Routes with Layout matching Host Dashboard */}
+      <Route element={<CandidateLayout />}>
+        <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
+        <Route path="/candidate/my-assessments" element={<MyAssessments />} />
+        <Route path="/candidate/join" element={<JoinAssessment />} />
+        <Route path="/candidate/result/:enrollmentId" element={<ExamResult />} />
+      </Route>
+
+      {/* Active Exam is full-screen dedicated examination room */}
+        <Route path="/candidate/exam/:enrollmentId" element={<ActiveExam />} />
+      </Routes>
+    </ToastProvider>
   );
 }
 

@@ -300,7 +300,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
         Close
       </button>
 
-      <h2 className="text-xl font-bold text-secondary-900 mb-6 flex items-center gap-2">
+      <h2 className="text-xl font-extrabold text-secondary-900 mb-6 flex items-center gap-2">
         <Zap className="text-brand-600 w-6 h-6 fill-brand-600" /> Generate Questions with AI
       </h2>
 
@@ -345,7 +345,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
       )}
 
       {/* Form Area */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative">
+      <div className="flex flex-col gap-8 relative max-w-4xl mx-auto w-full">
         {isGenerating && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-xl">
             <Loader2 className="w-10 h-10 text-brand-600 animate-spin mb-4" />
@@ -359,7 +359,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
 
           {/* Topic Field */}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
               Topic / Focus Area {aiMode === "TOPIC" ? "*" : "(Optional)"}
             </label>
             <input
@@ -376,7 +376,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           {/* Text Area (Paste Text Mode) */}
           {aiMode === "TEXT" && (
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Paste Source Material *
               </label>
               <textarea
@@ -397,7 +397,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           {/* File Upload (File Mode) */}
           {aiMode === "FILE" && (
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
                 Upload Source File *
               </label>
               <div 
@@ -448,7 +448,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           <h3 className="text-md font-bold text-gray-800 border-b pb-2">Configuration</h3>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
               Number of Questions *
             </label>
             <input

@@ -96,27 +96,31 @@ const QuestionCard = ({
         )}
 
         {/* Options / Answers */}
-        <div className="mt-1">
+        <div className="mt-2">
           {(question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_SELECT') && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
               {question.optionA && (
-                <div className={`text-sm p-2 rounded-lg border ${question.correctAnswer?.includes('A') ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                  <span className="font-bold text-gray-500 mr-2">A</span> {question.optionA}
+                <div className={`flex items-center text-sm p-3 rounded-xl border transition-colors ${question.correctAnswer?.includes('A') ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm' : 'bg-secondary-50/50 border-secondary-200 text-secondary-800'}`}>
+                  <span className={`flex items-center justify-center shrink-0 w-6 h-6 rounded border mr-3 font-bold text-[11px] ${question.correctAnswer?.includes('A') ? 'bg-emerald-200 border-emerald-300 text-emerald-800' : 'bg-white border-secondary-200 text-secondary-500 shadow-sm'}`}>A</span>
+                  <span>{question.optionA}</span>
                 </div>
               )}
               {question.optionB && (
-                <div className={`text-sm p-2 rounded-lg border ${question.correctAnswer?.includes('B') ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                  <span className="font-bold text-gray-500 mr-2">B</span> {question.optionB}
+                <div className={`flex items-center text-sm p-3 rounded-xl border transition-colors ${question.correctAnswer?.includes('B') ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm' : 'bg-secondary-50/50 border-secondary-200 text-secondary-800'}`}>
+                  <span className={`flex items-center justify-center shrink-0 w-6 h-6 rounded border mr-3 font-bold text-[11px] ${question.correctAnswer?.includes('B') ? 'bg-emerald-200 border-emerald-300 text-emerald-800' : 'bg-white border-secondary-200 text-secondary-500 shadow-sm'}`}>B</span>
+                  <span>{question.optionB}</span>
                 </div>
               )}
               {question.optionC && (
-                <div className={`text-sm p-2 rounded-lg border ${question.correctAnswer?.includes('C') ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                  <span className="font-bold text-gray-500 mr-2">C</span> {question.optionC}
+                <div className={`flex items-center text-sm p-3 rounded-xl border transition-colors ${question.correctAnswer?.includes('C') ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm' : 'bg-secondary-50/50 border-secondary-200 text-secondary-800'}`}>
+                  <span className={`flex items-center justify-center shrink-0 w-6 h-6 rounded border mr-3 font-bold text-[11px] ${question.correctAnswer?.includes('C') ? 'bg-emerald-200 border-emerald-300 text-emerald-800' : 'bg-white border-secondary-200 text-secondary-500 shadow-sm'}`}>C</span>
+                  <span>{question.optionC}</span>
                 </div>
               )}
               {question.optionD && (
-                <div className={`text-sm p-2 rounded-lg border ${question.correctAnswer?.includes('D') ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                  <span className="font-bold text-gray-500 mr-2">D</span> {question.optionD}
+                <div className={`flex items-center text-sm p-3 rounded-xl border transition-colors ${question.correctAnswer?.includes('D') ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm' : 'bg-secondary-50/50 border-secondary-200 text-secondary-800'}`}>
+                  <span className={`flex items-center justify-center shrink-0 w-6 h-6 rounded border mr-3 font-bold text-[11px] ${question.correctAnswer?.includes('D') ? 'bg-emerald-200 border-emerald-300 text-emerald-800' : 'bg-white border-secondary-200 text-secondary-500 shadow-sm'}`}>D</span>
+                  <span>{question.optionD}</span>
                 </div>
               )}
             </div>

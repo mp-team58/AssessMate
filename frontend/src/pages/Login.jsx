@@ -11,8 +11,8 @@ import { useAuth } from '../context/AuthContext';
 import { loginHost, loginCandidate } from '../services/authService';
 
 const loginSchema = yup.object().shape({
-  email: yup.string().email('Must be a valid email').required('Email is required'),
-  password: yup.string().required('Password is required'),
+  email: yup.string().trim().email('Must be a valid email').required('Email is required'),
+  password: yup.string().trim().required('Password is required'),
 });
 
 const Login = () => {

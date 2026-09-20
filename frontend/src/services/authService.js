@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { candidateApiClient } from './apiClient';
 
 /**
  * @typedef {Object} LoginPayload
@@ -14,13 +14,27 @@ import apiClient from './apiClient';
  */
 
 /**
+ * Unified login function
+ * @param {LoginPayload & { role?: string }} payload 
+ * @returns {Promise<any>}
+ */
+export const login = async (payload) => {
+  return apiClient.post('/auth/login', {
+    email: payload.email,
+    password: payload.password,
+    role: (payload.role || 'CANDIDATE').toUpperCase()
+  });
+};
+
+/**
  * Log in a Host
  * @param {LoginPayload} payload 
  * @returns {Promise<any>}
  */
 export const loginHost = async (payload) => {
   return apiClient.post('/auth/login', {
-    ...payload,
+    email: payload.email,
+    password: payload.password,
     role: 'HOST'
   });
 };
@@ -32,7 +46,8 @@ export const loginHost = async (payload) => {
  */
 export const loginCandidate = async (payload) => {
   return apiClient.post('/auth/login', {
-    ...payload,
+    email: payload.email,
+    password: payload.password,
     role: 'CANDIDATE'
   });
 };
@@ -57,12 +72,25 @@ export const signupHost = async (payload) => {
  * @returns {Promise<any>}
  */
 export const signupCandidate = async (payload) => {
-  return apiClient.post('/auth/register', {
-    name: payload.fullName,
-    email: payload.email,
-    password: payload.password,
-    role: 'CANDIDATE'
-  });
+  try {
+    return await candidateApiClient.post('/auth/register', {
+      name: payload.fullName,
+      email: payload.email,
+      password: payload.password,
+      role: 'CANDIDATE'
+    });
+  } catch (err) {
+    // If Candidate backend does not serve /auth/register, fallback to main backend
+    if (err.response?.status === 404) {
+      return await apiClient.post('/auth/register', {
+        name: payload.fullName,
+        email: payload.email,
+        password: payload.password,
+        role: 'CANDIDATE'
+      });
+    }
+    throw err;
+  }
 };
 
 /**

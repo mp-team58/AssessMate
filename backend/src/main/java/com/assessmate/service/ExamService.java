@@ -11,58 +11,53 @@ import com.assessmate.repository.CodingQuestionRepository;
 import com.assessmate.repository.ExamRepository;
 import com.assessmate.repository.QuestionRepository;
 import com.assessmate.repository.UserRepository;
+import com.assessmate.repository.TestCaseRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Random;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExamService {
 
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
     private final QuestionRepository questionRepository;
     private final CodingQuestionRepository codingQuestionRepository;
+    private final TestCaseRepository testCaseRepository;
 
-    // Create Exam
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final String JOIN_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    @Transactional
     public ExamResponse createExam(ExamRequest req, String hostEmail) {
 
-        // Validate difficulty adds to 100
-        int total = req.getEasyPercent()
-                + req.getMediumPercent()
-                + req.getHardPercent();
+        int total = req.getEasyPercent() + req.getMediumPercent() + req.getHardPercent();
         if (total != 100) {
-            throw new BadRequestException(
-                    "Difficulty percentages must add up to 100. Current total: " + total
-            );
+            throw new BadRequestException("Difficulty percentages must add up to 100. Current total: " + total);
         }
 
-        // Validate scheduledStart is in future
         if (req.getScheduledStart().isBefore(LocalDateTime.now())) {
-            throw new BadRequestException(
-                    "Scheduled start time must be in the future"
-            );
+            throw new BadRequestException("Scheduled start time must be in the future");
         }
 
-        // Validate duration for WHOLE_EXAM
-        if (req.getTimerType() == TimerType.WHOLE_EXAM
-                && req.getDurationMinutes() == null) {
-            throw new BadRequestException(
-                    "Duration in minutes is required for whole exam timer"
-            );
+        if (req.getTimerType() == TimerType.WHOLE_EXAM && req.getDurationMinutes() == null) {
+            throw new BadRequestException("Duration in minutes is required for whole exam timer");
         }
 
-        // Validate coding section fields
         if (Boolean.TRUE.equals(req.getHasCodingSection())) {
             if (req.getCodingQuestionsCount() == null || req.getCodingQuestionsCount() < 1) {
-                throw new BadRequestException(
-                        "Coding questions count must be at least 1 when coding section is enabled."
-                );
+                throw new BadRequestException("Coding questions count must be at least 1 when coding section is enabled.");
             }
         }
 
@@ -74,63 +69,35 @@ public class ExamService {
                 .title(req.getTitle())
                 .subject(req.getSubject())
                 .scheduledStart(req.getScheduledStart())
-                .gracePeriodMinutes(
-                        req.getGracePeriodMinutes() != null
-                                ? req.getGracePeriodMinutes() : 10)
-                .timerType(
-                        req.getTimerType() != null
-                                ? req.getTimerType() : TimerType.WHOLE_EXAM)
+                .gracePeriodMinutes(req.getGracePeriodMinutes() != null ? req.getGracePeriodMinutes() : 10)
+                .timerType(req.getTimerType() != null ? req.getTimerType() : TimerType.WHOLE_EXAM)
                 .durationMinutes(req.getDurationMinutes())
                 .totalQuestions(req.getTotalQuestions())
                 .easyPercent(req.getEasyPercent())
                 .mediumPercent(req.getMediumPercent())
                 .hardPercent(req.getHardPercent())
-                .easyMark(
-                        req.getEasyMark() != null
-                                ? req.getEasyMark() : 1.0)
-                .mediumMark(
-                        req.getMediumMark() != null
-                                ? req.getMediumMark() : 2.0)
-                .hardMark(
-                        req.getHardMark() != null
-                                ? req.getHardMark() : 3.0)
-                .easyNegative(
-                        req.getEasyNegative() != null
-                                ? req.getEasyNegative() : 0.25)
-                .mediumNegative(
-                        req.getMediumNegative() != null
-                                ? req.getMediumNegative() : 0.50)
-                .hardNegative(
-                        req.getHardNegative() != null
-                                ? req.getHardNegative() : 1.00)
-                .easySeconds(
-                        req.getEasySeconds() != null
-                                ? req.getEasySeconds() : 30)
-                .mediumSeconds(
-                        req.getMediumSeconds() != null
-                                ? req.getMediumSeconds() : 60)
-                .hardSeconds(
-                        req.getHardSeconds() != null
-                                ? req.getHardSeconds() : 90)
-                .negativeMark(
-                        req.getNegativeMark() != null
-                                ? req.getNegativeMark() : false)
-                .deviceAccess(
-                        req.getDeviceAccess() != null
-                                ? req.getDeviceAccess() : DeviceAccess.BOTH)
+                .easyMark(req.getEasyMark() != null ? req.getEasyMark() : 1.0)
+                .mediumMark(req.getMediumMark() != null ? req.getMediumMark() : 2.0)
+                .hardMark(req.getHardMark() != null ? req.getHardMark() : 3.0)
+                .easyNegative(req.getEasyNegative() != null ? req.getEasyNegative() : 0.25)
+                .mediumNegative(req.getMediumNegative() != null ? req.getMediumNegative() : 0.50)
+                .hardNegative(req.getHardNegative() != null ? req.getHardNegative() : 1.00)
+                .easySeconds(req.getEasySeconds() != null ? req.getEasySeconds() : 30)
+                .mediumSeconds(req.getMediumSeconds() != null ? req.getMediumSeconds() : 60)
+                .hardSeconds(req.getHardSeconds() != null ? req.getHardSeconds() : 90)
+                .negativeMark(req.getNegativeMark() != null ? req.getNegativeMark() : false)
+                .deviceAccess(req.getDeviceAccess() != null ? req.getDeviceAccess() : DeviceAccess.BOTH)
                 .joinCode(generateUniqueJoinCode())
-                .hasCodingSection(
-                        req.getHasCodingSection() != null
-                                ? req.getHasCodingSection() : false)
+                .hasCodingSection(req.getHasCodingSection() != null ? req.getHasCodingSection() : false)
                 .codingDurationMinutes(req.getCodingDurationMinutes())
                 .codingQuestionsCount(req.getCodingQuestionsCount())
+                .passingPercentage(req.getPassingPercentage() != null ? req.getPassingPercentage() : 50.0)
                 .status(ExamStatus.DRAFT)
                 .build();
 
         return mapToResponse(examRepository.save(exam));
     }
 
-    // Get all exams by host
     public List<ExamResponse> getMyExams(String hostEmail) {
         User host = userRepository.findByEmail(hostEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Host not found"));
@@ -140,14 +107,16 @@ public class ExamService {
                 .collect(Collectors.toList());
     }
 
-    // Get single exam by ID
-    public ExamResponse getExamById(Long id) {
+    @Transactional(readOnly = true)
+    public ExamResponse getExamById(Long id, String hostEmail) {
         Exam exam = examRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Exam not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Exam not found."));
+        if (!exam.getHost().getEmail().equals(hostEmail)) {
+            throw new ForbiddenException("Not authorized to view this exam.");
+        }
         return mapToResponse(exam);
     }
 
-    // Publish exam
     @Transactional
     public ExamResponse publishExam(Long id, String hostEmail) {
         Exam exam = findExamForHost(id, hostEmail);
@@ -156,18 +125,12 @@ public class ExamService {
             throw new BadRequestException("Only DRAFT exams can be published.");
         }
 
-        // Validate MCQ questions
         validateMcqQuestions(exam);
-
-        // Validate coding section if enabled
         validateCodingSection(exam);
 
-        // Validate no unverified questions
         long unverifiedCount = questionRepository.countByExamIdAndIsVerifiedFalse(exam.getId());
         if (unverifiedCount > 0) {
-            throw new BadRequestException(
-                    unverifiedCount + " question(s) are not verified. Please verify all questions before publishing."
-            );
+            throw new BadRequestException(unverifiedCount + " question(s) are not verified. Please verify all questions before publishing.");
         }
 
         exam.setStatus(ExamStatus.LIVE);
@@ -175,7 +138,7 @@ public class ExamService {
         return mapToResponse(examRepository.save(exam));
     }
 
-    // End exam
+    @Transactional
     public ExamResponse endExam(Long id, String hostEmail) {
         Exam exam = findExamForHost(id, hostEmail);
         if (exam.getStatus() != ExamStatus.LIVE) {
@@ -186,13 +149,47 @@ public class ExamService {
         return mapToResponse(examRepository.save(exam));
     }
 
-    // Delete exam
+    @Transactional
     public void deleteExam(Long id, String hostEmail) {
-        Exam exam = findExamForHost(id, hostEmail);
+        Exam exam = examRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Exam not found."));
+
+        if (!exam.getHost().getEmail().equals(hostEmail)) {
+            throw new ForbiddenException("Not authorized to delete this exam.");
+        }
+
+        if (exam.getStatus() != ExamStatus.DRAFT) {
+            throw new BadRequestException("Only DRAFT exams can be deleted.");
+        }
+
+        List<Question> questions = questionRepository.findByExamId(id);
+
+        for (Question q : questions) {
+            if (q.getImageUrl() != null) {
+                deleteImageFile(q.getImageUrl());
+            }
+        }
+
+        questionRepository.deleteByExamId(id);
+
+        codingQuestionRepository.findByExamId(id).forEach(cq -> {
+            testCaseRepository.deleteAll(testCaseRepository.findByCodingQuestionId(cq.getId()));
+        });
+        codingQuestionRepository.deleteByExamId(id);
+
         examRepository.delete(exam);
     }
 
-    // Find exam and verify host ownership
+    private void deleteImageFile(String imageUrl) {
+        try {
+            String filename = imageUrl.replace("/uploads/questions/", "");
+            Path filePath = Paths.get("uploads/questions/", filename);
+            Files.deleteIfExists(filePath);
+        } catch (Exception e) {
+            log.warn("Could not delete image file: {}", imageUrl);
+        }
+    }
+
     private Exam findExamForHost(Long id, String hostEmail) {
         Exam exam = examRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found."));
@@ -202,12 +199,12 @@ public class ExamService {
         return exam;
     }
 
-    // Validate MCQ requirements
     private void validateMcqQuestions(Exam exam) {
         int total = exam.getTotalQuestions();
-        int easyRequired = (int) (total * exam.getEasyPercent() / 100.0);
-        int mediumRequired = (int) (total * exam.getMediumPercent() / 100.0);
-        int hardRequired = total - easyRequired - mediumRequired;
+        int[] required = calculateRequiredCounts(total, exam.getEasyPercent(), exam.getMediumPercent());
+        int easyRequired = required[0];
+        int mediumRequired = required[1];
+        int hardRequired = required[2];
 
         long easyCount = questionRepository.countByExamIdAndDifficulty(exam.getId(), Difficulty.EASY);
         long mediumCount = questionRepository.countByExamIdAndDifficulty(exam.getId(), Difficulty.MEDIUM);
@@ -225,13 +222,10 @@ public class ExamService {
 
         long totalCount = easyCount + mediumCount + hardCount;
         if (totalCount != total) {
-            throw new BadRequestException(
-                    "Exactly " + total + " questions required. Currently have " + totalCount + "."
-            );
+            throw new BadRequestException("Exactly " + total + " questions required. Currently have " + totalCount + ".");
         }
     }
 
-    // Validate Coding section pool size
     private void validateCodingSection(Exam exam) {
         if (!Boolean.TRUE.equals(exam.getHasCodingSection())) {
             return;
@@ -244,23 +238,32 @@ public class ExamService {
 
         long poolSize = codingQuestionRepository.countByExamId(exam.getId());
         if (poolSize < requested) {
-            throw new BadRequestException(
-                    "Coding section requires at least " + requested
-                            + " problems in the pool. Currently have " + poolSize + "."
-            );
+            throw new BadRequestException("Coding section requires at least " + requested + " problems in the pool. Currently have " + poolSize + ".");
         }
     }
 
-    // Generate unique 6 digit join code
     private String generateUniqueJoinCode() {
-        String code;
-        do {
-            code = String.valueOf(100000 + new Random().nextInt(900000));
-        } while (examRepository.findByJoinCode(code).isPresent());
-        return code;
+        int maxAttempts = 5;
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            StringBuilder code = new StringBuilder(8);
+            for (int i = 0; i < 8; i++) {
+                code.append(JOIN_CODE_CHARS.charAt(SECURE_RANDOM.nextInt(JOIN_CODE_CHARS.length())));
+            }
+            String generated = code.toString();
+            if (!examRepository.findByJoinCode(generated).isPresent()) {
+                return generated;
+            }
+        }
+        throw new RuntimeException("Could not generate unique join code. Please try again.");
     }
 
-    // Map Exam to ExamResponse
+    public static int[] calculateRequiredCounts(int total, int easyPct, int mediumPct) {
+        int easy = (int) (total * easyPct / 100.0);
+        int medium = (int) (total * mediumPct / 100.0);
+        int hard = total - easy - medium;
+        return new int[]{easy, medium, hard};
+    }
+
     public ExamResponse mapToResponse(Exam exam) {
         return ExamResponse.builder()
                 .id(exam.getId())
@@ -289,6 +292,7 @@ public class ExamService {
                 .hasCodingSection(exam.getHasCodingSection())
                 .codingDurationMinutes(exam.getCodingDurationMinutes())
                 .codingQuestionsCount(exam.getCodingQuestionsCount())
+                .passingPercentage(exam.getPassingPercentage())
                 .joinCode(exam.getJoinCode())
                 .status(exam.getStatus())
                 .createdAt(exam.getCreatedAt())

@@ -7,7 +7,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "exams")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -86,6 +87,9 @@ public class Exam {
     // Exam Rules
     @Builder.Default
     private Boolean negativeMark = false;
+
+    @Builder.Default
+    private Double passingPercentage = 50.0;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default

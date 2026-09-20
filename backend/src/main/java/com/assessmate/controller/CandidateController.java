@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 
-@CrossOrigin(origins = "http://localhost:5173")
+
 @RestController
 @RequestMapping("/api/candidate")
 @RequiredArgsConstructor

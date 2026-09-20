@@ -63,4 +63,7 @@ public class ExamResponse {
     private Boolean hasCodingSection;
     private Integer codingDurationMinutes;
     private Integer codingQuestionsCount;
+
+    // Passing
+    private Double passingPercentage;
 }

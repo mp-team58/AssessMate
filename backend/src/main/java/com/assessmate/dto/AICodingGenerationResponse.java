@@ -1,7 +1,6 @@
 package com.assessmate.dto;
 
 import lombok.*;
-import java.util.List;
 
 @Data
 @NoArgsConstructor

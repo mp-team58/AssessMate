@@ -457,6 +457,24 @@ public class AIQuestionService {
         List<QuestionResponse> unverified =
             new ArrayList<>();
 
+        Map<Difficulty, Integer> savedPerDifficulty = new HashMap<>();
+        savedPerDifficulty.put(Difficulty.EASY, 0);
+        savedPerDifficulty.put(Difficulty.MEDIUM, 0);
+        savedPerDifficulty.put(Difficulty.HARD, 0);
+
+        int totalSlots = exam.getTotalQuestions();
+        int[] required = ExamService.calculateRequiredCounts(totalSlots, exam.getEasyPercent(), exam.getMediumPercent());
+        long existingEasy = questionRepository.countByExamIdAndDifficulty(exam.getId(), Difficulty.EASY);
+        long existingMedium = questionRepository.countByExamIdAndDifficulty(exam.getId(), Difficulty.MEDIUM);
+        long existingHard = questionRepository.countByExamIdAndDifficulty(exam.getId(), Difficulty.HARD);
+        int[] remaining = new int[]{
+            (int) Math.max(0, required[0] - existingEasy),
+            (int) Math.max(0, required[1] - existingMedium),
+            (int) Math.max(0, required[2] - existingHard)
+        };
+
+        int skippedCapacityCount = 0;
+
         for (GeneratedQuestion gq : generated) {
             try {
                 // Basic null checks
@@ -539,6 +557,18 @@ public class AIQuestionService {
                         : 0.0;
                 }
 
+                int remainingForDiff = switch (difficulty) {
+                    case EASY -> remaining[0];
+                    case MEDIUM -> remaining[1];
+                    case HARD -> remaining[2];
+                };
+                int alreadySaved = savedPerDifficulty.get(difficulty);
+                if (alreadySaved >= remainingForDiff) {
+                    log.warn("Skipped question: {} bucket full", difficulty);
+                    skippedCapacityCount++;
+                    continue;
+                }
+
                 Question question =
                     Question.builder()
                         .exam(exam)
@@ -589,11 +619,18 @@ public class AIQuestionService {
                     unverified.add(saved);
                 }
 
+                savedPerDifficulty.merge(difficulty, 1, Integer::sum);
+
             } catch (Exception e) {
                 log.warn(
                     "Skipped question: {}",
                     e.getMessage());
             }
+        }
+
+        if (skippedCapacityCount > 0) {
+            String capWarning = skippedCapacityCount + " question(s) were skipped because the difficulty limits were reached.";
+            warning = warning == null ? capWarning : warning + " " + capWarning;
         }
 
         return AIGenerationResponse.builder()

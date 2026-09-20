@@ -506,9 +506,6 @@ public class GeminiService {
         }
 
         String url = apiUrl;
-        if (!url.contains("key=") && (apiKey != null && !apiKey.isEmpty())) {
-            url = apiUrl + (apiUrl.contains("?") ? "&key=" : "?key=") + apiKey;
-        }
 
         Request.Builder requestBuilder = new Request.Builder()
             .url(url)
@@ -524,26 +521,47 @@ public class GeminiService {
 
         Request request = requestBuilder.build();
 
-        try (Response response = client.newCall(request).execute()) {
+        int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try (Response response = client.newCall(request).execute()) {
+                if (response.body() == null) {
+                    throw new RuntimeException("Empty response from AI service");
+                }
 
-            if (response.body() == null) {
-                throw new RuntimeException("Empty response from AI service");
+                String responseBody = response.body().string();
+
+                if (!response.isSuccessful()) {
+                    if (response.code() == 429 || response.code() >= 500) {
+                        if (attempt < maxAttempts) {
+                            log.warn("Gemini API error {}: {}. Retrying attempt {}/{}", response.code(), responseBody, attempt + 1, maxAttempts);
+                            Thread.sleep(1000 * attempt);
+                            continue;
+                        }
+                    }
+                    log.error("Gemini API error {}: {}", response.code(), responseBody);
+                    throw new RuntimeException("AI service error " + response.code() + ". Please try again.");
+                }
+
+                return responseBody;
+
+            } catch (IOException e) {
+                if (attempt < maxAttempts) {
+                    log.warn("Gemini connection error: {}. Retrying attempt {}/{}", e.getMessage(), attempt + 1, maxAttempts);
+                    try {
+                        Thread.sleep(1000 * attempt);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                    continue;
+                }
+                log.error("Gemini connection error: {}", e.getMessage());
+                throw new RuntimeException("Could not connect to AI service. Please check your connection and try again.");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Request interrupted");
             }
-
-            String responseBody = response.body().string();
-
-            if (!response.isSuccessful()) {
-                log.error("Gemini API error {}: {}", response.code(), responseBody);
-                throw new RuntimeException("AI service error " + response.code() + ". Please try again.");
-            }
-
-            return responseBody;
-
-        } catch (IOException e) {
-            log.error("Gemini connection error: {}", e.getMessage());
-            throw new RuntimeException(
-                "Could not connect to AI service. Please check your connection and try again.");
         }
+        throw new RuntimeException("Failed to call AI service after " + maxAttempts + " attempts.");
     }
 
     // ─────────────────────────────────────────

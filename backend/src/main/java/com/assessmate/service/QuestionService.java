@@ -11,6 +11,11 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
+import javax.imageio.ImageIO;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.annotation.Transactional;
+import com.assessmate.exception.BadRequestException;
+import com.assessmate.exception.ResourceNotFoundException;
 
 @Service
 @RequiredArgsConstructor
@@ -21,8 +26,8 @@ public class QuestionService {
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
 
-    private final String UPLOAD_DIR =
-            "uploads/questions/";
+    @Value("${app.upload.dir:uploads/questions/}")
+    private String uploadDir;
 
     // ─────────────────────────────────────────
     // VALIDATION
@@ -134,6 +139,7 @@ public class QuestionService {
     // GLOBAL BANK METHODS
     // ─────────────────────────────────────────
 
+    @Transactional
     public QuestionResponse addToBank(
             QuestionRequest req,
             MultipartFile image,
@@ -160,67 +166,36 @@ public class QuestionService {
                 questionRepository.save(question));
     }
 
+    @Transactional(readOnly = true)
     public List<QuestionResponse> getGlobalBank(
             String hostEmail,
             QuestionBankFilterRequest filter) {
 
-        // Null guard
         if (filter == null) {
             filter = new QuestionBankFilterRequest();
         }
 
         User host = userRepository
-                .findByEmail(hostEmail)
-                .orElseThrow(() ->
-                        new RuntimeException(
-                                "Host not found"));
+            .findByEmail(hostEmail)
+            .orElseThrow(() ->
+                new ResourceNotFoundException(
+                    "Host not found."));
 
-        List<Question> questions;
-
-        if (filter.getDifficulty() != null) {
-            questions = questionRepository
-                    .findByCreatedByIdAndIsGlobalTrueAndDifficulty(
-                            host.getId(),
-                            filter.getDifficulty());
-        } else if (filter.getTopic() != null
-                && !filter.getTopic().isEmpty()) {
-            // Case insensitive partial match
-            questions = questionRepository
-                    .findByCreatedByIdAndIsGlobalTrueAndTopicContainingIgnoreCase(
-                            host.getId(),
-                            filter.getTopic());
-        } else {
-            questions = questionRepository
-                    .findByCreatedByIdAndIsGlobalTrue(
-                            host.getId());
-        }
-
-        // Search filter
-        if (filter.getSearch() != null
-                && !filter.getSearch().isEmpty()) {
-            String search = filter.getSearch()
-                    .toLowerCase();
-            questions = questions.stream()
-                    .filter(q -> q.getQuestionText()
-                            .toLowerCase()
-                            .contains(search))
-                    .collect(Collectors.toList());
-        }
-
-        // Type filter
-        if (filter.getType() != null) {
-            QuestionBankFilterRequest finalFilter = filter;
-            questions = questions.stream()
-                    .filter(q -> q.getType()
-                            == finalFilter.getType())
-                    .collect(Collectors.toList());
-        }
+        List<Question> questions =
+            questionRepository
+                .findByHostFiltered(
+                    host.getId(),
+                    filter.getDifficulty(),
+                    filter.getType(),
+                    filter.getTopic(),
+                    filter.getSearch());
 
         return questions.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+            .map(this::mapToResponse)
+            .collect(Collectors.toList());
     }
 
+    @Transactional
     public List<QuestionResponse> addFromBank(
             AddFromBankRequest req,
             String hostEmail) {
@@ -319,6 +294,7 @@ public class QuestionService {
     // EXAM QUESTION METHODS
     // ─────────────────────────────────────────
 
+    @Transactional
     public QuestionResponse addManually(
             QuestionRequest req,
             MultipartFile image,
@@ -357,6 +333,9 @@ public class QuestionService {
         if (image != null && !image.isEmpty()) {
             imageUrl = saveImage(image);
         }
+
+        // Check capacity before saving
+        checkDifficultyCapacity(exam, req.getDifficulty());
 
         // Save to global bank only if opted in
         boolean saveToBank = Boolean.TRUE
@@ -424,16 +403,14 @@ public class QuestionService {
         }
 
         int total = exam.getTotalQuestions();
-        int easyRequired = total
-                * exam.getEasyPercent() / 100;
-        int mediumRequired = total
-                * exam.getMediumPercent() / 100;
-        int hardRequired = total
-                * exam.getHardPercent() / 100;
+        int[] required = ExamService.calculateRequiredCounts(
+            total,
+            exam.getEasyPercent(),
+            exam.getMediumPercent());
 
-        int remainder = total - easyRequired
-                - mediumRequired - hardRequired;
-        hardRequired += remainder;
+        int easyRequired = required[0];
+        int mediumRequired = required[1];
+        int hardRequired = required[2];
 
         long easyAdded = questionRepository
                 .countByExamIdAndDifficulty(
@@ -489,6 +466,7 @@ public class QuestionService {
                 .build();
     }
 
+    @Transactional
     public QuestionResponse editQuestion(
             Long id,
             QuestionRequest req,
@@ -555,6 +533,7 @@ public class QuestionService {
                 questionRepository.save(question));
     }
 
+    @Transactional
     public void deleteQuestion(
             Long id, String hostEmail) {
 
@@ -625,24 +604,61 @@ public class QuestionService {
 
     private String saveImage(
             MultipartFile file) throws IOException {
-        Path uploadPath = Paths.get(UPLOAD_DIR);
+
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException(
+                "Image file is empty.");
+        }
+
+        if (file.getSize() > 5 * 1024 * 1024) {
+            throw new BadRequestException(
+                "Image too large. Max 5MB.");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null
+                || (!contentType.equals("image/jpeg")
+                    && !contentType.equals("image/png")
+                    && !contentType.equals(
+                        "image/webp"))) {
+            throw new BadRequestException(
+                "Only JPEG, PNG, and WebP images " +
+                "are allowed.");
+        }
+
+        try {
+            java.awt.image.BufferedImage img =
+                ImageIO.read(file.getInputStream());
+            if (img == null) {
+                throw new BadRequestException(
+                    "File is not a valid image.");
+            }
+        } catch (Exception e) {
+            throw new BadRequestException(
+                "Could not read image file.");
+        }
+
+        Path uploadPath = Paths.get(
+            uploadDir); 
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
-        // Sanitize filename — security fix
-        String originalName = Paths
-                .get(file.getOriginalFilename())
-                .getFileName()
-                .toString()
-                .replaceAll("[^a-zA-Z0-9._-]", "_");
+        String extension = switch (contentType) {
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            default -> ".jpg";
+        };
 
         String filename = UUID.randomUUID()
-                + "_" + originalName;
+            .toString() + extension;
+
         Files.copy(
-                file.getInputStream(),
-                uploadPath.resolve(filename),
-                StandardCopyOption.REPLACE_EXISTING);
+            file.getInputStream(),
+            uploadPath.resolve(filename),
+            StandardCopyOption.REPLACE_EXISTING);
+
         return "/uploads/questions/" + filename;
     }
 
@@ -657,12 +673,41 @@ public class QuestionService {
 
     private Double getNegative(
             Exam exam, Difficulty d) {
-        if (!exam.getNegativeMark()) return 0.0;
+        if (!Boolean.TRUE.equals(
+                exam.getNegativeMark())) {
+            return 0.0;
+        }
         return switch (d) {
             case EASY -> exam.getEasyNegative();
             case MEDIUM -> exam.getMediumNegative();
             case HARD -> exam.getHardNegative();
         };
+    }
+
+    private void checkDifficultyCapacity(
+            Exam exam, Difficulty difficulty) {
+        int total = exam.getTotalQuestions();
+        int[] required = ExamService
+            .calculateRequiredCounts(
+                total,
+                exam.getEasyPercent(),
+                exam.getMediumPercent());
+
+        long existing = questionRepository
+            .countByExamIdAndDifficulty(
+                exam.getId(), difficulty);
+
+        int target = switch (difficulty) {
+            case EASY -> required[0];
+            case MEDIUM -> required[1];
+            case HARD -> required[2];
+        };
+
+        if (existing >= target) {
+            throw new BadRequestException(
+                difficulty + " question slots are " +
+                "full (" + existing + "/" + target + ").");
+        }
     }
 
     private Integer getSeconds(
@@ -768,6 +813,7 @@ public class QuestionService {
     // Only host who owns the question can do this
     // ─────────────────────────────────────────
 
+    @Transactional
     public QuestionResponse markAsVerified(
             Long questionId,
             String hostEmail) {

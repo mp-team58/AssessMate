@@ -1,50 +1,40 @@
 package com.assessmate.controller;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
-
 import com.assessmate.dto.AuthResponse;
 import com.assessmate.dto.LoginRequest;
 import com.assessmate.dto.RegisterRequest;
+import com.assessmate.exception.BadRequestException;
 import com.assessmate.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.util.Map;
 
-@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-        private final AuthService authService;
+    private final AuthService authService;
 
-        // Register API
-        @PostMapping("/register")
-        public ResponseEntity<AuthResponse> register(
-                        @RequestBody RegisterRequest request) {
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity.ok(authService.register(request));
+    }
 
-                return ResponseEntity.ok(
-                                authService.register(request));
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(Principal principal) {
+        if (principal == null) {
+            throw new BadRequestException("No active session found.");
         }
-
-        // Login API
-        @PostMapping("/login")
-        public ResponseEntity<AuthResponse> login(
-                        @RequestBody LoginRequest request) {
-
-                return ResponseEntity.ok(
-                                authService.login(request));
-        }
-
-        // Logout — clears active token
-        @PostMapping("/logout")
-        public ResponseEntity<Map<String, String>> logout(
-                        Principal principal) {
-                authService.logout(principal.getName());
-                return ResponseEntity.ok(
-                                Map.of("message",
-                                                "Logged out successfully"));
-        }
+        authService.logout(principal.getName());
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+    }
 }

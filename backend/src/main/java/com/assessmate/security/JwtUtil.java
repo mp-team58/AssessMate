@@ -37,6 +37,21 @@ public class JwtUtil {
                 .getSubject();
     }
 
+    public String extractEmailSafely(String token) {
+        try {
+            return Jwts.parserBuilder()
+                .setSigningKey(
+                    Keys.hmacShaKeyFor(
+                        secret.getBytes()))
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     // Validate JWT Token
     public boolean validateToken(String token) {
         try {

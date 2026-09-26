@@ -477,4 +477,34 @@ public class ExamService {
                 .endedAt(exam.getEndedAt())
                 .build();
     }
+
+    public com.assessmate.dto.ExamShareDetailsDTO getShareDetails(Long examId, String hostEmail) {
+        Exam exam = findExamForHost(examId, hostEmail);
+
+        if (exam.getStatus() == ExamStatus.DRAFT) {
+            throw new com.assessmate.exception.BadRequestException("Publish the exam before sharing it with candidates.");
+        }
+
+        String message = String.format(
+            "You're invited to take: %s%n" +
+            "Subject: %s%n" +
+            "Starts: %s%n" +
+            "Join Code: %s%n" +
+            "Go to AssessMate, enter this code, and join before the grace period ends.",
+            exam.getTitle(), exam.getSubject(), exam.getScheduledStart(), exam.getJoinCode()
+        );
+
+        return com.assessmate.dto.ExamShareDetailsDTO.builder()
+                .examId(exam.getId())
+                .title(exam.getTitle())
+                .subject(exam.getSubject())
+                .joinCode(exam.getJoinCode())
+                .scheduledStart(exam.getScheduledStart())
+                .durationMinutes(exam.getDurationMinutes())
+                .gracePeriodMinutes(exam.getGracePeriodMinutes())
+                .deviceAccess(exam.getDeviceAccess() != null ? exam.getDeviceAccess().name() : null)
+                .hasCodingSection(exam.getHasCodingSection())
+                .shareMessage(message)
+                .build();
+    }
 }

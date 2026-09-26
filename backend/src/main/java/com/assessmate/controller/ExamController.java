@@ -66,4 +66,10 @@ public class ExamController {
             @PathVariable Long id, @PathVariable Long enrollmentId, Principal principal) {
         return ResponseEntity.ok(examService.getProctoringEvents(id, enrollmentId, principal.getName()));
     }
+
+    @GetMapping("/{id}/share")
+    public ResponseEntity<com.assessmate.dto.ExamShareDetailsDTO> getShareDetails(
+            @PathVariable Long id, Principal principal) {
+        return ResponseEntity.ok(examService.getShareDetails(id, principal.getName()));
+    }
 }

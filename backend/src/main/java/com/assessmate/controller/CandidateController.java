@@ -6,8 +6,11 @@ import com.assessmate.service.CandidateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 import java.security.Principal;
+import java.util.Map;
 
 
 @RestController
@@ -17,6 +20,7 @@ import java.security.Principal;
 public class CandidateController {
 
     private final CandidateService candidateService;
+    private final com.assessmate.service.ProctoringService proctoringService;
 
     @PostMapping("/join/{code}")
     public ResponseEntity<JoinExamResponse> joinExam(
@@ -39,6 +43,15 @@ public class CandidateController {
             Principal principal) {
         candidateService.logProctorEvent(request, principal.getName());
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping(value = "/proctor/evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, String>> uploadEvidence(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("type") String type, // "image" or "audio"
+            Principal principal) {
+        String url = proctoringService.saveEvidence(file, type);
+        return ResponseEntity.ok(Map.of("url", url));
     }
 
     @PostMapping("/submit/{enrollmentId}")

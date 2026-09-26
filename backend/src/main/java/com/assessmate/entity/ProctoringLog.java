@@ -32,4 +32,12 @@ public class ProctoringLog {
     private LocalDateTime flaggedAt;
 
     private LocalDateTime clientReportedAt;
+
+    private String imageUrl;
+    private String audioUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private Severity severity = Severity.LOW;
 }

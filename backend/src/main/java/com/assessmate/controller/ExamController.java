@@ -54,4 +54,16 @@ public class ExamController {
         examService.deleteExam(id, principal.getName());
         return ResponseEntity.ok(Map.of("message", "Exam deleted successfully"));
     }
+
+    @GetMapping("/{id}/proctoring")
+    public ResponseEntity<List<com.assessmate.dto.ProctoringSummaryDTO>> getProctoringSummary(
+            @PathVariable Long id, Principal principal) {
+        return ResponseEntity.ok(examService.getProctoringSummary(id, principal.getName()));
+    }
+
+    @GetMapping("/{id}/proctoring/{enrollmentId}")
+    public ResponseEntity<List<com.assessmate.dto.ProctoringEventDTO>> getProctoringEvents(
+            @PathVariable Long id, @PathVariable Long enrollmentId, Principal principal) {
+        return ResponseEntity.ok(examService.getProctoringEvents(id, enrollmentId, principal.getName()));
+    }
 }

@@ -46,6 +46,9 @@ public class Result {
     @Builder.Default
     private String feedbackStatus = "PENDING"; // READY, PENDING, FAILED
 
+    private Double honestyScore;       // 0–100, null until computed
+    private Integer totalViolations;   // convenience count for the host list view
+
     @Column(name = "generated_at")
     @Builder.Default
     private LocalDateTime generatedAt = LocalDateTime.now();

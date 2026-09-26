@@ -20,4 +20,6 @@ public class ResultResponseDTO {
     private String weakTopicsJson;
     private String aiFeedback;
     private String feedbackStatus;
+    private Double honestyScore;
+    private Integer totalViolations;
 }

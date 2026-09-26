@@ -99,6 +99,31 @@ public class Exam {
     @Column(unique = true, nullable = false)
     private String joinCode;
 
+    // Proctoring Settings
+    @Builder.Default
+    private Boolean requireCamera = false;
+
+    @Builder.Default
+    private Boolean requireMic = false;
+
+    @Builder.Default
+    private Boolean requireScreenShare = false;
+
+    @Builder.Default
+    private Boolean enableFaceDetection = false;
+
+    @Builder.Default
+    private Boolean enableObjectDetection = false;
+
+    @Builder.Default
+    private Boolean enableTabSwitchDetection = false;
+
+    @Builder.Default
+    private Boolean enableAudioDetection = false;
+
+    // null = disabled (no auto-submit on tab switches)
+    private Integer maxTabSwitches;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private ExamStatus status = ExamStatus.DRAFT;

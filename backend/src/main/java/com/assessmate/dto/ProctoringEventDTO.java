@@ -1,14 +1,17 @@
 package com.assessmate.dto;
 
 import com.assessmate.entity.ProctoringEventType;
+import com.assessmate.entity.Severity;
+import lombok.Builder;
 import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-public class ProctorEventRequest {
-    private Long enrollmentId;
+@Builder
+public class ProctoringEventDTO {
     private ProctoringEventType eventType;
-    private LocalDateTime timestamp;
+    private Severity severity;
+    private LocalDateTime flaggedAt;
     private String imageUrl;
     private String audioUrl;
 }

@@ -66,4 +66,14 @@ public class ExamResponse {
 
     // Passing
     private Double passingPercentage;
+
+    // Proctoring Settings
+    private Boolean requireCamera;
+    private Boolean requireMic;
+    private Boolean requireScreenShare;
+    private Boolean enableFaceDetection;
+    private Boolean enableObjectDetection;
+    private Boolean enableTabSwitchDetection;
+    private Boolean enableAudioDetection;
+    private Integer maxTabSwitches;
 }

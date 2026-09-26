@@ -237,6 +237,11 @@ public class CandidateService {
             throw new RuntimeException("You can only log events for an ongoing exam.");
         }
 
+        Exam exam = enrollment.getExam();
+        if (!isDetectionEnabled(exam, request.getEventType())) {
+            return;
+        }
+
         LocalDateTime now = LocalDateTime.now();
         // A22: Proctoring log trusts client timestamp - fixed to server time
         LocalDateTime clientTime = request.getTimestamp();
@@ -254,9 +259,71 @@ public class CandidateService {
                 .eventType(request.getEventType())
                 .flaggedAt(now)
                 .clientReportedAt(clientTime)
+                .imageUrl(request.getImageUrl())
+                .audioUrl(request.getAudioUrl())
+                .severity(resolveSeverity(request.getEventType()))
                 .build();
 
         proctoringLogRepository.save(log);
+
+        if (request.getEventType() == ProctoringEventType.TAB_SWITCH) {
+            checkTabSwitchLimit(enrollment);
+        }
+    }
+
+    private boolean isDetectionEnabled(Exam exam, ProctoringEventType type) {
+        return switch (type) {
+            case NO_FACE, MULTIPLE_FACES, GAZE_AWAY -> Boolean.TRUE.equals(exam.getEnableFaceDetection());
+            case OBJECT_DETECTED -> Boolean.TRUE.equals(exam.getEnableObjectDetection());
+            case TAB_SWITCH -> Boolean.TRUE.equals(exam.getEnableTabSwitchDetection());
+            case AUDIO_DETECTED -> Boolean.TRUE.equals(exam.getEnableAudioDetection());
+            case NO_CAMERA -> Boolean.TRUE.equals(exam.getRequireCamera());
+            case NO_MIC -> Boolean.TRUE.equals(exam.getRequireMic());
+            case SCREEN_SHARE_STOPPED -> Boolean.TRUE.equals(exam.getRequireScreenShare());
+        };
+    }
+
+    private void checkTabSwitchLimit(ExamEnrollment enrollment) {
+        Exam exam = enrollment.getExam();
+        if (exam.getMaxTabSwitches() == null) return; // host didn't set a limit
+
+        long count = proctoringLogRepository.countByEnrollmentIdAndEventType(
+                enrollment.getId(), ProctoringEventType.TAB_SWITCH);
+
+        if (count >= exam.getMaxTabSwitches()) {
+            SubmitExamRequest emptyRequest = new SubmitExamRequest();
+            emptyRequest.setAnswers(new java.util.HashMap<>());
+            submitExam(enrollment.getId(), emptyRequest, enrollment.getCandidate().getEmail());
+        }
+    }
+
+    private static final Map<ProctoringEventType, Double> DEDUCTIONS = Map.of(
+        ProctoringEventType.GAZE_AWAY, 1.0,
+        ProctoringEventType.NO_FACE, 3.0,
+        ProctoringEventType.TAB_SWITCH, 4.0,
+        ProctoringEventType.AUDIO_DETECTED, 3.0,
+        ProctoringEventType.MULTIPLE_FACES, 8.0,
+        ProctoringEventType.OBJECT_DETECTED, 10.0,
+        ProctoringEventType.NO_CAMERA, 10.0,
+        ProctoringEventType.NO_MIC, 6.0,
+        ProctoringEventType.SCREEN_SHARE_STOPPED, 10.0
+    );
+
+    private Severity resolveSeverity(ProctoringEventType type) {
+        return switch (type) {
+            case GAZE_AWAY -> Severity.LOW;
+            case NO_FACE, TAB_SWITCH, AUDIO_DETECTED -> Severity.MEDIUM;
+            default -> Severity.HIGH;
+        };
+    }
+
+    private double calculateHonestyScore(Long enrollmentId) {
+        List<ProctoringLog> logs = proctoringLogRepository.findByEnrollmentId(enrollmentId);
+        double score = 100.0;
+        for (ProctoringLog log : logs) {
+            score -= DEDUCTIONS.getOrDefault(log.getEventType(), 2.0);
+        }
+        return Math.max(0.0, score);
     }
 
     @org.springframework.transaction.annotation.Transactional
@@ -444,6 +511,9 @@ public class CandidateService {
 
         Long timeTakenSeconds = enrollment.getJoinedAt() != null ? java.time.Duration.between(enrollment.getJoinedAt(), now).getSeconds() : 0L;
 
+        double honestyScore = calculateHonestyScore(enrollmentId);
+        int totalViolations = proctoringLogRepository.findByEnrollmentId(enrollmentId).size();
+
         Result result = Result.builder()
                 .enrollment(enrollment)
                 .totalScore(totalScore)
@@ -455,6 +525,8 @@ public class CandidateService {
                 .correctCount(correctCount)
                 .wrongCount(wrongCount)
                 .unansweredCount(unansweredCount)
+                .honestyScore(honestyScore)
+                .totalViolations(totalViolations)
                 .build();
         resultRepository.save(result);
 
@@ -540,6 +612,8 @@ public class CandidateService {
                 .weakTopicsJson(result.getWeakTopicsJson())
                 .aiFeedback(result.getAiFeedback())
                 .feedbackStatus(result.getFeedbackStatus())
+                .honestyScore(result.getHonestyScore())
+                .totalViolations(result.getTotalViolations())
                 .build();
     }
 

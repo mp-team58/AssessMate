@@ -16,6 +16,8 @@ public interface QuestionRepository
 
         List<Question> findByExamId(Long examId);
 
+        List<Question> findByExamIdIn(List<Long> examIds);
+
         List<Question> findByExamIdAndDifficulty(
                         Long examId, Difficulty difficulty);
 

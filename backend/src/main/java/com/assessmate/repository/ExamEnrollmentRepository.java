@@ -7,10 +7,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface ExamEnrollmentRepository extends JpaRepository<ExamEnrollment, Long> {
     Optional<ExamEnrollment> findByExamAndCandidate(Exam exam, User candidate);
+    List<ExamEnrollment> findByExamId(Long examId);
+    List<ExamEnrollment> findByExamIdIn(List<Long> examIds);
     
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"exam"})
     java.util.List<ExamEnrollment> findByCandidateIdOrderByJoinedAtDesc(Long candidateId);

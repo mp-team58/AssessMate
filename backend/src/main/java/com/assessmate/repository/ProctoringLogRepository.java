@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ProctoringLogRepository extends JpaRepository<ProctoringLog, Long> {
     long countByEnrollmentIdAndEventTypeAndFlaggedAtAfter(Long enrollmentId, com.assessmate.entity.ProctoringEventType eventType, java.time.LocalDateTime time);
+    java.util.List<ProctoringLog> findByEnrollmentIdIn(java.util.List<Long> enrollmentIds);
+    java.util.List<ProctoringLog> findByEnrollmentIdOrderByFlaggedAtAsc(Long enrollmentId);
 }

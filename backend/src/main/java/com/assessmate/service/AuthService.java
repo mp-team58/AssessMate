@@ -5,6 +5,8 @@ import com.assessmate.entity.*;
 import com.assessmate.repository.UserRepository;
 import com.assessmate.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import com.assessmate.exception.BadRequestException;
+import com.assessmate.exception.ResourceNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -21,8 +23,12 @@ public class AuthService {
 
         if (userRepository.existsByEmail(
                 req.getEmail())) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Email already registered");
+        }
+
+        if ("HOST".equalsIgnoreCase(req.getRole())) {
+            throw new BadRequestException("Host registration is currently disabled.");
         }
 
         User user = User.builder()
@@ -56,13 +62,13 @@ public class AuthService {
         User user = userRepository
                 .findByEmail(req.getEmail())
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "User not found"));
 
         if (!passwordEncoder.matches(
                 req.getPassword(),
                 user.getPassword())) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Invalid password");
         }
 
@@ -71,7 +77,7 @@ public class AuthService {
                 && !req.getRole().isEmpty()) {
             if (!user.getRole().name()
                     .equalsIgnoreCase(req.getRole())) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "This account is registered as "
                                 + user.getRole().name()
                                 + ". Please select "
@@ -100,7 +106,7 @@ public class AuthService {
         User user = userRepository
                 .findByEmail(email)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "User not found"));
 
         // Clear token from database

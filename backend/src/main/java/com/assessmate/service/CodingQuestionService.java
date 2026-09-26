@@ -232,7 +232,7 @@ public class CodingQuestionService {
 
         Long enrollmentId = examEnrollmentRepository.findByExamAndCandidate(exam, candidate)
                 .map(ExamEnrollment::getId)
-                .orElse(candidate.getId());
+                .orElseThrow(() -> new BadRequestException("You must join this exam before accessing problems."));
 
         boolean alreadyAssigned = codingAssignmentRepository.existsByEnrollmentId(enrollmentId);
 
@@ -295,6 +295,21 @@ public class CodingQuestionService {
                 .findById(req.getCodingQuestionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Problem not found."));
 
+        if (question.getExam() != null) {
+            Exam exam = question.getExam();
+            if (exam.getStatus() != ExamStatus.LIVE) {
+                throw new BadRequestException("Exam is not currently active.");
+            }
+            ExamEnrollment enrollment = examEnrollmentRepository.findByExamAndCandidate(exam, candidate)
+                    .orElseThrow(() -> new BadRequestException("You must join this exam before running code."));
+            if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
+                throw new BadRequestException("Your exam session is no longer active.");
+            }
+            if (enrollment.getPersonalEndTime() != null && enrollment.getPersonalEndTime().isBefore(java.time.LocalDateTime.now())) {
+                throw new BadRequestException("Your time for this exam has expired.");
+            }
+        }
+
         Language language = validateLanguage(
                 req.getLanguage(),
                 question.getAllowedLanguages());
@@ -343,23 +358,31 @@ public class CodingQuestionService {
             throw new BadRequestException("Exam is no longer active. Submissions are closed.");
         }
 
-        Long enrollmentId = req.getEnrollmentId() != null
-                ? req.getEnrollmentId()
-                : examEnrollmentRepository.findByExamAndCandidate(exam, candidate)
-                    .map(ExamEnrollment::getId)
-                    .orElse(candidate.getId());
+        ExamEnrollment enrollment;
+        if (req.getEnrollmentId() != null) {
+            enrollment = examEnrollmentRepository.findById(req.getEnrollmentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found."));
+            if (!enrollment.getCandidate().getId().equals(candidate.getId())) {
+                throw new ForbiddenException("This enrollment does not belong to you.");
+            }
+        } else {
+            enrollment = examEnrollmentRepository.findByExamAndCandidate(exam, candidate)
+                .orElseThrow(() -> new BadRequestException("You must join this exam before submitting code."));
+        }
+
+        if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
+            throw new BadRequestException("Your exam session is no longer active.");
+        }
+        if (enrollment.getPersonalEndTime() != null && enrollment.getPersonalEndTime().isBefore(java.time.LocalDateTime.now())) {
+            throw new BadRequestException("Your time for this exam has expired.");
+        }
+
+        Long enrollmentId = enrollment.getId();
 
         boolean isAssigned = codingAssignmentRepository
                 .findByEnrollmentIdOrderByOrderIndexAsc(enrollmentId)
                 .stream()
                 .anyMatch(a -> a.getCodingQuestion().getId().equals(question.getId()));
-
-        if (!isAssigned && !enrollmentId.equals(candidate.getId())) {
-            isAssigned = codingAssignmentRepository
-                    .findByEnrollmentIdOrderByOrderIndexAsc(candidate.getId())
-                    .stream()
-                    .anyMatch(a -> a.getCodingQuestion().getId().equals(question.getId()));
-        }
 
         if (!isAssigned) {
             throw new ForbiddenException("This problem was not assigned to you in this exam.");

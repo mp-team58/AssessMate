@@ -1,5 +1,9 @@
 package com.assessmate.service;
 
+import com.assessmate.exception.BadRequestException;
+import com.assessmate.exception.ForbiddenException;
+import com.assessmate.exception.ResourceNotFoundException;
+
 import com.google.gson.*;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
@@ -165,7 +169,7 @@ public class GeminiService {
         String responseText = extractGeneratedText(response);
 
         if (responseText == null) {
-            throw new RuntimeException("AI returned no results. Please try again.");
+            throw new BadRequestException("AI returned no results. Please try again.");
         }
 
         return parseCodingProblem(responseText);
@@ -525,7 +529,7 @@ public class GeminiService {
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try (Response response = client.newCall(request).execute()) {
                 if (response.body() == null) {
-                    throw new RuntimeException("Empty response from AI service");
+                    throw new BadRequestException("Empty response from AI service");
                 }
 
                 String responseBody = response.body().string();
@@ -539,7 +543,7 @@ public class GeminiService {
                         }
                     }
                     log.error("Gemini API error {}: {}", response.code(), responseBody);
-                    throw new RuntimeException("AI service error " + response.code() + ". Please try again.");
+                    throw new BadRequestException("AI service error " + response.code() + ". Please try again.");
                 }
 
                 return responseBody;
@@ -555,13 +559,13 @@ public class GeminiService {
                     continue;
                 }
                 log.error("Gemini connection error: {}", e.getMessage());
-                throw new RuntimeException("Could not connect to AI service. Please check your connection and try again.");
+                throw new BadRequestException("Could not connect to AI service. Please check your connection and try again.");
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new RuntimeException("Request interrupted");
+                throw new BadRequestException("Request interrupted");
             }
         }
-        throw new RuntimeException("Failed to call AI service after " + maxAttempts + " attempts.");
+        throw new BadRequestException("Failed to call AI service after " + maxAttempts + " attempts.");
     }
 
     // ─────────────────────────────────────────
@@ -576,7 +580,7 @@ public class GeminiService {
 
             if (text == null || text.trim().isEmpty()) {
                 log.error("No valid text output found in Gemini response: {}", responseBody);
-                throw new RuntimeException("AI returned no results. Please try again.");
+                throw new BadRequestException("AI returned no results. Please try again.");
             }
 
             // Clean markdown fences
@@ -636,7 +640,7 @@ public class GeminiService {
             log.error(
                 "Parse error: {}",
                 e.getMessage());
-            throw new RuntimeException(
+            throw new BadRequestException(
                 "AI returned unexpected format. " +
                 "Please try again.");
         }
@@ -737,7 +741,7 @@ public class GeminiService {
             log.error(
                 "Failed to parse coding problem: {}",
                 e.getMessage());
-            throw new RuntimeException(
+            throw new BadRequestException(
                 "AI returned unexpected format. " +
                 "Please try again.");
         }
@@ -842,3 +846,4 @@ public class GeminiService {
         private List<com.assessmate.dto.TestCaseRequest> testCases;
     }
 }
+

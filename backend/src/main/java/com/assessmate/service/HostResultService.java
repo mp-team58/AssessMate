@@ -122,6 +122,46 @@ public class HostResultService {
                 .toList();
     }
 
+    public LiveMonitor getLiveMonitor(Long examId, String hostEmail) {
+
+        Exam exam = getOwnedExam(examId, hostEmail);
+
+        List<ExamEnrollment> enrollments = enrollmentRepository.findByExamId(examId);
+        List<Long> enrollmentIds = enrollments.stream().map(ExamEnrollment::getId).toList();
+
+        Map<Long, Long> flagCountByEnrollmentId = enrollmentIds.isEmpty()
+                ? Map.of()
+                : proctoringLogRepository.findByEnrollmentIdIn(enrollmentIds).stream()
+                        .collect(Collectors.groupingBy(p -> p.getEnrollment().getId(), Collectors.counting()));
+
+        List<LiveCandidateRow> rows = enrollments.stream()
+                .map(enr -> LiveCandidateRow.builder()
+                        .enrollmentId(enr.getId())
+                        .candidateId(enr.getCandidate().getId())
+                        .candidateName(enr.getCandidate().getName())
+                        .candidateEmail(enr.getCandidate().getEmail())
+                        .status(enr.getStatus().name())
+                        .joinedAt(enr.getJoinedAt())
+                        .totalFlags(flagCountByEnrollmentId.getOrDefault(enr.getId(), 0L))
+                        .build())
+                .sorted(Comparator.comparingLong(LiveCandidateRow::getTotalFlags).reversed())
+                .toList();
+
+        long submitted = enrollments.stream()
+                .filter(e -> e.getStatus() == EnrollmentStatus.SUBMITTED || e.getStatus() == EnrollmentStatus.EXPIRED)
+                .count();
+
+        return LiveMonitor.builder()
+                .examId(exam.getId())
+                .examTitle(exam.getTitle())
+                .examStatus(exam.getStatus().name())
+                .joinedCount((long) enrollments.size())
+                .submittedCount(submitted)
+                .ongoingCount(enrollments.size() - submitted)
+                .candidates(rows)
+                .build();
+    }
+
     public HostCandidateReport getCandidateReport(Long examId, Long enrollmentId, String hostEmail) {
 
         getOwnedExam(examId, hostEmail);

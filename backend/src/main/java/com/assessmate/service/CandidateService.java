@@ -1,5 +1,9 @@
 package com.assessmate.service;
 
+import com.assessmate.exception.BadRequestException;
+import com.assessmate.exception.ForbiddenException;
+import com.assessmate.exception.ResourceNotFoundException;
+
 import com.assessmate.dto.JoinExamResponse;
 import com.assessmate.dto.CandidateExamQuestionsResponse;
 import com.assessmate.dto.CandidateQuestionDTO;
@@ -44,22 +48,22 @@ public class CandidateService {
                 .orElseThrow(() -> new RuntimeException("Invalid join code"));
 
         if (exam.getStatus() != ExamStatus.LIVE) {
-            throw new RuntimeException("This exam is not currently LIVE");
+            throw new BadRequestException("This exam is not currently LIVE");
         }
 
         // A3: Device Access Check
         boolean isMobile = userAgent.toLowerCase().contains("mobi") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone");
         if (exam.getDeviceAccess() == com.assessmate.entity.DeviceAccess.DESKTOP && isMobile) {
-            throw new RuntimeException("This exam is restricted to Desktop devices only.");
+            throw new BadRequestException("This exam is restricted to Desktop devices only.");
         }
         if (exam.getDeviceAccess() == com.assessmate.entity.DeviceAccess.MOBILE && !isMobile) {
-            throw new RuntimeException("This exam is restricted to Mobile devices only.");
+            throw new BadRequestException("This exam is restricted to Mobile devices only.");
         }
 
         // A4: Empty exam check
         long questionCount = questionRepository.countByExamId(exam.getId());
         if (questionCount == 0) {
-            throw new RuntimeException("This exam has no questions yet. Contact your host.");
+            throw new BadRequestException("This exam has no questions yet. Contact your host.");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -69,10 +73,10 @@ public class CandidateService {
         if (existingEnrollment.isPresent()) {
             ExamEnrollment enrollment = existingEnrollment.get();
             if (enrollment.getStatus() == EnrollmentStatus.SUBMITTED) {
-                throw new RuntimeException("You have already submitted this exam.");
+                throw new BadRequestException("You have already submitted this exam.");
             }
             if (enrollment.getStatus() == EnrollmentStatus.EXPIRED) {
-                throw new RuntimeException("Your time for this exam has expired.");
+                throw new BadRequestException("Your time for this exam has expired.");
             }
             if (enrollment.getStatus() == EnrollmentStatus.ONGOING) {
                 if (enrollment.getPersonalEndTime() != null && now.isAfter(enrollment.getPersonalEndTime())) {
@@ -81,7 +85,7 @@ public class CandidateService {
                         emptyRequest.setAnswers(new java.util.HashMap<>());
                         submitExam(enrollment.getId(), emptyRequest, candidateEmail);
                     } catch (Exception e) {}
-                    throw new RuntimeException("Your time for this exam has expired.");
+                    throw new BadRequestException("Your time for this exam has expired.");
                 }
                 return buildJoinResponse(enrollment, exam);
             }
@@ -92,11 +96,11 @@ public class CandidateService {
         LocalDateTime latestJoinTime = scheduledStart.plusMinutes(graceMinutes);
 
         if (now.isBefore(scheduledStart)) {
-            throw new RuntimeException("Exam has not started yet. Please wait until " + scheduledStart);
+            throw new BadRequestException("Exam has not started yet. Please wait until " + scheduledStart);
         }
 
         if (now.isAfter(latestJoinTime)) {
-            throw new RuntimeException("Grace period has ended. You cannot join this exam anymore.");
+            throw new BadRequestException("Grace period has ended. You cannot join this exam anymore.");
         }
 
         ExamEnrollment newEnrollment = ExamEnrollment.builder()
@@ -162,11 +166,11 @@ public class CandidateService {
                 .orElseThrow(() -> new RuntimeException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
-            throw new RuntimeException("You do not have access to this enrollment.");
+            throw new ForbiddenException("You do not have access to this enrollment.");
         }
 
         if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
-            throw new RuntimeException("You can only get questions for an ongoing exam.");
+            throw new BadRequestException("You can only get questions for an ongoing exam.");
         }
 
         List<Question> examQuestions = questionRepository.findByExamId(enrollment.getExam().getId());
@@ -221,7 +225,7 @@ public class CandidateService {
                     emptyRequest.setAnswers(new java.util.HashMap<>());
                     submitExam(enrollment.getId(), emptyRequest, candidateEmail);
                 } catch (Exception e) {}
-                throw new RuntimeException("Your time for this exam has expired.");
+                throw new BadRequestException("Your time for this exam has expired.");
             }
             remainingSeconds = java.time.Duration.between(now, enrollment.getPersonalEndTime()).getSeconds();
         }
@@ -238,11 +242,11 @@ public class CandidateService {
                 .orElseThrow(() -> new RuntimeException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
-            throw new RuntimeException("You do not have access to this enrollment.");
+            throw new ForbiddenException("You do not have access to this enrollment.");
         }
 
         if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
-            throw new RuntimeException("You can only log events for an ongoing exam.");
+            throw new BadRequestException("You can only log events for an ongoing exam.");
         }
 
         Exam exam = enrollment.getExam();
@@ -340,11 +344,11 @@ public class CandidateService {
                 .orElseThrow(() -> new RuntimeException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
-            throw new RuntimeException("You do not have access to this enrollment.");
+            throw new ForbiddenException("You do not have access to this enrollment.");
         }
 
         if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
-            throw new RuntimeException("This exam is no longer open for submission.");
+            throw new BadRequestException("This exam is no longer open for submission.");
         }
 
         if (resultRepository.findByEnrollmentId(enrollmentId).isPresent()) {
@@ -590,11 +594,11 @@ public class CandidateService {
                 .orElseThrow(() -> new RuntimeException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
-            throw new RuntimeException("You do not have access to this enrollment.");
+            throw new ForbiddenException("You do not have access to this enrollment.");
         }
 
         if (enrollment.getStatus() != EnrollmentStatus.SUBMITTED && enrollment.getStatus() != EnrollmentStatus.EXPIRED) {
-            throw new RuntimeException("Exam is not completed yet.");
+            throw new BadRequestException("Exam is not completed yet.");
         }
 
         Result result = resultRepository.findByEnrollmentId(enrollmentId)
@@ -630,11 +634,11 @@ public class CandidateService {
                 .orElseThrow(() -> new RuntimeException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
-            throw new RuntimeException("You do not have access to this enrollment.");
+            throw new ForbiddenException("You do not have access to this enrollment.");
         }
 
         if (enrollment.getStatus() != EnrollmentStatus.SUBMITTED && enrollment.getStatus() != EnrollmentStatus.EXPIRED) {
-            throw new RuntimeException("Exam is not completed yet.");
+            throw new BadRequestException("Exam is not completed yet.");
         }
 
         List<CandidateAnswer> answers = candidateAnswerRepository.findByEnrollmentId(enrollmentId);
@@ -731,11 +735,11 @@ public class CandidateService {
                 .orElseThrow(() -> new RuntimeException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
-            throw new RuntimeException("You do not have access to this enrollment.");
+            throw new ForbiddenException("You do not have access to this enrollment.");
         }
 
         if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
-            throw new RuntimeException("This exam is no longer open for submission.");
+            throw new BadRequestException("This exam is no longer open for submission.");
         }
 
         Exam exam = enrollment.getExam();
@@ -765,7 +769,7 @@ public class CandidateService {
                 .orElseThrow(() -> new RuntimeException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
-            throw new RuntimeException("You do not have access to this enrollment.");
+            throw new ForbiddenException("You do not have access to this enrollment.");
         }
 
         java.util.Map<String, Object> state = new java.util.HashMap<>();

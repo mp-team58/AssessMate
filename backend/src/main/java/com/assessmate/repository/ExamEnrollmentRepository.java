@@ -14,6 +14,8 @@ public interface ExamEnrollmentRepository extends JpaRepository<ExamEnrollment, 
     Optional<ExamEnrollment> findByExamAndCandidate(Exam exam, User candidate);
     List<ExamEnrollment> findByExamId(Long examId);
     List<ExamEnrollment> findByExamIdIn(List<Long> examIds);
+    long countByExamId(Long examId);
+    long countByExamIdAndStatus(Long examId, com.assessmate.entity.EnrollmentStatus status);
     
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"exam"})
     java.util.List<ExamEnrollment> findByCandidateIdOrderByJoinedAtDesc(Long candidateId);

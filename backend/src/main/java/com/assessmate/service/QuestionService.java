@@ -40,21 +40,21 @@ public class QuestionService {
         if (req.getQuestionText() == null
                 || req.getQuestionText()
                 .trim().isEmpty()) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Question text is required");
         }
         if (req.getType() == null) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Question type is required");
         }
         if (req.getDifficulty() == null) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Difficulty is required");
         }
         if (req.getCorrectAnswer() == null
                 || req.getCorrectAnswer()
                 .trim().isEmpty()) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Correct answer is required");
         }
 
@@ -67,7 +67,7 @@ public class QuestionService {
                     || req.getOptionB() == null
                     || req.getOptionC() == null
                     || req.getOptionD() == null) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "All 4 options are required " +
                                 "for this question type");
             }
@@ -77,7 +77,7 @@ public class QuestionService {
                 String ans = req.getCorrectAnswer()
                         .trim().toUpperCase();
                 if (!ans.matches("[ABCD]")) {
-                    throw new RuntimeException(
+                    throw new BadRequestException(
                             "Correct answer must be " +
                                     "A, B, C, or D");
                 }
@@ -90,14 +90,14 @@ public class QuestionService {
                         normalizeMultipleAnswers(
                                 req.getCorrectAnswer());
                 if (normalized.isBlank()) {
-                    throw new RuntimeException(
+                    throw new BadRequestException(
                             "At least one correct " +
                                     "answer is required");
                 }
                 for (String ans :
                         normalized.split(",")) {
                     if (!ans.matches("[ABCD]")) {
-                        throw new RuntimeException(
+                        throw new BadRequestException(
                                 "Correct answers must " +
                                         "be A, B, C, or D — " +
                                         "example: A,C,D");
@@ -113,13 +113,13 @@ public class QuestionService {
                 Double.parseDouble(
                         req.getCorrectAnswer());
             } catch (NumberFormatException e) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "Correct answer for numerical " +
                                 "question must be a number");
             }
             if (req.getTolerance() != null
                     && req.getTolerance() < 0) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "Tolerance cannot be negative");
             }
         }
@@ -210,14 +210,14 @@ public class QuestionService {
         // Ownership check
         if (!exam.getHost().getEmail()
                 .equals(hostEmail)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "You are not authorized " +
                             "to modify this exam");
         }
 
         // Block if not DRAFT
         if (exam.getStatus() != ExamStatus.DRAFT) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Questions can only be added " +
                             "while the exam is in DRAFT status");
         }
@@ -248,10 +248,13 @@ public class QuestionService {
                     || !original.getCreatedBy()
                     .getId()
                     .equals(host.getId())) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "You can only add questions " +
                                 "from your own bank");
             }
+
+            // Enforce difficulty quota
+            checkDifficultyCapacity(exam, original.getDifficulty());
 
             Question copy = Question.builder()
                     .exam(exam)
@@ -312,14 +315,14 @@ public class QuestionService {
         // Ownership check
         if (!exam.getHost().getEmail()
                 .equals(hostEmail)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "You are not authorized to " +
                             "add questions to this exam");
         }
 
         // Block if not DRAFT
         if (exam.getStatus() != ExamStatus.DRAFT) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Questions can only be added " +
                             "while the exam is in DRAFT status");
         }
@@ -375,7 +378,7 @@ public class QuestionService {
 
         if (!exam.getHost().getEmail()
                 .equals(hostEmail)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Not authorized to view " +
                             "this exam's questions");
         }
@@ -398,7 +401,7 @@ public class QuestionService {
 
         if (!exam.getHost().getEmail()
                 .equals(hostEmail)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Not authorized to view " +
                             "this exam's stats");
         }
@@ -485,7 +488,7 @@ public class QuestionService {
         // Ownership check
         if (!question.getCreatedBy().getEmail()
                 .equals(hostEmail)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "You are not authorized " +
                             "to edit this question");
         }
@@ -494,7 +497,7 @@ public class QuestionService {
         if (question.getExam() != null
                 && question.getExam().getStatus()
                 != ExamStatus.DRAFT) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Questions can only be changed " +
                             "while the exam is in DRAFT status");
         }
@@ -519,6 +522,7 @@ public class QuestionService {
         question.setTolerance(req.getTolerance());
         question.setStrictMarking(
                 req.getStrictMarking());
+        question.setIsVerified(false);
 
         if (question.getExam() != null) {
             Exam exam = question.getExam();
@@ -547,7 +551,7 @@ public class QuestionService {
         // Ownership check
         if (!question.getCreatedBy().getEmail()
                 .equals(hostEmail)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "You are not authorized " +
                             "to delete this question");
         }
@@ -556,7 +560,7 @@ public class QuestionService {
         if (question.getExam() != null
                 && question.getExam().getStatus()
                 != ExamStatus.DRAFT) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Questions can only be changed " +
                             "while the exam is in DRAFT status");
         }
@@ -828,7 +832,7 @@ public class QuestionService {
         // Ownership check
         if (!question.getCreatedBy().getEmail()
                 .equals(hostEmail)) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                 "You are not authorized to " +
                 "verify this question");
         }
@@ -837,7 +841,7 @@ public class QuestionService {
         if (question.getExam() != null
                 && question.getExam().getStatus()
                     != ExamStatus.DRAFT) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                 "Cannot modify questions after " +
                 "exam is published");
         }

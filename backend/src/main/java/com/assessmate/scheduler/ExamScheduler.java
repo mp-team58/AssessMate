@@ -13,6 +13,7 @@ public class ExamScheduler {
 
     private final CandidateService candidateService;
     private final com.assessmate.service.ExamSubmissionService examSubmissionService;
+    private final com.assessmate.service.ExamService examService;
 
     // Run every 60 seconds
     @Scheduled(fixedRate = 60000)
@@ -25,5 +26,11 @@ public class ExamScheduler {
                 log.error("Failed to auto-submit enrollment {}", enrollment.getId(), e);
             }
         });
+        
+        try {
+            examService.autoEndExams();
+        } catch (Exception e) {
+            log.error("Failed to auto-end exams", e);
+        }
     }
 }

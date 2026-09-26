@@ -82,7 +82,7 @@ public class Judge0Service {
 
         } catch (IOException e) {
             log.error("Judge0 connection error: {}", e.getMessage());
-            throw new RuntimeException(
+            throw new BadRequestException(
                 "Code execution service unavailable. Please try again.");
         }
     }
@@ -316,3 +316,4 @@ public class Judge0Service {
         private Integer memory;
     }
 }
+

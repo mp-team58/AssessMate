@@ -231,6 +231,36 @@ public class ExamService {
     }
 
     @Transactional
+    public void autoEndExams() {
+        List<Exam> liveExams = examRepository.findByStatus(ExamStatus.LIVE);
+        for (Exam exam : liveExams) {
+            boolean shouldEnd = false;
+            long totalEnrolled = enrollmentRepository.countByExamId(exam.getId());
+            if (totalEnrolled > 0) {
+                long submitted = enrollmentRepository.countByExamIdAndStatus(exam.getId(), com.assessmate.entity.EnrollmentStatus.SUBMITTED);
+                long expired = enrollmentRepository.countByExamIdAndStatus(exam.getId(), com.assessmate.entity.EnrollmentStatus.EXPIRED);
+                if (totalEnrolled == (submitted + expired)) {
+                    shouldEnd = true;
+                }
+            } else {
+                int totalDuration = exam.getDurationMinutes() != null ? exam.getDurationMinutes() : 240;
+                int grace = exam.getGracePeriodMinutes() != null ? exam.getGracePeriodMinutes() : 0;
+                LocalDateTime maxEndTime = exam.getScheduledStart().plusMinutes(totalDuration + grace + 30);
+                if (LocalDateTime.now().isAfter(maxEndTime)) {
+                    shouldEnd = true;
+                }
+            }
+            
+            if (shouldEnd) {
+                exam.setStatus(ExamStatus.ENDED);
+                exam.setEndedAt(LocalDateTime.now());
+                examRepository.save(exam);
+                log.info("Auto-ended exam: {}", exam.getId());
+            }
+        }
+    }
+
+    @Transactional
     public void deleteExam(Long id, String hostEmail) {
         Exam exam = examRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Exam not found."));
@@ -335,7 +365,7 @@ public class ExamService {
                 return generated;
             }
         }
-        throw new RuntimeException("Could not generate unique join code. Please try again.");
+        throw new BadRequestException("Could not generate unique join code. Please try again.");
     }
 
     public static int[] calculateRequiredCounts(int total, int easyPct, int mediumPct) {

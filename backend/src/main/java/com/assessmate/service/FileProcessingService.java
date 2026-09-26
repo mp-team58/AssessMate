@@ -1,5 +1,9 @@
 package com.assessmate.service;
 
+import com.assessmate.exception.BadRequestException;
+import com.assessmate.exception.ForbiddenException;
+import com.assessmate.exception.ResourceNotFoundException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -66,7 +70,7 @@ public class FileProcessingService {
             // .ppt and .doc are intentionally
             // excluded — not supported by
             // XMLSlideShow or XWPFDocument
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Unsupported file type. " +
                             "Supported formats are " +
                             "PDF, PPTX, DOCX, JPG, JPEG, " +
@@ -138,7 +142,7 @@ public class FileProcessingService {
 
             // Cannot use this file
             if (!hasText && pageImages.isEmpty()) {
-                throw new RuntimeException(
+                throw new BadRequestException(
                         "This PDF has no readable " +
                                 "text or images. Please " +
                                 "upload a text-based PDF.");
@@ -205,7 +209,7 @@ public class FileProcessingService {
 
         String text = fullText.toString();
         if (text.trim().isEmpty()) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Could not extract any text " +
                             "from this PPTX file.");
         }
@@ -263,7 +267,7 @@ public class FileProcessingService {
 
         String text = fullText.toString();
         if (text.trim().isEmpty()) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Could not extract any text " +
                             "from this DOCX file.");
         }
@@ -643,13 +647,13 @@ public class FileProcessingService {
             MultipartFile file) {
 
         if (file == null || file.isEmpty()) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "File is empty. " +
                             "Please upload a valid file.");
         }
 
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "File too large. " +
                             "Maximum allowed size is 50MB.");
         }
@@ -657,7 +661,7 @@ public class FileProcessingService {
         String filename = file.getOriginalFilename();
         if (filename == null
                 || filename.trim().isEmpty()) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Invalid file name.");
         }
 
@@ -672,7 +676,7 @@ public class FileProcessingService {
                 && !lower.endsWith(".jpg")
                 && !lower.endsWith(".jpeg")
                 && !lower.endsWith(".png")) {
-            throw new RuntimeException(
+            throw new BadRequestException(
                     "Unsupported file type. " +
                             "Supported formats are " +
                             "PDF, PPTX, DOCX, JPG, JPEG, " +

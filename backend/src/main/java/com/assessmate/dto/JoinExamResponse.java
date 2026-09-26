@@ -22,4 +22,12 @@ public class JoinExamResponse {
     private DeviceAccess deviceAccess;
     private LocalDateTime personalEndTime;
     private String instructions;
+    private Boolean requireCamera;
+    private Boolean requireMic;
+    private Boolean requireScreenShare;
+    private Boolean enableFaceDetection;
+    private Boolean enableObjectDetection;
+    private Boolean enableTabSwitchDetection;
+    private Boolean enableAudioDetection;
+    private Integer maxTabSwitches;
 }

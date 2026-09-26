@@ -184,11 +184,14 @@ public class HostResultService {
                     .build();
         }).toList();
 
-        List<ProctoringEvent> eventDtos = proctoringLogRepository
+        List<ProctoringEventDTO> eventDtos = proctoringLogRepository
                 .findByEnrollmentIdOrderByFlaggedAtAsc(enrollmentId).stream()
-                .map(l -> ProctoringEvent.builder()
-                        .eventType(l.getEventType().name())
+                .map(l -> ProctoringEventDTO.builder()
+                        .eventType(l.getEventType())
+                        .severity(l.getSeverity())
                         .flaggedAt(l.getFlaggedAt())
+                        .imageUrl(l.getImageUrl())
+                        .audioUrl(l.getAudioUrl())
                         .build())
                 .toList();
 

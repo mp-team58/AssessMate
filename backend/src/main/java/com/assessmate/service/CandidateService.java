@@ -146,6 +146,14 @@ public class CandidateService {
                 .deviceAccess(exam.getDeviceAccess())
                 .personalEndTime(enrollment.getPersonalEndTime())
                 .instructions("Please read all questions carefully. Do not switch tabs. Your face must be visible at all times.")
+                .requireCamera(exam.getRequireCamera())
+                .requireMic(exam.getRequireMic())
+                .requireScreenShare(exam.getRequireScreenShare())
+                .enableFaceDetection(exam.getEnableFaceDetection())
+                .enableObjectDetection(exam.getEnableObjectDetection())
+                .enableTabSwitchDetection(exam.getEnableTabSwitchDetection())
+                .enableAudioDetection(exam.getEnableAudioDetection())
+                .maxTabSwitches(exam.getMaxTabSwitches())
                 .build();
     }
 

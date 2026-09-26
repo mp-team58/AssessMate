@@ -12,6 +12,6 @@ public class HostCandidateReport {
     private String examTitle;
     private ResultResponseDTO result;
     private List<CandidateAnswerReviewDTO> answers;
-    private List<ProctoringEvent> proctoringEvents;
+    private List<ProctoringEventDTO> proctoringEvents;
     private Long proctoringFlagCount;
 }

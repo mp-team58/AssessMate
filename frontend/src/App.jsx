@@ -15,6 +15,9 @@ import { ToastProvider } from './contexts/ToastContext';
 
 import CandidateLayout from './layouts/CandidateLayout';
 import MyAssessments from './pages/MyAssessments';
+import CandidateResults from './pages/CandidateResults';
+import CandidatePerformance from './pages/CandidatePerformance';
+import CandidateProfile from './pages/CandidateProfile';
 import JoinAssessment from './pages/JoinAssessment';
 import ActiveExam from './pages/ActiveExam';
 import ExamResult from './pages/ExamResult';
@@ -42,6 +45,9 @@ function App() {
       <Route element={<CandidateLayout />}>
         <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
         <Route path="/candidate/my-assessments" element={<MyAssessments />} />
+        <Route path="/candidate/results" element={<CandidateResults />} />
+        <Route path="/candidate/performance" element={<CandidatePerformance />} />
+        <Route path="/candidate/profile" element={<CandidateProfile />} />
         <Route path="/candidate/join" element={<JoinAssessment />} />
         <Route path="/candidate/result/:enrollmentId" element={<ExamResult />} />
       </Route>

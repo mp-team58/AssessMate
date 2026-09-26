@@ -69,9 +69,69 @@ export const getExamResult = async (enrollmentId) => {
 
 /**
  * Step 5B: Candidate Dashboard History
- * Calls https://dxpb79fh-8080.inc1.devtunnels.ms/api/candidate/history
+ * Calls /candidate/history
  * @returns {Promise<{data: Array<{enrollmentId: number, examTitle: string, subject: string, joinedAt: string, status: string, totalScore?: number, percentage?: number}>}>}
  */
 export const getCandidateHistory = async () => {
   return candidateApiClient.get('/candidate/history');
 };
+
+/**
+ * Candidate Dashboard Summary (Exams count, etc.)
+ * Calls /candidate/dashboard
+ */
+export const getCandidateDashboard = async () => {
+  return candidateApiClient.get('/candidate/dashboard');
+};
+
+/**
+ * Question Answer Review
+ * Calls /candidate/result/{enrollmentId}/answers
+ */
+export const getAnswerReview = async (enrollmentId) => {
+  return candidateApiClient.get(`/candidate/result/${enrollmentId}/answers`);
+};
+
+/**
+ * Get Ongoing Exam State
+ * Calls /candidate/exam/{enrollmentId}/state
+ */
+export const getExamState = async (enrollmentId) => {
+  return candidateApiClient.get(`/candidate/exam/${enrollmentId}/state`);
+};
+
+/**
+ * Save Exam Progress
+ * Calls /candidate/exam/{enrollmentId}/progress
+ */
+export const saveExamProgress = async (enrollmentId, answers) => {
+  return candidateApiClient.post(`/candidate/exam/${enrollmentId}/progress`, { answers });
+};
+
+/**
+ * Step 6A: Candidate Run Code (Sample test cases)
+ * Calls /coding/run
+ */
+export const runCandidateCode = async ({ codingQuestionId, language, sourceCode, customInput = '' }) => {
+  return candidateApiClient.post('/coding/run', {
+    codingQuestionId: Number(codingQuestionId),
+    language,
+    sourceCode,
+    customInput,
+  });
+};
+
+/**
+ * Step 6B: Candidate Submit Code (All test cases & grading)
+ * Calls /coding/submit
+ */
+export const submitCandidateCode = async ({ enrollmentId, codingQuestionId, language, sourceCode }) => {
+  return candidateApiClient.post('/coding/submit', {
+    enrollmentId: Number(enrollmentId),
+    codingQuestionId: Number(codingQuestionId),
+    language,
+    sourceCode,
+  });
+};
+
+

@@ -14,4 +14,6 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
     List<Exam> findByHostId(Long hostId);
 
     List<Exam> findByStatus(ExamStatus status);
+
+    List<Exam> findByStatusAndEndedAtBefore(ExamStatus status, java.time.LocalDateTime time);
 }

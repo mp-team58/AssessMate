@@ -37,6 +37,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
                 .requestMatchers("/api/questions/excel/template").permitAll()
                 .requestMatchers("/api/coding/languages").permitAll()
+                .requestMatchers("/uploads/questions/**").permitAll()
                 .requestMatchers("/api/exams/*/coding/candidate").hasRole("CANDIDATE")
                 .requestMatchers("/api/exams/**", "/api/exams", "/api/questions/**", "/api/coding/bank/**", "/api/coding/bank", "/api/analytics/**").hasRole("HOST")
                 .requestMatchers("/api/candidate/**").hasRole("CANDIDATE")

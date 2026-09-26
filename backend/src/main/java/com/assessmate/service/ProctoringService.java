@@ -99,6 +99,26 @@ public class ProctoringService {
                 .toList();
     }
 
+    public org.springframework.core.io.Resource loadEvidenceFile(String type, String filename, String hostEmail) throws IOException {
+        String relativeUrl = "/uploads/proctoring/" + type + "/" + filename;
+
+        ProctoringLog log = ("images".equals(type)
+                ? proctoringLogRepository.findByImageUrl(relativeUrl)
+                : proctoringLogRepository.findByAudioUrl(relativeUrl))
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Evidence file not found"));
+
+        if (!log.getEnrollment().getExam().getHost().getEmail().equals(hostEmail)) {
+            throw new com.assessmate.exception.ForbiddenException("You do not have access to this evidence file");
+        }
+
+        String dir = "images".equals(type) ? imagesUploadDir : audioUploadDir;
+        Path filePath = Paths.get(dir, filename);
+        if (!Files.exists(filePath)) {
+            throw new com.assessmate.exception.ResourceNotFoundException("Evidence file not found on disk");
+        }
+        return new org.springframework.core.io.UrlResource(filePath.toUri());
+    }
+
     @Value("${app.upload.dir.proctoring.images:uploads/proctoring/images/}")
     private String imagesUploadDir;
 
@@ -186,5 +206,42 @@ public class ProctoringService {
         Files.copy(file.getInputStream(), uploadPath.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
 
         return "/uploads/proctoring/audio/" + filename;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void cleanupOldEvidence(int daysRetention) {
+        java.time.LocalDateTime cutoff = java.time.LocalDateTime.now().minusDays(daysRetention);
+        List<Exam> oldExams = examRepository.findByStatusAndEndedAtBefore(ExamStatus.ENDED, cutoff);
+
+        for (Exam exam : oldExams) {
+            List<ExamEnrollment> enrollments = enrollmentRepository.findByExamId(exam.getId());
+            for (ExamEnrollment enrollment : enrollments) {
+                List<ProctoringLog> logs = proctoringLogRepository.findByEnrollmentId(enrollment.getId());
+                for (ProctoringLog log : logs) {
+                    if (log.getImageUrl() != null) {
+                        deleteFileQuietly(log.getImageUrl());
+                        log.setImageUrl(null); // Clear the reference
+                    }
+                    if (log.getAudioUrl() != null) {
+                        deleteFileQuietly(log.getAudioUrl());
+                        log.setAudioUrl(null); // Clear the reference
+                    }
+                }
+                proctoringLogRepository.saveAll(logs);
+            }
+        }
+    }
+
+    private void deleteFileQuietly(String relativeUrl) {
+        try {
+            String type = relativeUrl.contains("/images/") ? "images" : "audio";
+            String filename = relativeUrl.substring(relativeUrl.lastIndexOf('/') + 1);
+            String dir = "images".equals(type) ? imagesUploadDir : audioUploadDir;
+            Path filePath = Paths.get(dir, filename);
+            Files.deleteIfExists(filePath);
+        } catch (Exception e) {
+            // Log silently and continue, don't crash the scheduler
+            System.err.println("Failed to delete evidence file: " + relativeUrl);
+        }
     }
 }

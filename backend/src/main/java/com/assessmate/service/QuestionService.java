@@ -151,7 +151,7 @@ public class QuestionService {
         User host = userRepository
                 .findByEmail(hostEmail)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new com.assessmate.exception.BadRequestException(
                                 "Host not found"));
 
         String imageUrl = null;
@@ -204,7 +204,7 @@ public class QuestionService {
         Exam exam = examRepository
                 .findById(req.getExamId())
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new com.assessmate.exception.BadRequestException(
                                 "Exam not found"));
 
         // Ownership check
@@ -225,7 +225,7 @@ public class QuestionService {
         User host = userRepository
                 .findByEmail(hostEmail)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new com.assessmate.exception.BadRequestException(
                                 "Host not found"));
 
         List<QuestionResponse> added =
@@ -238,7 +238,7 @@ public class QuestionService {
                     questionRepository
                             .findById(questionId)
                             .orElseThrow(() ->
-                                    new RuntimeException(
+                                    new com.assessmate.exception.BadRequestException(
                                             "Question not found: "
                                                     + questionId));
 
@@ -309,7 +309,7 @@ public class QuestionService {
         Exam exam = examRepository
                 .findById(req.getExamId())
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new com.assessmate.exception.BadRequestException(
                                 "Exam not found"));
 
         // Ownership check
@@ -330,7 +330,7 @@ public class QuestionService {
         User host = userRepository
                 .findByEmail(hostEmail)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new com.assessmate.exception.BadRequestException(
                                 "Host not found"));
 
         String imageUrl = null;
@@ -373,7 +373,7 @@ public class QuestionService {
         Exam exam = examRepository
                 .findById(examId)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new com.assessmate.exception.BadRequestException(
                                 "Exam not found"));
 
         if (!exam.getHost().getEmail()
@@ -396,7 +396,7 @@ public class QuestionService {
         Exam exam = examRepository
                 .findById(examId)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new com.assessmate.exception.BadRequestException(
                                 "Exam not found"));
 
         if (!exam.getHost().getEmail()
@@ -482,7 +482,7 @@ public class QuestionService {
         Question question = questionRepository
                 .findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new com.assessmate.exception.BadRequestException(
                                 "Question not found"));
 
         // Ownership check
@@ -545,7 +545,7 @@ public class QuestionService {
         Question question = questionRepository
                 .findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new com.assessmate.exception.BadRequestException(
                                 "Question not found"));
 
         // Ownership check
@@ -826,7 +826,7 @@ public class QuestionService {
         Question question = questionRepository
             .findById(questionId)
             .orElseThrow(() ->
-                new RuntimeException(
+                new com.assessmate.exception.BadRequestException(
                     "Question not found"));
 
         // Ownership check
@@ -851,3 +851,4 @@ public class QuestionService {
             questionRepository.save(question));
     }
 }
+

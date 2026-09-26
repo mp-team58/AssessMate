@@ -67,7 +67,7 @@ public class AIQuestionService {
 
         if (req.getTopic() == null
                 || req.getTopic().trim().isEmpty()) {
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Topic is required for topic-based AI generation.");
         }
 
@@ -111,14 +111,14 @@ public class AIQuestionService {
 
         if (req.getText() == null
                 || req.getText().trim().isEmpty()) {
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Please paste some text content.");
         }
 
         String[] words =
             req.getText().trim().split("\\s+");
         if (words.length < 50) {
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Text is too short. Please paste " +
                 "at least 50 words.");
         }
@@ -162,7 +162,7 @@ public class AIQuestionService {
             // Topic entered but NOT found in text
             // STRICT — do not generate
             // Ask host to change topic
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Topic '"
                 + req.getTopic()
                 + "' was not found in the pasted text. "
@@ -265,7 +265,7 @@ public class AIQuestionService {
 
             if (extraction.getPageImages()
                     .isEmpty()) {
-                throw new RuntimeException(
+                throw new com.assessmate.exception.BadRequestException(
                     "Could not extract any " +
                     "readable content from " +
                     "this file.");
@@ -323,7 +323,7 @@ public class AIQuestionService {
             extraction.getChunks();
 
         if (chunks.isEmpty()) {
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Could not extract readable " +
                 "text from this file.");
         }
@@ -357,7 +357,7 @@ public class AIQuestionService {
             // Topic entered but NOT found in file
             // STRICT — do not generate
             // Ask host to try another topic
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Topic '"
                 + req.getTopic()
                 + "' was not found in the uploaded "
@@ -675,7 +675,7 @@ public class AIQuestionService {
                             gq.getOptionC())
                         || isNullOrEmpty(
                             gq.getOptionD())) {
-                    throw new RuntimeException(
+                    throw new com.assessmate.exception.BadRequestException(
                         "SINGLE_CHOICE missing " +
                         "one or more options");
                 }
@@ -683,7 +683,7 @@ public class AIQuestionService {
                 String normalized =
                     answer.toUpperCase();
                 if (!normalized.matches("[ABCD]")) {
-                    throw new RuntimeException(
+                    throw new com.assessmate.exception.BadRequestException(
                         "SINGLE_CHOICE answer " +
                         "must be A, B, C, or D " +
                         "— got: " + answer);
@@ -700,7 +700,7 @@ public class AIQuestionService {
                             gq.getOptionC())
                         || isNullOrEmpty(
                             gq.getOptionD())) {
-                    throw new RuntimeException(
+                    throw new com.assessmate.exception.BadRequestException(
                         "MULTIPLE_SELECT missing " +
                         "one or more options");
                 }
@@ -708,14 +708,14 @@ public class AIQuestionService {
                 String normalized =
                     normalizeMultiple(answer);
                 if (normalized.isEmpty()) {
-                    throw new RuntimeException(
+                    throw new com.assessmate.exception.BadRequestException(
                         "MULTIPLE_SELECT answer " +
                         "has no valid letters");
                 }
                 for (String part :
                         normalized.split(",")) {
                     if (!part.matches("[ABCD]")) {
-                        throw new RuntimeException(
+                        throw new com.assessmate.exception.BadRequestException(
                             "MULTIPLE_SELECT " +
                             "answer contains " +
                             "invalid letter: "
@@ -729,7 +729,7 @@ public class AIQuestionService {
                 // Options not required
                 // Answer must not be empty
                 if (answer.isEmpty()) {
-                    throw new RuntimeException(
+                    throw new com.assessmate.exception.BadRequestException(
                         "FILL_BLANK answer " +
                         "is empty");
                 }
@@ -742,7 +742,7 @@ public class AIQuestionService {
                 try {
                     Double.parseDouble(answer);
                 } catch (NumberFormatException e) {
-                    throw new RuntimeException(
+                    throw new com.assessmate.exception.BadRequestException(
                         "NUMERICAL answer is not " +
                         "a valid number: " + answer);
                 }
@@ -750,7 +750,7 @@ public class AIQuestionService {
             }
 
             default:
-                throw new RuntimeException(
+                throw new com.assessmate.exception.BadRequestException(
                     "Unknown question type: "
                     + type);
         }
@@ -1106,7 +1106,7 @@ public class AIQuestionService {
 
         if (req.getTotalQuestions() == null
                 || req.getTotalQuestions() <= 0) {
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Total questions must be " +
                 "greater than 0.");
         }
@@ -1123,7 +1123,7 @@ public class AIQuestionService {
 
         // Problem 3 — check capacity
         if (requested > remainingTotal) {
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Only " + remainingTotal
                 + " question slot(s) remaining "
                 + "in this exam ("
@@ -1165,7 +1165,7 @@ public class AIQuestionService {
             + fillBlank + numerical;
 
         if (otherTypes > requested) {
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Question type counts ("
                 + otherTypes + ") exceed "
                 + "total questions ("
@@ -1209,18 +1209,15 @@ public class AIQuestionService {
         Exam exam = examRepository
             .findById(examId)
             .orElseThrow(() ->
-                new RuntimeException(
-                    "Exam not found."));
+                new com.assessmate.exception.ResourceNotFoundException("Exam not found."));
 
         if (!exam.getHost().getEmail()
                 .equals(hostEmail)) {
-            throw new RuntimeException(
-                "Not authorized to modify " +
-                "this exam.");
+            throw new com.assessmate.exception.ForbiddenException("Not authorized to modify " + "this exam.");
         }
 
         if (exam.getStatus() != ExamStatus.DRAFT) {
-            throw new RuntimeException(
+            throw new com.assessmate.exception.BadRequestException(
                 "Questions can only be added " +
                 "while the exam is in " +
                 "DRAFT status.");
@@ -1233,7 +1230,7 @@ public class AIQuestionService {
         return userRepository
             .findByEmail(email)
             .orElseThrow(() ->
-                new RuntimeException(
+                new com.assessmate.exception.BadRequestException(
                     "Host not found."));
     }
 
@@ -1284,3 +1281,4 @@ public class AIQuestionService {
         };
     }
 }
+

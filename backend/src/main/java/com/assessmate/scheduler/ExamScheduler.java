@@ -14,6 +14,7 @@ public class ExamScheduler {
     private final CandidateService candidateService;
     private final com.assessmate.service.ExamSubmissionService examSubmissionService;
     private final com.assessmate.service.ExamService examService;
+    private final com.assessmate.service.ProctoringService proctoringService;
 
     // Run every 60 seconds
     @Scheduled(fixedRate = 60000)
@@ -31,6 +32,18 @@ public class ExamScheduler {
             examService.autoEndExams();
         } catch (Exception e) {
             log.error("Failed to auto-end exams", e);
+        }
+    }
+
+    // Run once a day at 2:00 AM to clean up proctoring evidence older than 30 days
+    @Scheduled(cron = "0 0 2 * * *")
+    public void cleanupOldProctoringEvidence() {
+        log.info("Running daily scheduled task to clean up old proctoring evidence...");
+        try {
+            proctoringService.cleanupOldEvidence(30);
+            log.info("Successfully cleaned up old proctoring evidence.");
+        } catch (Exception e) {
+            log.error("Failed to clean up old proctoring evidence", e);
         }
     }
 }

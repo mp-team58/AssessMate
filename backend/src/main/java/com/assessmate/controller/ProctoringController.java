@@ -28,4 +28,15 @@ public class ProctoringController {
         return ResponseEntity.ok(
                 proctoringService.getCandidateTimeline(examId, enrollmentId, principal.getName()));
     }
+
+    @GetMapping("/evidence/{type}/{filename}")
+    public ResponseEntity<org.springframework.core.io.Resource> getEvidence(
+            @PathVariable String type, @PathVariable String filename, Principal principal) throws java.io.IOException {
+        org.springframework.core.io.Resource resource = proctoringService.loadEvidenceFile(type, filename, principal.getName());
+        String contentType = switch (filename.substring(filename.lastIndexOf('.') + 1)) {
+            case "png" -> "image/png"; case "webp" -> "image/webp"; case "jpg", "jpeg" -> "image/jpeg";
+            case "wav" -> "audio/wav"; case "ogg" -> "audio/ogg"; case "webm" -> "audio/webm"; default -> "application/octet-stream";
+        };
+        return ResponseEntity.ok().contentType(org.springframework.http.MediaType.parseMediaType(contentType)).body(resource);
+    }
 }

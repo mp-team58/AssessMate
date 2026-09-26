@@ -42,10 +42,10 @@ public class CandidateService {
 
     public JoinExamResponse joinExam(String joinCode, String candidateEmail, String userAgent) {
         User candidate = userRepository.findByEmail(candidateEmail)
-                .orElseThrow(() -> new RuntimeException("Candidate not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Candidate not found"));
 
         Exam exam = examRepository.findByJoinCode(joinCode)
-                .orElseThrow(() -> new RuntimeException("Invalid join code"));
+                .orElseThrow(() -> new com.assessmate.exception.BadRequestException("Invalid join code"));
 
         if (exam.getStatus() != ExamStatus.LIVE) {
             throw new BadRequestException("This exam is not currently LIVE");
@@ -163,7 +163,7 @@ public class CandidateService {
 
     public CandidateExamQuestionsResponse getExamQuestions(Long enrollmentId, String candidateEmail) {
         ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
             throw new ForbiddenException("You do not have access to this enrollment.");
@@ -239,7 +239,7 @@ public class CandidateService {
 
     public void logProctorEvent(ProctorEventRequest request, String candidateEmail) {
         ExamEnrollment enrollment = enrollmentRepository.findById(request.getEnrollmentId())
-                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
             throw new ForbiddenException("You do not have access to this enrollment.");
@@ -341,7 +341,7 @@ public class CandidateService {
     @org.springframework.transaction.annotation.Transactional
     public void submitExam(Long enrollmentId, SubmitExamRequest request, String candidateEmail) {
         ExamEnrollment enrollment = enrollmentRepository.findByIdForUpdate(enrollmentId)
-                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
             throw new ForbiddenException("You do not have access to this enrollment.");
@@ -591,7 +591,7 @@ public class CandidateService {
 
     public ResultResponseDTO getExamResult(Long enrollmentId, String candidateEmail) {
         ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
             throw new ForbiddenException("You do not have access to this enrollment.");
@@ -602,7 +602,7 @@ public class CandidateService {
         }
 
         Result result = resultRepository.findByEnrollmentId(enrollmentId)
-                .orElseThrow(() -> new RuntimeException("Result not found."));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Result not found."));
 
         if (result.getAiFeedback() == null || result.getAiFeedback().isEmpty()) {
             // Lazy generation fallback (A18)
@@ -631,7 +631,7 @@ public class CandidateService {
 
     public List<com.assessmate.dto.CandidateAnswerReviewDTO> getAnswerReview(Long enrollmentId, String candidateEmail) {
         ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
             throw new ForbiddenException("You do not have access to this enrollment.");
@@ -673,7 +673,7 @@ public class CandidateService {
 
     public org.springframework.data.domain.Page<CandidateHistoryDTO> getCandidateHistory(String candidateEmail, org.springframework.data.domain.Pageable pageable) {
         User candidate = userRepository.findByEmail(candidateEmail)
-                .orElseThrow(() -> new RuntimeException("Candidate not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Candidate not found"));
 
         org.springframework.data.domain.Page<ExamEnrollment> enrollmentPage = enrollmentRepository.findByCandidateId(candidate.getId(), pageable);
 
@@ -732,7 +732,7 @@ public class CandidateService {
     @org.springframework.transaction.annotation.Transactional
     public void saveProgress(Long enrollmentId, com.assessmate.dto.SubmitExamRequest request, String candidateEmail) {
         ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
             throw new ForbiddenException("You do not have access to this enrollment.");
@@ -766,7 +766,7 @@ public class CandidateService {
 
     public java.util.Map<String, Object> getExamState(Long enrollmentId, String candidateEmail) {
         ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
             throw new ForbiddenException("You do not have access to this enrollment.");
@@ -789,7 +789,7 @@ public class CandidateService {
 
     public java.util.Map<String, Object> getDashboard(String candidateEmail) {
         User candidate = userRepository.findByEmail(candidateEmail)
-                .orElseThrow(() -> new RuntimeException("Candidate not found"));
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Candidate not found"));
 
         List<ExamEnrollment> enrollments = enrollmentRepository.findByCandidateIdOrderByJoinedAtDesc(candidate.getId());
         
@@ -806,3 +806,4 @@ public class CandidateService {
         return dashboard;
     }
 }
+

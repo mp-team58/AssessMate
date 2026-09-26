@@ -1,6 +1,5 @@
 package com.assessmate.controller;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
 
 import com.assessmate.dto.*;
 import com.assessmate.service.CodingQuestionService;

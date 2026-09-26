@@ -91,4 +91,13 @@ public class ExamRequest {
     @DecimalMin(value = "0.0")
     @DecimalMax(value = "100.0")
     private Double passingPercentage = 50.0;
+
+    private Boolean requireCamera = false;
+    private Boolean requireMic = false;
+    private Boolean requireScreenShare = false;
+    private Boolean enableFaceDetection = false;
+    private Boolean enableObjectDetection = false;
+    private Boolean enableTabSwitchDetection = false;
+    private Boolean enableAudioDetection = false;
+    private Integer maxTabSwitches;
 }

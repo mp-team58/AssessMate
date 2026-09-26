@@ -11,6 +11,7 @@ import java.util.Optional;
 @Repository
 public interface ExamEnrollmentRepository extends JpaRepository<ExamEnrollment, Long> {
     Optional<ExamEnrollment> findByExamAndCandidate(Exam exam, User candidate);
+    java.util.List<ExamEnrollment> findByExamId(Long examId);
     
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"exam"})
     java.util.List<ExamEnrollment> findByCandidateIdOrderByJoinedAtDesc(Long candidateId);

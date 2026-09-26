@@ -12,6 +12,11 @@ import com.assessmate.repository.ExamRepository;
 import com.assessmate.repository.QuestionRepository;
 import com.assessmate.repository.UserRepository;
 import com.assessmate.repository.TestCaseRepository;
+import com.assessmate.repository.ExamEnrollmentRepository;
+import com.assessmate.repository.ResultRepository;
+import com.assessmate.repository.ProctoringLogRepository;
+import com.assessmate.dto.ProctoringSummaryDTO;
+import com.assessmate.dto.ProctoringEventDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +40,9 @@ public class ExamService {
     private final QuestionRepository questionRepository;
     private final CodingQuestionRepository codingQuestionRepository;
     private final TestCaseRepository testCaseRepository;
+    private final ExamEnrollmentRepository enrollmentRepository;
+    private final ResultRepository resultRepository;
+    private final ProctoringLogRepository proctoringLogRepository;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String JOIN_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -92,6 +100,14 @@ public class ExamService {
                 .codingDurationMinutes(req.getCodingDurationMinutes())
                 .codingQuestionsCount(req.getCodingQuestionsCount())
                 .passingPercentage(req.getPassingPercentage() != null ? req.getPassingPercentage() : 50.0)
+                .requireCamera(req.getRequireCamera() != null ? req.getRequireCamera() : false)
+                .requireMic(req.getRequireMic() != null ? req.getRequireMic() : false)
+                .requireScreenShare(req.getRequireScreenShare() != null ? req.getRequireScreenShare() : false)
+                .enableFaceDetection(req.getEnableFaceDetection() != null ? req.getEnableFaceDetection() : false)
+                .enableObjectDetection(req.getEnableObjectDetection() != null ? req.getEnableObjectDetection() : false)
+                .enableTabSwitchDetection(req.getEnableTabSwitchDetection() != null ? req.getEnableTabSwitchDetection() : false)
+                .enableAudioDetection(req.getEnableAudioDetection() != null ? req.getEnableAudioDetection() : false)
+                .maxTabSwitches(req.getMaxTabSwitches())
                 .status(ExamStatus.DRAFT)
                 .build();
 
@@ -150,6 +166,14 @@ public class ExamService {
         exam.setCodingDurationMinutes(req.getCodingDurationMinutes());
         exam.setCodingQuestionsCount(req.getCodingQuestionsCount());
         exam.setPassingPercentage(req.getPassingPercentage() != null ? req.getPassingPercentage() : 50.0);
+        exam.setRequireCamera(req.getRequireCamera() != null ? req.getRequireCamera() : false);
+        exam.setRequireMic(req.getRequireMic() != null ? req.getRequireMic() : false);
+        exam.setRequireScreenShare(req.getRequireScreenShare() != null ? req.getRequireScreenShare() : false);
+        exam.setEnableFaceDetection(req.getEnableFaceDetection() != null ? req.getEnableFaceDetection() : false);
+        exam.setEnableObjectDetection(req.getEnableObjectDetection() != null ? req.getEnableObjectDetection() : false);
+        exam.setEnableTabSwitchDetection(req.getEnableTabSwitchDetection() != null ? req.getEnableTabSwitchDetection() : false);
+        exam.setEnableAudioDetection(req.getEnableAudioDetection() != null ? req.getEnableAudioDetection() : false);
+        exam.setMaxTabSwitches(req.getMaxTabSwitches());
 
         return mapToResponse(examRepository.save(exam));
     }
@@ -321,6 +345,64 @@ public class ExamService {
         return new int[]{easy, medium, hard};
     }
 
+    @Transactional(readOnly = true)
+    public List<ProctoringSummaryDTO> getProctoringSummary(Long examId, String hostEmail) {
+        Exam exam = findExamForHost(examId, hostEmail);
+
+        List<ExamEnrollment> enrollments = enrollmentRepository.findByExamId(examId);
+        List<Long> enrollmentIds = enrollments.stream().map(ExamEnrollment::getId).collect(Collectors.toList());
+        List<Result> results = resultRepository.findByEnrollmentIdIn(enrollmentIds);
+
+        java.util.Map<Long, Result> resultMap = new java.util.HashMap<>();
+        
+        for (Result r : results) {
+            resultMap.put(r.getEnrollment().getId(), r);
+        }
+
+        return enrollments.stream()
+                .map(e -> {
+                    Result r = resultMap.get(e.getId());
+                    return ProctoringSummaryDTO.builder()
+                            .enrollmentId(e.getId())
+                            .candidateName(e.getCandidate().getName())
+                            .candidateEmail(e.getCandidate().getEmail())
+                            .status(e.getStatus())
+                            .honestyScore(r != null ? r.getHonestyScore() : null)
+                            .totalViolations(r != null ? r.getTotalViolations() : null)
+                            .build();
+                })
+                .sorted((a, b) -> {
+                    if (a.getHonestyScore() == null && b.getHonestyScore() == null) return 0;
+                    if (a.getHonestyScore() == null) return 1;
+                    if (b.getHonestyScore() == null) return -1;
+                    return Double.compare(a.getHonestyScore(), b.getHonestyScore());
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProctoringEventDTO> getProctoringEvents(Long examId, Long enrollmentId, String hostEmail) {
+        findExamForHost(examId, hostEmail); // verifies ownership
+
+        ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found"));
+
+        if (!enrollment.getExam().getId().equals(examId)) {
+            throw new BadRequestException("Enrollment does not belong to this exam.");
+        }
+
+        return proctoringLogRepository.findByEnrollmentId(enrollmentId).stream()
+                .sorted(java.util.Comparator.comparing(ProctoringLog::getFlaggedAt))
+                .map(log -> ProctoringEventDTO.builder()
+                        .eventType(log.getEventType())
+                        .severity(log.getSeverity())
+                        .flaggedAt(log.getFlaggedAt())
+                        .imageUrl(log.getImageUrl())
+                        .audioUrl(log.getAudioUrl())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
     public ExamResponse mapToResponse(Exam exam) {
         return ExamResponse.builder()
                 .id(exam.getId())
@@ -350,6 +432,14 @@ public class ExamService {
                 .codingDurationMinutes(exam.getCodingDurationMinutes())
                 .codingQuestionsCount(exam.getCodingQuestionsCount())
                 .passingPercentage(exam.getPassingPercentage())
+                .requireCamera(exam.getRequireCamera())
+                .requireMic(exam.getRequireMic())
+                .requireScreenShare(exam.getRequireScreenShare())
+                .enableFaceDetection(exam.getEnableFaceDetection())
+                .enableObjectDetection(exam.getEnableObjectDetection())
+                .enableTabSwitchDetection(exam.getEnableTabSwitchDetection())
+                .enableAudioDetection(exam.getEnableAudioDetection())
+                .maxTabSwitches(exam.getMaxTabSwitches())
                 .joinCode(exam.getJoinCode())
                 .status(exam.getStatus())
                 .createdAt(exam.getCreatedAt())

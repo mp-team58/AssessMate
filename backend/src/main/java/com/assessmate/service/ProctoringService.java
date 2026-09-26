@@ -19,6 +19,86 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProctoringService {
 
+    private final com.assessmate.repository.ExamRepository examRepository;
+    private final com.assessmate.repository.ExamEnrollmentRepository enrollmentRepository;
+    private final com.assessmate.repository.ProctoringLogRepository proctoringLogRepository;
+
+    private Exam getOwnedExam(Long examId, String hostEmail) {
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Exam not found"));
+        if (!exam.getHost().getEmail().equals(hostEmail)) {
+            throw new com.assessmate.exception.ForbiddenException("You do not have access to this exam's proctoring data");
+        }
+        return exam;
+    }
+
+    public com.assessmate.dto.ProctoringDashboard getDashboard(Long examId, String hostEmail) {
+
+        Exam exam = getOwnedExam(examId, hostEmail);
+
+        List<ExamEnrollment> enrollments = enrollmentRepository.findByExamId(examId);
+        List<Long> enrollmentIds = enrollments.stream().map(ExamEnrollment::getId).toList();
+
+        List<ProctoringLog> logs = enrollmentIds.isEmpty()
+                ? List.of() : proctoringLogRepository.findByEnrollmentIdIn(enrollmentIds);
+
+        Map<Long, List<ProctoringLog>> logsByEnrollment = logs.stream()
+                .collect(Collectors.groupingBy(l -> l.getEnrollment().getId()));
+
+        List<com.assessmate.dto.CandidateProctoringRow> rows = enrollments.stream()
+                .map(enr -> {
+                    List<ProctoringLog> enrLogs = logsByEnrollment.getOrDefault(enr.getId(), List.of());
+                    Map<ProctoringEventType, Long> countsByType = enrLogs.stream()
+                            .collect(Collectors.groupingBy(ProctoringLog::getEventType, Collectors.counting()));
+
+                    return com.assessmate.dto.CandidateProctoringRow.builder()
+                            .enrollmentId(enr.getId())
+                            .candidateId(enr.getCandidate().getId())
+                            .candidateName(enr.getCandidate().getName())
+                            .candidateEmail(enr.getCandidate().getEmail())
+                            .noFaceCount(countsByType.getOrDefault(ProctoringEventType.NO_FACE, 0L))
+                            .multipleFacesCount(countsByType.getOrDefault(ProctoringEventType.MULTIPLE_FACES, 0L))
+                            .gazeAwayCount(countsByType.getOrDefault(ProctoringEventType.GAZE_AWAY, 0L))
+                            .tabSwitchCount(countsByType.getOrDefault(ProctoringEventType.TAB_SWITCH, 0L))
+                            .objectDetectedCount(countsByType.getOrDefault(ProctoringEventType.OBJECT_DETECTED, 0L))
+                            .audioDetectedCount(countsByType.getOrDefault(ProctoringEventType.AUDIO_DETECTED, 0L))
+                            .noCameraCount(countsByType.getOrDefault(ProctoringEventType.NO_CAMERA, 0L))
+                            .noMicCount(countsByType.getOrDefault(ProctoringEventType.NO_MIC, 0L))
+                            .screenShareStoppedCount(countsByType.getOrDefault(ProctoringEventType.SCREEN_SHARE_STOPPED, 0L))
+                            .totalFlags((long) enrLogs.size())
+                            .build();
+                })
+                .sorted(Comparator.comparingLong(com.assessmate.dto.CandidateProctoringRow::getTotalFlags).reversed())
+                .toList();
+
+        return com.assessmate.dto.ProctoringDashboard.builder()
+                .examId(exam.getId()).examTitle(exam.getTitle()).candidates(rows)
+                .build();
+    }
+
+    public List<com.assessmate.dto.ProctoringEventDTO> getCandidateTimeline(Long examId, Long enrollmentId, String hostEmail) {
+
+        getOwnedExam(examId, hostEmail);
+
+        ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
+
+        if (!enrollment.getExam().getId().equals(examId)) {
+            throw new com.assessmate.exception.ForbiddenException("This candidate did not take this exam");
+        }
+
+        return proctoringLogRepository.findByEnrollmentId(enrollmentId).stream()
+                .sorted(Comparator.comparing(ProctoringLog::getFlaggedAt))
+                .map(l -> com.assessmate.dto.ProctoringEventDTO.builder()
+                        .eventType(l.getEventType())
+                        .severity(l.getSeverity())
+                        .flaggedAt(l.getFlaggedAt())
+                        .imageUrl(l.getImageUrl())
+                        .audioUrl(l.getAudioUrl())
+                        .build())
+                .toList();
+    }
+
     @Value("${app.upload.dir.proctoring.images:uploads/proctoring/images/}")
     private String imagesUploadDir;
 

@@ -178,7 +178,7 @@ const JoinAssessment = () => {
               <button
                 type="button"
                 onClick={() => setEnrolledExam(null)}
-                className="px-4 py-2 font-bold rounded-xl text-sm text-secondary-600 bg-white border border-secondary-200 hover:bg-secondary-50 transition-colors shadow-sm"
+                className="px-4 py-2 font-bold rounded-xl text-sm bg-secondary-100 hover:bg-secondary-200 text-secondary-800 border border-secondary-200 transition-colors shadow-none hover:shadow-sm"
               >
                 Cancel
               </button>

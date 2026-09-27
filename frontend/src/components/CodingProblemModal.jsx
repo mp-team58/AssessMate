@@ -321,16 +321,16 @@ const CodingProblemModal = ({
                       key={lang.id}
                       type="button"
                       onClick={() => toggleLanguage(lang.id)}
-                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
                         isSelected
-                          ? 'bg-[#362E20] text-amber-300 border-[#362E20] shadow-sm'
-                          : 'bg-white text-secondary-600 border-secondary-200 hover:bg-secondary-50'
+                          ? 'bg-brand-600 text-white border-brand-600 shadow-md ring-2 ring-brand-100 ring-offset-1'
+                          : 'bg-white text-secondary-600 border-secondary-200 hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-700'
                       }`}
                     >
-                      <span className={`w-4 h-4 rounded-md flex items-center justify-center text-[10px] ${
-                        isSelected ? 'bg-amber-400/20 text-amber-300' : 'bg-secondary-100 text-secondary-400'
+                      <span className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-secondary-100 text-secondary-400'
                       }`}>
-                        {isSelected ? '✓' : '+'}
+                        {isSelected ? <CheckCircle className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
                       </span>
                       {lang.label}
                     </button>
@@ -512,7 +512,7 @@ const CodingProblemModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 font-bold rounded-xl text-sm text-secondary-600 bg-white border border-secondary-200 hover:bg-secondary-50 transition-colors shadow-sm"
+              className="px-5 py-2.5 font-bold rounded-xl text-sm bg-secondary-100 hover:bg-secondary-200 text-secondary-800 border border-secondary-200 transition-colors shadow-none hover:shadow-sm"
             >
               Cancel
             </button>

@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { useNavigate } from 'react-router-dom';
-import { createExam } from '../services/examService';
+import { useNavigate, useParams } from 'react-router-dom';
+import { createExam, getExamById, updateExam } from '../services/examService';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
-import { Code2, HelpCircle } from 'lucide-react';
+import { Code2, HelpCircle, ShieldAlert } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 
 // Validation Schema
@@ -64,12 +64,15 @@ const schema = yup.object().shape({
 );
 
 const CreateExam = () => {
+  const { id } = useParams();
+  const isEditMode = !!id;
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(isEditMode);
   const [successModal, setSuccessModal] = useState(null); // { joinCode, examId }
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
+  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
     mode: 'onChange',
     defaultValues: {
@@ -97,6 +100,14 @@ const CreateExam = () => {
       hasCodingSection: false,
       codingDurationMinutes: 45,
       codingQuestionsCount: 2,
+      requireCamera: false,
+      requireMic: false,
+      requireScreenShare: false,
+      enableFaceDetection: false,
+      enableObjectDetection: false,
+      enableTabSwitchDetection: false,
+      enableAudioDetection: false,
+      maxTabSwitches: null,
     }
   });
 
@@ -108,6 +119,71 @@ const CreateExam = () => {
   const medPct = watch('mediumPercent') || 0;
   const hardPct = watch('hardPercent') || 0;
   const pctSum = Number(easyPct) + Number(medPct) + Number(hardPct);
+
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchExam = async () => {
+        try {
+          const response = await getExamById(id);
+          const data = response.data;
+          
+          let scheduledDate = '';
+          let scheduledHour = '10';
+          let scheduledMinute = '00';
+          
+          if (data.scheduledStart) {
+            const dateObj = new Date(data.scheduledStart);
+            scheduledDate = dateObj.toISOString().split('T')[0];
+            scheduledHour = String(dateObj.getHours()).padStart(2, '0');
+            scheduledMinute = String(dateObj.getMinutes()).padStart(2, '0');
+          }
+
+          reset({
+            title: data.title || '',
+            subject: data.subject || '',
+            timerType: data.timerType || 'WHOLE_EXAM',
+            deviceAccess: data.deviceAccess || 'BOTH',
+            negativeMark: data.negativeMark || false,
+            easyPercent: data.easyPercent ?? 40,
+            mediumPercent: data.mediumPercent ?? 40,
+            hardPercent: data.hardPercent ?? 20,
+            totalQuestions: data.totalQuestions ?? 30,
+            passingPercentage: data.passingPercentage ?? 50.0,
+            durationMinutes: data.durationMinutes ?? 90,
+            gracePeriodMinutes: data.gracePeriodMinutes ?? 10,
+            easyMark: data.easyMark ?? 1.0,
+            mediumMark: data.mediumMark ?? 2.0,
+            hardMark: data.hardMark ?? 3.0,
+            easyNegative: data.easyNegative ?? 0.25,
+            mediumNegative: data.mediumNegative ?? 0.50,
+            hardNegative: data.hardNegative ?? 1.00,
+            easySeconds: data.easySeconds ?? 30,
+            mediumSeconds: data.mediumSeconds ?? 60,
+            hardSeconds: data.hardSeconds ?? 90,
+            hasCodingSection: data.hasCodingSection || false,
+            codingDurationMinutes: data.codingDurationMinutes ?? 45,
+            codingQuestionsCount: data.codingQuestionsCount ?? 2,
+            requireCamera: data.requireCamera || false,
+            requireMic: data.requireMic || false,
+            requireScreenShare: data.requireScreenShare || false,
+            enableFaceDetection: data.enableFaceDetection || false,
+            enableObjectDetection: data.enableObjectDetection || false,
+            enableTabSwitchDetection: data.enableTabSwitchDetection || false,
+            enableAudioDetection: data.enableAudioDetection || false,
+            maxTabSwitches: data.maxTabSwitches ?? null,
+            scheduledDate,
+            scheduledHour,
+            scheduledMinute
+          });
+        } catch (error) {
+          showToast(error.response?.data?.message || 'Failed to fetch exam details', 'error');
+        } finally {
+          setIsFetching(false);
+        }
+      };
+      fetchExam();
+    }
+  }, [id, isEditMode, reset, showToast]);
 
   const onSubmit = async (data) => {
     setIsLoading(true);
@@ -140,20 +216,32 @@ const CreateExam = () => {
         deviceAccess: data.deviceAccess,
         hasCodingSection: Boolean(data.hasCodingSection),
         codingDurationMinutes: data.hasCodingSection ? Number(data.codingDurationMinutes) : null,
-        codingQuestionsCount: data.hasCodingSection ? Number(data.codingQuestionsCount) : null
+        codingQuestionsCount: data.hasCodingSection ? Number(data.codingQuestionsCount) : null,
+        requireCamera: Boolean(data.requireCamera),
+        requireMic: Boolean(data.requireMic),
+        requireScreenShare: Boolean(data.requireScreenShare),
+        enableFaceDetection: Boolean(data.enableFaceDetection),
+        enableObjectDetection: Boolean(data.enableObjectDetection),
+        enableTabSwitchDetection: Boolean(data.enableTabSwitchDetection),
+        enableAudioDetection: Boolean(data.enableAudioDetection),
+        maxTabSwitches: data.maxTabSwitches ? Number(data.maxTabSwitches) : null
       };
 
-      const response = await createExam(payload);
-      
-      // Show success modal
-      setSuccessModal({
-        joinCode: response.data.joinCode,
-        examId: response.data.id
-      });
-      showToast('Exam created successfully!', 'success');
+      if (isEditMode) {
+        await updateExam(id, payload);
+        showToast('Exam updated successfully!', 'success');
+        navigate(`/host/exams/${id}/manage`);
+      } else {
+        const response = await createExam(payload);
+        setSuccessModal({
+          joinCode: response.data.joinCode,
+          examId: response.data.id
+        });
+        showToast('Exam created successfully!', 'success');
+      }
       
     } catch (err) {
-      showToast(err.response?.data?.message || err.message || 'Failed to create exam', 'error');
+      showToast(err.response?.data?.message || err.message || `Failed to ${isEditMode ? 'update' : 'create'} exam`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -166,17 +254,25 @@ const CreateExam = () => {
     }
   };
 
+  if (isFetching) {
+    return (
+      <div className="flex justify-center items-center h-64 w-full">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full font-sans relative z-10 flex flex-col">
       <header className="mb-8">
-        <button onClick={() => navigate('/host/dashboard')} className="text-brand-600 hover:text-brand-700 mb-4 flex items-center gap-2 font-bold text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100">
+        <button onClick={() => isEditMode ? navigate(`/host/exams/${id}/manage`) : navigate('/host/dashboard')} className="text-brand-600 hover:text-brand-700 mb-4 flex items-center gap-2 font-bold text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          Back to Dashboard
+          {isEditMode ? 'Back to Exam Details' : 'Back to Dashboard'}
         </button>
-        <h1 className="text-3xl md:text-4xl font-extrabold text-secondary-800 tracking-tight">Create New Exam</h1>
-        <p className="text-secondary-500 mt-2 text-lg">Configure your assessment details and structure.</p>
+        <h1 className="text-3xl md:text-4xl font-extrabold text-secondary-800 tracking-tight">{isEditMode ? 'Edit Exam' : 'Create New Exam'}</h1>
+        <p className="text-secondary-500 mt-2 text-lg">{isEditMode ? 'Update your assessment details and structure.' : 'Configure your assessment details and structure.'}</p>
       </header>
 
       <div className="bg-white rounded-3xl p-6 lg:p-10 shadow-sm border border-secondary-200/80 w-full flex-1">
@@ -295,9 +391,9 @@ const CreateExam = () => {
                   <div className="flex items-center mt-8">
                     <label className="flex items-center cursor-pointer group">
                       <div className="relative">
-                        <input type="checkbox" className="sr-only" {...register('negativeMark')} />
-                        <div className={`block w-14 h-8 rounded-full transition-colors ${negativeMarkEnabled ? 'bg-brand-500' : 'bg-secondary-300 group-hover:bg-secondary-400'}`}></div>
-                        <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${negativeMarkEnabled ? 'transform translate-x-6' : ''}`}></div>
+                        <input type="checkbox" className="sr-only peer" {...register('negativeMark')} />
+                        <div className={`block w-14 h-8 rounded-full transition-colors duration-300 ${negativeMarkEnabled ? 'bg-brand-500' : 'bg-secondary-300 group-hover:bg-secondary-400'}`}></div>
+                        <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-all duration-300 ease-in-out ${negativeMarkEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
                       </div>
                       <span className="ml-3 font-semibold text-secondary-800">Enable Negative Marking</span>
                     </label>
@@ -370,6 +466,64 @@ const CreateExam = () => {
               </div>
             </div>
 
+            {/* Proctoring Settings */}
+            <div className="bg-secondary-50/50 p-6 rounded-2xl border border-secondary-200">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <h2 className="text-xl font-bold text-secondary-800">Proctoring Settings</h2>
+              </div>
+              
+              <div className="pl-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
+                  <input type="checkbox" {...register('requireCamera')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
+                  <span className="font-semibold text-secondary-800 text-sm">Require Camera</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
+                  <input type="checkbox" {...register('requireMic')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
+                  <span className="font-semibold text-secondary-800 text-sm">Require Microphone</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
+                  <input type="checkbox" {...register('requireScreenShare')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
+                  <span className="font-semibold text-secondary-800 text-sm">Require Screen Share</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
+                  <input type="checkbox" {...register('enableFaceDetection')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
+                  <span className="font-semibold text-secondary-800 text-sm">Face Detection (AI)</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
+                  <input type="checkbox" {...register('enableObjectDetection')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
+                  <span className="font-semibold text-secondary-800 text-sm">Object Detection (AI)</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
+                  <input type="checkbox" {...register('enableAudioDetection')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
+                  <span className="font-semibold text-secondary-800 text-sm">Audio Detection</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
+                  <input type="checkbox" {...register('enableTabSwitchDetection')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
+                  <span className="font-semibold text-secondary-800 text-sm">Tab Switch Detection</span>
+                </label>
+                
+                <div className="lg:col-span-2">
+                  <div className="bg-white p-3 rounded-xl border border-secondary-200 shadow-sm h-full flex flex-col justify-center">
+                    <label className="text-xs font-bold text-secondary-700 mb-1">Max Tab Switches before Auto-Submit</label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="number"
+                        placeholder="e.g. 3"
+                        {...register('maxTabSwitches')}
+                        error={errors.maxTabSwitches}
+                        containerClassName="!mb-0 w-32"
+                        className="py-1.5 px-3 text-sm"
+                      />
+                      <span className="text-xs text-secondary-500">Leave empty to track without auto-submit</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Per-Question Settings */}
             <div className="bg-secondary-50/50 p-6 rounded-2xl border border-secondary-200">
               <div className="flex items-center gap-3 mb-6">
@@ -437,7 +591,7 @@ const CreateExam = () => {
 
             <div className="pt-4 flex justify-end">
               <Button type="submit" disabled={isLoading || pctSum !== 100} className="w-full md:w-auto px-8 py-3 text-lg">
-                {isLoading ? 'Creating...' : 'Create Exam'}
+                {isLoading ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create Exam')}
               </Button>
             </div>
           </form>

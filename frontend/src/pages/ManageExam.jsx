@@ -4,7 +4,9 @@ import { getExamById, publishExam, endExam } from '../services/examService';
 import { getExamQuestionStats, getExamQuestions } from '../services/questionService';
 import Button from '../components/ui/Button';
 import QuestionCard from '../components/QuestionCard';
+import ShareExamModal from '../components/ShareExamModal';
 import { useToast } from '../contexts/ToastContext';
+import { Share2 } from 'lucide-react';
 
 const ManageExam = () => {
   const { id } = useParams();
@@ -14,6 +16,7 @@ const ManageExam = () => {
   const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const { showToast } = useToast();
 
   const fetchExam = async () => {
@@ -131,14 +134,39 @@ const ManageExam = () => {
 
         <div className="flex gap-3 relative z-10 w-full md:w-auto">
           {exam.status === 'DRAFT' && (
-            <Button onClick={handlePublish} className="w-full md:w-auto bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white shadow-lg shadow-brand-500/30 border-0 px-8 py-3 text-lg transition-transform hover:-translate-y-0.5">
-              Publish Exam
-            </Button>
+            <>
+              <Button onClick={() => navigate(`/host/exams/${id}/edit`)} variant="outline" className="w-full md:w-auto px-8 py-3 text-lg transition-transform hover:-translate-y-0.5 border-secondary-300 text-secondary-700 bg-white hover:bg-secondary-50 shadow-sm">
+                Edit Exam
+              </Button>
+              <Button onClick={handlePublish} className="w-full md:w-auto bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white shadow-lg shadow-brand-500/30 border-0 px-8 py-3 text-lg transition-transform hover:-translate-y-0.5">
+                Publish Exam
+              </Button>
+            </>
           )}
           {exam.status === 'LIVE' && (
             <Button onClick={handleEnd} className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 border-0 px-8 py-3 text-lg transition-transform hover:-translate-y-0.5">
               End Exam
             </Button>
+          )}
+          {(exam.status === 'LIVE' || exam.status === 'SCHEDULED') && (
+            <Button onClick={() => setIsShareModalOpen(true)} className="w-full md:w-auto bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-500/30 border-0 px-8 py-3 text-lg transition-transform hover:-translate-y-0.5 flex items-center gap-2 justify-center">
+              <Share2 className="w-5 h-5" /> Share Exam
+            </Button>
+          )}
+          {(exam.status === 'LIVE' || exam.status === 'ENDED') && (
+            <>
+              <Button onClick={() => navigate(`/host/exams/${id}/results`)} variant="outline" className="w-full md:w-auto border-secondary-300 text-brand-700 hover:bg-brand-50 px-6 py-3 text-lg transition-transform hover:-translate-y-0.5 shadow-sm">
+                View Results
+              </Button>
+              <Button onClick={() => navigate(`/host/exams/${id}/proctoring`)} variant="outline" className="w-full md:w-auto border-secondary-300 text-purple-700 hover:bg-purple-50 px-6 py-3 text-lg transition-transform hover:-translate-y-0.5 shadow-sm">
+                Proctoring
+              </Button>
+              {exam.status === 'LIVE' && (
+                <Button onClick={() => navigate(`/host/exams/${id}/live`)} className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg transition-transform hover:-translate-y-0.5 shadow-sm animate-pulse">
+                  Live Monitor
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -260,20 +288,23 @@ const ManageExam = () => {
             ) : (
               <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                 {questions.map((q, index) => (
-                  <div key={q.id} className="relative group p-4 border border-secondary-200 rounded-2xl hover:border-brand-300 hover:shadow-md transition-all bg-white">
-                    <div className="absolute -top-3 -left-3 z-10 w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">
-                      {index + 1}
-                    </div>
-                    <div className="pl-4">
-                      <QuestionCard question={q} showSource={true} />
-                    </div>
-                  </div>
+                  <QuestionCard 
+                    key={q.id} 
+                    question={q} 
+                    showSource={true} 
+                    index={index + 1} 
+                  />
                 ))}
               </div>
             )}
           </div>
         </div>
       </div>
+      <ShareExamModal 
+        examId={id} 
+        isOpen={isShareModalOpen} 
+        onClose={() => setIsShareModalOpen(false)} 
+      />
     </div>
   );
 };

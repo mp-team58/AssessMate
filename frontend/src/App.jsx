@@ -3,6 +3,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import HostDashboard from './pages/HostDashboard';
+import HostAnalytics from './pages/HostAnalytics';
+import HostExamResults from './pages/HostExamResults';
+import HostCandidateReport from './pages/HostCandidateReport';
+import HostProctoring from './pages/HostProctoring';
+import HostLiveMonitor from './pages/HostLiveMonitor';
 import CreateExam from './pages/CreateExam';
 import GenerateQuestions from './pages/GenerateQuestions';
 import ExamQuestions from './pages/ExamQuestions';
@@ -30,9 +35,15 @@ function App() {
       {/* Protected Routes (Role based protection will be added later) */}
       <Route element={<DashboardLayout />}>
         <Route path="/host/dashboard" element={<HostDashboard />} />
+        <Route path="/host/analytics" element={<HostAnalytics />} />
         <Route path="/host/my-exams" element={<MyExams />} />
         <Route path="/host/exams/:id/manage" element={<ManageExam />} />
+        <Route path="/host/exams/:id/results" element={<HostExamResults />} />
+        <Route path="/host/exams/:id/results/:enrollmentId" element={<HostCandidateReport />} />
+        <Route path="/host/exams/:id/proctoring" element={<HostProctoring />} />
+        <Route path="/host/exams/:id/live" element={<HostLiveMonitor />} />
         <Route path="/host/create-exam" element={<CreateExam />} />
+        <Route path="/host/exams/:id/edit" element={<CreateExam />} />
         <Route path="/host/generate-questions" element={<GenerateQuestions />} />
         <Route path="/host/question-bank" element={<QuestionBank />} />
         <Route path="/host/exams/:examId/questions" element={<ExamQuestions />} />

@@ -479,9 +479,37 @@ const ExamQuestions = () => {
 
           {/* Coding Problem List */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-secondary-900">
-              Exam Coding Problems ({codingPoolCount})
-            </h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-secondary-900">
+                Exam Coding Problems ({codingPoolCount})
+              </h3>
+              {codingProblems.length > 0 && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setIsAIModalOpen(true)}
+                    className="text-xs flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-brand-500 hover:from-purple-700 hover:to-brand-600 text-white border-0 shadow-md"
+                  >
+                    ⚡ Generate with AI
+                  </Button>
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => {
+                      setEditingCodingProblem(null);
+                      setIsCodingModalOpen(true);
+                    }}
+                    className="text-xs flex items-center gap-1.5"
+                  >
+                    ✍️ Add Manually
+                  </Button>
+                  <button
+                    onClick={() => setIsPickBankModalOpen(true)}
+                    className="px-4 py-2 bg-secondary-100 hover:bg-secondary-200 text-secondary-800 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    Pick from Bank
+                  </button>
+                </div>
+              )}
+            </div>
 
             {isCodingLoading ? (
               <div className="flex justify-center items-center py-16 bg-white rounded-3xl border border-secondary-200">
@@ -497,13 +525,20 @@ const ExamQuestions = () => {
                 </p>
                 <div className="flex justify-center gap-3 mt-5">
                   <Button
+                    onClick={() => setIsAIModalOpen(true)}
+                    className="text-xs flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-brand-500 hover:from-purple-700 hover:to-brand-600 text-white border-0 shadow-md"
+                  >
+                    ⚡ Generate with AI
+                  </Button>
+                  <Button
+                    variant="outline-secondary"
                     onClick={() => {
                       setEditingCodingProblem(null);
                       setIsCodingModalOpen(true);
                     }}
                     className="text-xs flex items-center gap-1.5"
                   >
-                    <Plus className="w-4 h-4" /> Add Problem Manually
+                    ✍️ Add Manually
                   </Button>
                   <button
                     onClick={() => setIsPickBankModalOpen(true)}
@@ -816,20 +851,15 @@ const ExamQuestions = () => {
             ) : (
               <div className="grid gap-4">
                 {questions.map((q, index) => (
-                  <div key={q.id} className="relative group">
-                    <div className="absolute top-4 left-4 z-10 w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm border border-brand-200">
-                      {index + 1}
-                    </div>
-                    <div className="pl-10">
-                      <QuestionCard
-                        question={q}
-                        showSource={true}
-                        onEdit={() => { setEditingQuestion(q); setActiveTab(null); window.scrollTo(0, 0); }}
-                        onDelete={handleDelete}
-                        onVerify={handleVerify}
-                      />
-                    </div>
-                  </div>
+                  <QuestionCard
+                    key={q.id}
+                    question={q}
+                    showSource={true}
+                    onEdit={() => { setEditingQuestion(q); setActiveTab(null); window.scrollTo(0, 0); }}
+                    onDelete={handleDelete}
+                    onVerify={handleVerify}
+                    index={index + 1}
+                  />
                 ))}
               </div>
             )}

@@ -355,7 +355,7 @@ const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContex
 
       <div className="flex justify-end gap-3 pt-4 border-t">
         {onCancel && (
-          <button type="button" onClick={onCancel} className="px-5 py-2.5 font-bold rounded-xl text-sm text-secondary-600 bg-white border border-secondary-200 hover:bg-secondary-50 transition-colors shadow-sm">
+          <button type="button" onClick={onCancel} className="px-5 py-2.5 font-bold rounded-xl text-sm bg-secondary-100 hover:bg-secondary-200 text-secondary-800 border border-secondary-200 transition-colors shadow-none hover:shadow-sm">
             Cancel
           </button>
         )}

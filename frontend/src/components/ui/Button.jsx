@@ -8,6 +8,8 @@ const Button = ({ children, type = 'button', disabled = false, variant = 'primar
     outline: 'bg-white border-2 border-brand-600 text-brand-600 hover:bg-brand-50',
     danger: 'bg-red-600 hover:bg-red-700 text-white',
     secondary: 'bg-secondary-800 hover:bg-secondary-900 text-white',
+    cancel: 'bg-secondary-100 hover:bg-secondary-200 text-secondary-800 border border-secondary-200',
+    'outline-secondary': 'bg-white border border-secondary-300 text-secondary-700 hover:bg-secondary-50',
   };
 
   return (

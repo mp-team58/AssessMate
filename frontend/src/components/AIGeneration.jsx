@@ -300,7 +300,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
         Close
       </button>
 
-      <h2 className="text-xl font-extrabold text-secondary-900 mb-6 flex items-center gap-2">
+      <h2 className="text-xl font-extrabold text-secondary-900 mb-6 flex items-center justify-center gap-2">
         <Zap className="text-brand-600 w-6 h-6 fill-brand-600" /> Generate Questions with AI
       </h2>
 
@@ -316,25 +316,27 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
       </div>
 
       {/* Mode Selector */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {[
-          { id: 'TOPIC', label: '💡 Topic Only' },
-          { id: 'TEXT', label: '📝 Paste Text' },
-          { id: 'FILE', label: '📁 Upload File' }
-        ].map(mode => (
-          <button
-            key={mode.id}
-            onClick={() => { setAiMode(mode.id); setGenerationError(""); setGenerationResult(null); }}
-            disabled={isGenerating}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${
-              aiMode === mode.id 
-                ? 'bg-brand-100 text-brand-800 border-2 border-brand-500' 
-                : 'bg-gray-50 text-gray-600 border-2 border-transparent hover:bg-gray-100'
-            } disabled:opacity-50`}
-          >
-            {mode.label}
-          </button>
-        ))}
+      <div className="flex justify-center mb-10">
+        <div className="inline-flex bg-secondary-100/50 p-1.5 rounded-2xl gap-1 shadow-inner border border-secondary-200">
+          {[
+            { id: 'TOPIC', label: '💡 Topic Only' },
+            { id: 'TEXT', label: '📝 Paste Text' },
+            { id: 'FILE', label: '📁 Upload File' }
+          ].map(mode => (
+            <button
+              key={mode.id}
+              onClick={() => { setAiMode(mode.id); setGenerationError(""); setGenerationResult(null); }}
+              disabled={isGenerating}
+              className={`px-6 py-2.5 rounded-xl font-bold transition-all text-sm ${
+                aiMode === mode.id 
+                  ? 'bg-white text-brand-700 shadow-sm border border-secondary-200/50 scale-100' 
+                  : 'text-secondary-500 hover:text-secondary-900 hover:bg-secondary-200/50 border border-transparent scale-95'
+              } disabled:opacity-50`}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {generationError && (
@@ -354,13 +356,15 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           </div>
         )}
 
-        <div className="space-y-6">
-          <h3 className="text-md font-bold text-gray-800 border-b pb-2">Source Material</h3>
+        <div className="bg-secondary-50/50 rounded-3xl p-6 md:p-8 border border-secondary-200 space-y-6">
+          <h3 className="text-xs font-black text-secondary-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+            <span className="w-6 h-px bg-secondary-300"></span> Source Material
+          </h3>
 
           {/* Topic Field */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Topic / Focus Area {aiMode === "TOPIC" ? "*" : "(Optional)"}
+            <label className="block text-xs font-bold text-secondary-700 uppercase tracking-wider mb-2">
+              Topic / Focus Area {aiMode === "TOPIC" ? <span className="text-red-500">*</span> : "(Optional)"}
             </label>
             <input
               type="text"
@@ -369,15 +373,15 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
               onChange={handleInputChange}
               disabled={isGenerating}
               placeholder="e.g. Java OOP and Inheritance"
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 outline-none"
+              className="w-full px-5 py-3 rounded-xl border border-secondary-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none font-medium shadow-sm"
             />
           </div>
 
           {/* Text Area (Paste Text Mode) */}
           {aiMode === "TEXT" && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Paste Source Material *
+              <label className="block text-xs font-bold text-secondary-700 uppercase tracking-wider mb-2">
+                Paste Source Material <span className="text-red-500">*</span>
               </label>
               <textarea
                 name="text"
@@ -386,9 +390,9 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
                 disabled={isGenerating}
                 rows={8}
                 placeholder="Paste your notes, documentation, or chapter content here (min 50 words)..."
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 outline-none resize-none"
+                className="w-full px-5 py-4 rounded-xl border border-secondary-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none resize-none font-medium shadow-sm"
               />
-              <p className={`text-xs mt-2 font-medium ${pastedWordCount < 50 ? 'text-red-500' : 'text-gray-500'}`}>
+              <p className={`text-xs mt-2 font-bold ${pastedWordCount < 50 ? 'text-red-500' : 'text-secondary-500'}`}>
                 Word count: {pastedWordCount} words {pastedWordCount < 50 && "(At least 50 words are required.)"}
               </p>
             </div>
@@ -426,9 +430,9 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
                   </div>
                 ) : (
                   <div>
-                    <p className="text-sm font-semibold text-gray-700">Drag and drop your file</p>
-                    <p className="text-sm text-gray-500 mt-1">or click to browse</p>
-                    <p className="text-xs text-gray-400 mt-2">PDF, PPTX, DOCX, JPG, JPEG, PNG (Max 50MB)</p>
+                    <p className="text-sm font-bold text-secondary-700">Drag and drop your file</p>
+                    <p className="text-sm text-secondary-500 mt-1">or click to browse</p>
+                    <p className="text-xs text-secondary-400 mt-2">PDF, PPTX, DOCX, JPG, JPEG, PNG (Max 50MB)</p>
                   </div>
                 )}
                 <input
@@ -444,12 +448,14 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           )}
         </div>
 
-        <div className="space-y-6">
-          <h3 className="text-md font-bold text-gray-800 border-b pb-2">Configuration</h3>
+        <div className="bg-secondary-50/50 rounded-3xl p-6 md:p-8 border border-secondary-200 space-y-6 mt-6">
+          <h3 className="text-xs font-black text-secondary-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+            <span className="w-6 h-px bg-secondary-300"></span> Configuration
+          </h3>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Number of Questions *
+            <label className="block text-xs font-bold text-secondary-700 uppercase tracking-wider mb-2">
+              Number of Questions <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
@@ -459,16 +465,16 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
               disabled={isGenerating}
               min={1}
               max={totalRemaining}
-              className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 outline-none"
+              className="w-full px-5 py-3 rounded-xl border border-secondary-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none font-bold shadow-sm"
             />
           </div>
 
-          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-            <h4 className="text-sm font-bold text-gray-800 mb-4">Question Type Distribution</h4>
+          <div className="bg-white rounded-2xl p-6 border border-secondary-200 shadow-sm">
+            <h4 className="text-sm font-black text-secondary-800 mb-5">Question Type Distribution</h4>
             
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <label className="text-sm text-gray-700">Multiple Select</label>
+                <label className="text-sm font-semibold text-secondary-700">Multiple Select</label>
                 <input
                   type="number"
                   name="multipleSelectCount"
@@ -476,12 +482,12 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
                   onChange={handleInputChange}
                   disabled={isGenerating}
                   min={0}
-                  className="w-20 px-3 py-1 rounded-lg border border-gray-300 outline-none"
+                  className="w-20 px-3 py-1.5 font-bold rounded-lg border border-secondary-300 outline-none focus:ring-2 focus:ring-brand-500 text-center"
                 />
               </div>
               
               <div className="flex justify-between items-center">
-                <label className="text-sm text-gray-700">Fill in the Blank</label>
+                <label className="text-sm font-semibold text-secondary-700">Fill in the Blank</label>
                 <input
                   type="number"
                   name="fillBlankCount"
@@ -489,12 +495,12 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
                   onChange={handleInputChange}
                   disabled={isGenerating}
                   min={0}
-                  className="w-20 px-3 py-1 rounded-lg border border-gray-300 outline-none"
+                  className="w-20 px-3 py-1.5 font-bold rounded-lg border border-secondary-300 outline-none focus:ring-2 focus:ring-brand-500 text-center"
                 />
               </div>
               
               <div className="flex justify-between items-center">
-                <label className="text-sm text-gray-700">Numerical</label>
+                <label className="text-sm font-semibold text-secondary-700">Numerical</label>
                 <input
                   type="number"
                   name="numericalCount"
@@ -502,13 +508,13 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
                   onChange={handleInputChange}
                   disabled={isGenerating}
                   min={0}
-                  className="w-20 px-3 py-1 rounded-lg border border-gray-300 outline-none"
+                  className="w-20 px-3 py-1.5 font-bold rounded-lg border border-secondary-300 outline-none focus:ring-2 focus:ring-brand-500 text-center"
                 />
               </div>
 
-              <div className="pt-3 border-t border-gray-200 flex justify-between items-center">
-                <label className="text-sm font-semibold text-gray-800">Single Choice</label>
-                <span className={`text-sm font-bold px-3 py-1 rounded-lg ${singleChoiceCount < 0 ? 'bg-red-100 text-red-700' : 'bg-brand-100 text-brand-700'}`}>
+              <div className="pt-4 mt-2 border-t border-secondary-200 flex justify-between items-center">
+                <label className="text-sm font-black text-secondary-900">Single Choice</label>
+                <span className={`text-xs font-bold px-3 py-1.5 rounded-lg ${singleChoiceCount < 0 ? 'bg-red-100 text-red-700' : 'bg-brand-100 text-brand-700'}`}>
                   {singleChoiceCount} (automatic)
                 </span>
               </div>
@@ -516,10 +522,10 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           </div>
 
           {aiMode === "TOPIC" && (
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-blue-800 text-sm flex gap-3">
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-blue-800 text-sm flex gap-3 shadow-sm">
               <AlertTriangle className="w-5 h-5 shrink-0 text-blue-600 mt-0.5" />
-              <p>
-                ⚠️ Topic-only questions are generated using AI knowledge. They are not verified against uploaded study material. Please review every question before publishing.
+              <p className="font-medium leading-relaxed">
+                <strong className="font-bold">Note:</strong> Topic-only questions are generated using AI knowledge. They are not verified against uploaded study material. Please review every question before publishing.
               </p>
             </div>
           )}
@@ -527,7 +533,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           <Button 
             onClick={handleGenerate}
             disabled={isGenerating || singleChoiceCount < 0 || (aiMode === "TEXT" && pastedWordCount < 50)}
-            className="w-full flex justify-center items-center gap-2 bg-brand-600 hover:bg-brand-700"
+            className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 shadow-lg shadow-brand-500/30 border-0 h-14 text-lg mt-4"
           >
             <Zap className={`w-5 h-5 ${isGenerating ? 'animate-pulse' : ''}`} />
             {isGenerating ? 'Generating...' : 'Generate Questions'}

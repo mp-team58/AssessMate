@@ -39,50 +39,58 @@ const QuestionCard = ({
   selected = false,
   onSelect,
   onVerify,
+  index = null,
 }) => {
   return (
-    <div className={`p-4 bg-white border rounded-xl shadow-sm hover:shadow-md transition-shadow relative flex ${selectable && selected ? 'ring-2 ring-brand-500 border-transparent' : 'border-secondary-200'}`}>
+    <div className={`p-5 bg-white border rounded-2xl shadow-sm hover:shadow-md transition-all relative flex flex-col md:flex-row gap-4 ${selectable && selected ? 'ring-2 ring-brand-500 border-transparent bg-brand-50/10' : 'border-secondary-200'}`}>
       
       {/* Main Content Area */}
-      <div className={`flex flex-col gap-3 flex-1 ${selectable ? 'pr-8' : ''}`}>
+      <div className={`flex items-start gap-3.5 flex-1 min-w-0 ${selectable ? 'pr-8' : ''}`}>
         
-        {/* Header Badges */}
-        <div className="flex flex-wrap gap-2 text-xs font-medium">
-          <span className={`px-2 py-1 rounded-md border ${getDifficultyColor(question.difficulty)}`}>
-            {question.difficulty}
-          </span>
-          <span className="px-2 py-1 rounded-md border bg-gray-50 text-gray-600 border-gray-200">
-            {getTypeLabel(question.type)}
-          </span>
-          {question.topic && (
-            <span className="px-2 py-1 rounded-md border bg-blue-50 text-blue-700 border-blue-200">
-              {question.topic}
-            </span>
-          )}
-          {showSource && question.source && (
-            <span className={`px-2 py-1 rounded-md ${getSourceColor(question.source)}`}>
-              {question.source}
-            </span>
-          )}
-          
-          <div className="ml-auto flex items-center gap-1 text-xs mr-2">
-            {question.isVerified && question.source === 'AI' && (
-              <span className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-md border border-green-100">
-                <CheckCircle className="w-3 h-3 mr-1" /> Verified
-              </span>
-            )}
-            {question.isVerified === false && (
-              <span className="flex items-center text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100">
-                <AlertTriangle className="w-3 h-3 mr-1" /> Needs Review
-              </span>
-            )}
+        {index !== null && (
+          <div className="w-8 h-8 rounded-xl bg-[#362E20] text-amber-300 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm">
+            {index}
           </div>
-        </div>
+        )}
+        
+        <div className="flex-1 min-w-0 flex flex-col">
+          {/* Header Badges */}
+          <div className="flex flex-wrap items-center gap-2 mb-2 text-[10px] font-bold uppercase tracking-wider">
+            <span className={`px-2.5 py-0.5 rounded-md border ${getDifficultyColor(question.difficulty)}`}>
+              {question.difficulty}
+            </span>
+            <span className="px-2.5 py-0.5 rounded-md border bg-secondary-50 text-secondary-600 border-secondary-200">
+              {getTypeLabel(question.type)}
+            </span>
+            {question.topic && (
+              <span className="px-2.5 py-0.5 rounded-md border bg-blue-50 text-blue-700 border-blue-100">
+                {question.topic}
+              </span>
+            )}
+            {showSource && question.source && (
+              <span className={`px-2.5 py-0.5 rounded-md ${getSourceColor(question.source)}`}>
+                {question.source}
+              </span>
+            )}
+            
+            <div className="ml-auto flex items-center gap-1">
+              {question.isVerified && question.source === 'AI' && (
+                <span className="flex items-center text-green-700 bg-green-50 px-2.5 py-0.5 rounded-md border border-green-200">
+                  <CheckCircle className="w-3 h-3 mr-1" /> Verified
+                </span>
+              )}
+              {question.isVerified === false && (
+                <span className="flex items-center text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
+                  <AlertTriangle className="w-3 h-3 mr-1" /> Needs Review
+                </span>
+              )}
+            </div>
+          </div>
 
-        {/* Question Text */}
-        <p className="text-gray-800 text-[15px] font-medium leading-relaxed">
-          {question.questionText}
-        </p>
+          {/* Question Text */}
+          <h4 className="text-[15px] font-bold text-[#362E20] mb-3 leading-relaxed break-words whitespace-pre-wrap">
+            {question.questionText}
+          </h4>
 
         {/* Optional Image */}
         {question.imageUrl && (
@@ -161,11 +169,12 @@ const QuestionCard = ({
             </button>
           </div>
         )}
+        </div> {/* Closes flex-1 min-w-0 flex flex-col */}
       </div>
 
       {/* Right Side Actions Panel */}
       {selectable ? (
-        <div className="flex flex-col justify-start ml-4 pl-4 border-l border-gray-100">
+        <div className="flex flex-col justify-start ml-4 pl-4 border-l border-gray-100 shrink-0">
           <input 
             type="checkbox" 
             checked={selected}
@@ -174,11 +183,20 @@ const QuestionCard = ({
           />
         </div>
       ) : (
-        <div className="flex flex-col justify-between gap-3 ml-5 pl-5 border-l border-gray-100 shrink-0 min-w-[110px]">
+        <div className="flex md:flex-col items-center justify-center gap-2 mt-4 md:mt-0 md:pl-4 md:border-l border-secondary-100 shrink-0 min-w-[110px]">
+          {onVerify && question.isVerified === false && (
+            <button 
+              onClick={() => onVerify(question.id)}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 text-[13px] font-semibold text-green-700 bg-green-50 hover:bg-green-100 border border-green-100 hover:border-green-200 rounded-lg transition-all"
+              title="Mark as Verified"
+            >
+              <CheckCircle className="w-4 h-4" /> Verify
+            </button>
+          )}
           {onEdit ? (
             <button 
               onClick={() => onEdit(question)}
-              className="flex items-center justify-center gap-2 w-full px-4 py-2 text-[13px] font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-100 hover:border-brand-200 rounded-lg transition-all mb-auto"
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 text-[13px] font-semibold text-secondary-600 bg-white hover:bg-secondary-50 border border-secondary-200 hover:border-secondary-300 rounded-lg transition-all"
             >
               <Pencil className="w-4 h-4" /> Edit
             </button>
@@ -187,7 +205,7 @@ const QuestionCard = ({
           {onDelete ? (
             <button 
               onClick={() => onDelete(question.id)}
-              className="flex items-center justify-center gap-2 w-full px-4 py-2 text-[13px] font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 rounded-lg transition-all mt-auto"
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 text-[13px] font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 rounded-lg transition-all"
             >
               <Trash2 className="w-4 h-4" /> Delete
             </button>

@@ -2,11 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getMyExams, deleteExam } from '../services/examService';
 import Button from '../components/ui/Button';
+import ShareExamModal from '../components/ShareExamModal';
 import { useToast } from '../contexts/ToastContext';
+import { Share2 } from 'lucide-react';
 
 const MyExams = () => {
   const [exams, setExams] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [shareExamId, setShareExamId] = useState(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -130,6 +133,15 @@ const MyExams = () => {
                   >
                     Manage Exam
                   </Link>
+                  {(exam.status === 'LIVE' || exam.status === 'SCHEDULED') && (
+                    <button 
+                      onClick={() => setShareExamId(exam.id)}
+                      className="px-4 py-2.5 text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-xl transition-colors"
+                      title="Share Exam"
+                    >
+                      <Share2 className="w-5 h-5" />
+                    </button>
+                  )}
                   <button 
                     onClick={() => handleDelete(exam.id)}
                     className="px-4 py-2.5 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
@@ -144,6 +156,11 @@ const MyExams = () => {
             ))}
           </div>
         )}
+      <ShareExamModal 
+        examId={shareExamId} 
+        isOpen={!!shareExamId} 
+        onClose={() => setShareExamId(null)} 
+      />
     </div>
   );
 };

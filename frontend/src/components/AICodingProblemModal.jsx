@@ -264,12 +264,17 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
                             key={lang.id}
                             type="button"
                             onClick={() => toggleLanguage(lang.id)}
-                            className={`px-4 py-2 rounded-xl border text-sm font-semibold transition-all shadow-sm ${
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
                               settings.allowedLanguages?.includes(lang.id)
-                                ? 'bg-purple-100 text-purple-800 border-purple-200'
-                                : 'bg-white text-secondary-600 border-secondary-200 hover:bg-secondary-50'
+                                ? 'bg-brand-600 text-white border-brand-600 shadow-md ring-2 ring-brand-100 ring-offset-1'
+                                : 'bg-white text-secondary-600 border-secondary-200 hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-700'
                             }`}
                           >
+                            <span className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                              settings.allowedLanguages?.includes(lang.id) ? 'bg-white/20 text-white' : 'bg-secondary-100 text-secondary-400'
+                            }`}>
+                              {settings.allowedLanguages?.includes(lang.id) ? <CheckCircle className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                            </span>
                             {lang.label}
                           </button>
                         ))}
@@ -458,7 +463,7 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
 
         {/* Footer */}
         <div className="p-6 border-t border-secondary-100 bg-secondary-50/50 rounded-b-3xl flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-6 py-2.5 font-bold rounded-xl text-[15px] text-secondary-600 bg-white border border-secondary-200 hover:bg-secondary-50 transition-colors shadow-sm">
+          <button type="button" onClick={onClose} className="px-6 py-2.5 font-bold rounded-xl text-[15px] bg-secondary-100 hover:bg-secondary-200 text-secondary-800 border border-secondary-200 transition-colors shadow-none hover:shadow-sm">
             Cancel
           </button>
           

@@ -231,7 +231,7 @@ const PickCodingBankModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2 font-bold rounded-xl text-xs text-secondary-600 bg-white border border-secondary-200 hover:bg-secondary-50 transition-colors shadow-sm"
+              className="px-5 py-2 font-bold rounded-xl text-xs bg-secondary-100 hover:bg-secondary-200 text-secondary-800 border border-secondary-200 transition-colors shadow-none hover:shadow-sm"
             >
               Cancel
             </button>

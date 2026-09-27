@@ -22,6 +22,10 @@ export const createExam = async (payload) => {
   return apiClient.post('/exams', payload);
 };
 
+export const updateExam = async (id, payload) => {
+  return apiClient.put(`/exams/${id}`, payload);
+};
+
 export const getMyExams = async () => {
   return apiClient.get('/exams');
 };

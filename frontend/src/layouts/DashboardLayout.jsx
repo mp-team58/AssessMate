@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, LogOut, Menu, X, BookOpenCheck } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, Menu, X, BookOpenCheck, BarChart3 } from 'lucide-react';
 import { logout } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 
@@ -16,6 +16,7 @@ const DashboardLayout = () => {
 
   const navItems = [
     { name: 'Dashboard', path: '/host/dashboard', icon: LayoutDashboard },
+    { name: 'Analytics', path: '/host/analytics', icon: BarChart3 },
     { name: 'My Exams', path: '/host/my-exams', icon: FileText },
     { name: 'Create Exam', path: '/host/create-exam', icon: FileText },
     { name: 'Question Bank', path: '/host/question-bank', icon: BookOpenCheck },

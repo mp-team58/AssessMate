@@ -28,7 +28,6 @@ public class CodingQuestionService {
     private final Judge0Service judge0Service;
     private final GeminiService geminiService;
 
-
     // ─────────────────────────────────────────
     // ADD TO EXAM POOL
     // ─────────────────────────────────────────
@@ -57,14 +56,17 @@ public class CodingQuestionService {
                 .allowedLanguages(allowedLangs)
                 .timeLimitSeconds(
                         req.getTimeLimitSeconds() != null
-                                ? req.getTimeLimitSeconds() : 2)
+                                ? req.getTimeLimitSeconds()
+                                : 2)
                 .memoryLimitMb(
                         req.getMemoryLimitMb() != null
-                                ? req.getMemoryLimitMb() : 256)
+                                ? req.getMemoryLimitMb()
+                                : 256)
                 .marks(req.getMarks())
                 .partialMarking(
                         req.getPartialMarking() != null
-                                ? req.getPartialMarking() : false)
+                                ? req.getPartialMarking()
+                                : false)
                 .isGlobal(false)
                 .build();
 
@@ -104,14 +106,17 @@ public class CodingQuestionService {
                 .allowedLanguages(allowedLangs)
                 .timeLimitSeconds(
                         req.getTimeLimitSeconds() != null
-                                ? req.getTimeLimitSeconds() : 2)
+                                ? req.getTimeLimitSeconds()
+                                : 2)
                 .memoryLimitMb(
                         req.getMemoryLimitMb() != null
-                                ? req.getMemoryLimitMb() : 256)
+                                ? req.getMemoryLimitMb()
+                                : 256)
                 .marks(req.getMarks())
                 .partialMarking(
                         req.getPartialMarking() != null
-                                ? req.getPartialMarking() : false)
+                                ? req.getPartialMarking()
+                                : false)
                 .isGlobal(true)
                 .build();
 
@@ -236,11 +241,28 @@ public class CodingQuestionService {
 
         boolean alreadyAssigned = codingAssignmentRepository.existsByEnrollmentId(enrollmentId);
 
+        List<CodeSubmission> subs = codeSubmissionRepository.findByEnrollmentId(enrollmentId);
+        java.util.Map<Long, CodeSubmission> latestSubs = new java.util.HashMap<>();
+        for (CodeSubmission sub : subs) {
+            CodeSubmission existing = latestSubs.get(sub.getCodingQuestion().getId());
+            if (existing == null || sub.getSubmittedAt().isAfter(existing.getSubmittedAt())) {
+                latestSubs.put(sub.getCodingQuestion().getId(), sub);
+            }
+        }
+
         if (alreadyAssigned) {
             return codingAssignmentRepository
                     .findByEnrollmentIdOrderByOrderIndexAsc(enrollmentId)
                     .stream()
-                    .map(a -> mapToResponse(a.getCodingQuestion(), false))
+                    .map(a -> {
+                        CodingQuestionResponse res = mapToResponse(a.getCodingQuestion(), false);
+                        CodeSubmission latest = latestSubs.get(a.getCodingQuestion().getId());
+                        if (latest != null) {
+                            res.setSavedCode(latest.getSourceCode());
+                            res.setSavedLanguage(latest.getLanguage().name());
+                        }
+                        return res;
+                    })
                     .collect(Collectors.toList());
         }
 
@@ -264,7 +286,15 @@ public class CodingQuestionService {
         }
 
         return assigned.stream()
-                .map(q -> mapToResponse(q, false))
+                .map(q -> {
+                    CodingQuestionResponse res = mapToResponse(q, false);
+                    CodeSubmission latest = latestSubs.get(q.getId());
+                    if (latest != null) {
+                        res.setSavedCode(latest.getSourceCode());
+                        res.setSavedLanguage(latest.getLanguage().name());
+                    }
+                    return res;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -305,7 +335,8 @@ public class CodingQuestionService {
             if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
                 throw new BadRequestException("Your exam session is no longer active.");
             }
-            if (enrollment.getPersonalEndTime() != null && enrollment.getPersonalEndTime().isBefore(java.time.LocalDateTime.now())) {
+            if (enrollment.getPersonalEndTime() != null
+                    && enrollment.getPersonalEndTime().isBefore(java.time.LocalDateTime.now())) {
                 throw new BadRequestException("Your time for this exam has expired.");
             }
         }
@@ -361,19 +392,20 @@ public class CodingQuestionService {
         ExamEnrollment enrollment;
         if (req.getEnrollmentId() != null) {
             enrollment = examEnrollmentRepository.findById(req.getEnrollmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found."));
+                    .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found."));
             if (!enrollment.getCandidate().getId().equals(candidate.getId())) {
                 throw new ForbiddenException("This enrollment does not belong to you.");
             }
         } else {
             enrollment = examEnrollmentRepository.findByExamAndCandidate(exam, candidate)
-                .orElseThrow(() -> new BadRequestException("You must join this exam before submitting code."));
+                    .orElseThrow(() -> new BadRequestException("You must join this exam before submitting code."));
         }
 
         if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
             throw new BadRequestException("Your exam session is no longer active.");
         }
-        if (enrollment.getPersonalEndTime() != null && enrollment.getPersonalEndTime().isBefore(java.time.LocalDateTime.now())) {
+        if (enrollment.getPersonalEndTime() != null
+                && enrollment.getPersonalEndTime().isBefore(java.time.LocalDateTime.now())) {
             throw new BadRequestException("Your time for this exam has expired.");
         }
 
@@ -454,11 +486,10 @@ public class CodingQuestionService {
     // Host reviews before saving
     // ─────────────────────────────────────────
 
-    public AICodingGenerationResponse
-            generateCodingProblem(
-                Long examId,
-                AICodingGenerationRequest req,
-                String hostEmail) {
+    public AICodingGenerationResponse generateCodingProblem(
+            Long examId,
+            AICodingGenerationRequest req,
+            String hostEmail) {
 
         // Validate exam access
         validateExamAccess(examId, hostEmail);
@@ -466,100 +497,99 @@ public class CodingQuestionService {
         if (req.getInput() == null
                 || req.getInput().trim().isEmpty()) {
             throw new BadRequestException(
-                "Please provide a topic or " +
-                "description to generate from.");
+                    "Please provide a topic or " +
+                            "description to generate from.");
         }
 
         // Auto-detect input type
         String detectedType = detectInputType(
-            req.getInput(), req.getInputType());
+                req.getInput(), req.getInputType());
 
         try {
             // Generate via Gemini
-            GeminiService.CodingProblemGenerated
-                generated =
-                geminiService.generateCodingProblem(
+            GeminiService.CodingProblemGenerated generated = geminiService.generateCodingProblem(
                     req.getInput(),
                     detectedType,
                     req.getDifficulty(),
                     req.getTestCaseCount() != null
-                        ? req.getTestCaseCount() : 4);
+                            ? req.getTestCaseCount()
+                            : 4);
 
             // Build CodingQuestionRequest
             // from generated content
             // Host will review and optionally
             // edit before saving
-            CodingQuestionRequest questionReq =
-                new CodingQuestionRequest();
+            CodingQuestionRequest questionReq = new CodingQuestionRequest();
 
             questionReq.setTitle(
-                generated.getTitle());
+                    generated.getTitle());
             questionReq.setDescription(
-                generated.getDescription());
+                    generated.getDescription());
             questionReq.setConstraints(
-                generated.getConstraints());
+                    generated.getConstraints());
             questionReq.setSampleInput(
-                generated.getSampleInput());
+                    generated.getSampleInput());
             questionReq.setSampleOutput(
-                generated.getSampleOutput());
+                    generated.getSampleOutput());
             questionReq.setExplanation(
-                generated.getExplanation());
+                    generated.getExplanation());
 
             // Use suggested values or
             // host overrides from request
             questionReq.setMarks(
-                req.getMarks() != null
-                ? req.getMarks()
-                : generated.getSuggestedMarks());
+                    req.getMarks() != null
+                            ? req.getMarks()
+                            : generated.getSuggestedMarks());
 
             questionReq.setTimeLimitSeconds(
-                req.getTimeLimitSeconds() != null
-                ? req.getTimeLimitSeconds()
-                : generated.getSuggestedTimeLimit());
+                    req.getTimeLimitSeconds() != null
+                            ? req.getTimeLimitSeconds()
+                            : generated.getSuggestedTimeLimit());
 
             questionReq.setMemoryLimitMb(
-                req.getMemoryLimitMb() != null
-                ? req.getMemoryLimitMb() : 256);
+                    req.getMemoryLimitMb() != null
+                            ? req.getMemoryLimitMb()
+                            : 256);
 
             questionReq.setAllowedLanguages(
-                req.getAllowedLanguages());
+                    req.getAllowedLanguages());
 
             questionReq.setPartialMarking(true);
 
             questionReq.setSaveToBank(
-                req.getSaveToBank());
+                    req.getSaveToBank());
 
             questionReq.setTestCases(
-                generated.getTestCases());
+                    generated.getTestCases());
 
             return AICodingGenerationResponse
-                .builder()
-                .generated(questionReq)
-                .detectedInputType(detectedType)
-                .originalInput(req.getInput())
-                .warning(
-                    "Please review all test cases " +
-                    "before saving. AI-generated " +
-                    "expected outputs must be " +
-                    "verified manually for accuracy.")
-                .success(true)
-                .build();
+                    .builder()
+                    .generated(questionReq)
+                    .detectedInputType(detectedType)
+                    .originalInput(req.getInput())
+                    .warning(
+                            "Please review all test cases " +
+                                    "before saving. AI-generated " +
+                                    "expected outputs must be " +
+                                    "verified manually for accuracy.")
+                    .success(true)
+                    .build();
 
         } catch (Exception e) {
             log.error(
-                "Coding problem generation failed: {}",
-                e.getMessage());
+                    "Coding problem generation failed: {}",
+                    e.getMessage());
             return AICodingGenerationResponse
-                .builder()
-                .success(false)
-                .error(
-                    "Generation failed: " +
-                    e.getMessage() +
-                    ". Please try again or " +
-                    "rephrase your input.")
-                .originalInput(req.getInput())
-                .detectedInputType(detectedType)
-                .build();
+                    .builder()
+                    .success(false)
+                    .error(
+                            "Generation failed: " +
+                                    e.getMessage() +
+                                    ". Please try again or " +
+                                    "rephrase your input.")
+                    .originalInput(req.getInput())
+                    .detectedInputType(detectedType)
+                    .build();
         }
     }
 
@@ -676,7 +706,8 @@ public class CodingQuestionService {
     }
 
     private void saveTestCases(CodingQuestion question, List<TestCaseRequest> testCaseReqs) {
-        if (testCaseReqs == null) return;
+        if (testCaseReqs == null)
+            return;
         int index = 0;
         for (TestCaseRequest tcReq : testCaseReqs) {
             testCaseRepository.save(
@@ -720,7 +751,8 @@ public class CodingQuestionService {
                     .filter(r -> r.getStatus() == SubmissionStatus.ACCEPTED)
                     .mapToInt(r -> r.getTestCase().getPoints())
                     .sum();
-            if (totalPoints == 0) return 0.0;
+            if (totalPoints == 0)
+                return 0.0;
             return question.getMarks() * earnedPoints / totalPoints;
         } else {
             return passed == results.size() ? question.getMarks() : 0.0;

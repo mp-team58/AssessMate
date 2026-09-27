@@ -9,5 +9,6 @@ public enum ProctoringEventType {
     NO_CAMERA,             // camera feed lost/disabled mid-exam
     NO_MIC,                // mic feed lost/disabled mid-exam
     AUDIO_DETECTED,        // voice/noise above threshold
-    SCREEN_SHARE_STOPPED   // candidate stopped sharing screen
+    SCREEN_SHARE_STOPPED,   // candidate stopped sharing screen
+    FULL_SCREEN_EXIT       // candidate exited full screen
 }

@@ -11,8 +11,7 @@ public interface CandidateAnswerRepository extends JpaRepository<CandidateAnswer
     List<CandidateAnswer> findByEnrollmentId(Long enrollmentId);
 
     List<CandidateAnswer> findByEnrollmentIdIn(List<Long> enrollmentIds);
-
     @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
-    @org.springframework.data.jpa.repository.Query("DELETE FROM CandidateAnswer ca WHERE ca.enrollment.id = :enrollmentId")
+    @org.springframework.data.jpa.repository.Query("DELETE FROM CandidateAnswer c WHERE c.enrollment.id = :enrollmentId")
     void deleteByEnrollmentId(@org.springframework.data.repository.query.Param("enrollmentId") Long enrollmentId);
 }

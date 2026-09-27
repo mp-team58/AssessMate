@@ -34,7 +34,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                .requestMatchers("/api/auth/register/request-otp", "/api/auth/register/verify-otp", "/api/auth/forgot-password/request-otp", "/api/auth/forgot-password/reset", "/api/auth/login").permitAll()
                 .requestMatchers("/api/questions/excel/template").permitAll()
                 .requestMatchers("/api/coding/languages").permitAll()
                 .requestMatchers("/uploads/questions/**").permitAll()

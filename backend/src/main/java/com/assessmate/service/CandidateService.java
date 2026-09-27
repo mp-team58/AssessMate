@@ -2,7 +2,6 @@ package com.assessmate.service;
 
 import com.assessmate.exception.BadRequestException;
 import com.assessmate.exception.ForbiddenException;
-import com.assessmate.exception.ResourceNotFoundException;
 
 import com.assessmate.dto.JoinExamResponse;
 import com.assessmate.dto.CandidateExamQuestionsResponse;
@@ -237,7 +236,7 @@ public class CandidateService {
                 .build();
     }
 
-    public void logProctorEvent(ProctorEventRequest request, String candidateEmail) {
+    public boolean logProctorEvent(ProctorEventRequest request, String candidateEmail) {
         ExamEnrollment enrollment = enrollmentRepository.findById(request.getEnrollmentId())
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
@@ -251,7 +250,7 @@ public class CandidateService {
 
         Exam exam = enrollment.getExam();
         if (!isDetectionEnabled(exam, request.getEventType())) {
-            return;
+            return false;
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -263,7 +262,7 @@ public class CandidateService {
                 enrollment.getId(), request.getEventType(), now.minusSeconds(5));
 
         if (recentEvents > 0) {
-            return; // Ignore duplicate event within 5s
+            return false; // Ignore duplicate event within 5s
         }
 
         ProctoringLog log = ProctoringLog.builder()
@@ -278,16 +277,17 @@ public class CandidateService {
 
         proctoringLogRepository.save(log);
 
-        if (request.getEventType() == ProctoringEventType.TAB_SWITCH) {
-            checkTabSwitchLimit(enrollment);
+        if (request.getEventType() == ProctoringEventType.TAB_SWITCH || request.getEventType() == ProctoringEventType.FULL_SCREEN_EXIT) {
+            return checkTabSwitchLimit(enrollment);
         }
+        return false;
     }
 
     private boolean isDetectionEnabled(Exam exam, ProctoringEventType type) {
         return switch (type) {
             case NO_FACE, MULTIPLE_FACES, GAZE_AWAY -> Boolean.TRUE.equals(exam.getEnableFaceDetection());
             case OBJECT_DETECTED -> Boolean.TRUE.equals(exam.getEnableObjectDetection());
-            case TAB_SWITCH -> Boolean.TRUE.equals(exam.getEnableTabSwitchDetection());
+            case TAB_SWITCH, FULL_SCREEN_EXIT -> Boolean.TRUE.equals(exam.getEnableTabSwitchDetection());
             case AUDIO_DETECTED -> Boolean.TRUE.equals(exam.getEnableAudioDetection());
             case NO_CAMERA -> Boolean.TRUE.equals(exam.getRequireCamera());
             case NO_MIC -> Boolean.TRUE.equals(exam.getRequireMic());
@@ -295,24 +295,27 @@ public class CandidateService {
         };
     }
 
-    private void checkTabSwitchLimit(ExamEnrollment enrollment) {
+    private boolean checkTabSwitchLimit(ExamEnrollment enrollment) {
         Exam exam = enrollment.getExam();
-        if (exam.getMaxTabSwitches() == null) return; // host didn't set a limit
+        if (exam.getMaxTabSwitches() == null) return false; // host didn't set a limit
 
-        long count = proctoringLogRepository.countByEnrollmentIdAndEventType(
-                enrollment.getId(), ProctoringEventType.TAB_SWITCH);
+        long count = proctoringLogRepository.countByEnrollmentIdAndEventTypeIn(
+                enrollment.getId(), java.util.List.of(ProctoringEventType.TAB_SWITCH, ProctoringEventType.FULL_SCREEN_EXIT));
 
         if (count >= exam.getMaxTabSwitches()) {
             SubmitExamRequest emptyRequest = new SubmitExamRequest();
             emptyRequest.setAnswers(new java.util.HashMap<>());
             submitExam(enrollment.getId(), emptyRequest, enrollment.getCandidate().getEmail());
+            return true;
         }
+        return false;
     }
 
     private static final Map<ProctoringEventType, Double> DEDUCTIONS = Map.of(
         ProctoringEventType.GAZE_AWAY, 1.0,
         ProctoringEventType.NO_FACE, 3.0,
         ProctoringEventType.TAB_SWITCH, 4.0,
+        ProctoringEventType.FULL_SCREEN_EXIT, 4.0,
         ProctoringEventType.AUDIO_DETECTED, 3.0,
         ProctoringEventType.MULTIPLE_FACES, 8.0,
         ProctoringEventType.OBJECT_DETECTED, 10.0,
@@ -324,7 +327,7 @@ public class CandidateService {
     private Severity resolveSeverity(ProctoringEventType type) {
         return switch (type) {
             case GAZE_AWAY -> Severity.LOW;
-            case NO_FACE, TAB_SWITCH, AUDIO_DETECTED -> Severity.MEDIUM;
+            case NO_FACE, TAB_SWITCH, FULL_SCREEN_EXIT, AUDIO_DETECTED -> Severity.MEDIUM;
             default -> Severity.HIGH;
         };
     }

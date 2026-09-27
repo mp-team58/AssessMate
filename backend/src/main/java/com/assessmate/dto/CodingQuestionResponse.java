@@ -25,6 +25,8 @@ public class CodingQuestionResponse {
     private Boolean partialMarking;
     private Boolean isGlobal;
     private Integer orderIndex;
+    private String savedCode;
+    private String savedLanguage;
     private LocalDateTime createdAt;
     private List<TestCaseResponse> testCases;
 }

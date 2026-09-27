@@ -2,7 +2,6 @@ package com.assessmate.service;
 
 import com.assessmate.exception.BadRequestException;
 import com.assessmate.exception.ForbiddenException;
-import com.assessmate.exception.ResourceNotFoundException;
 
 import com.assessmate.dto.JoinExamResponse;
 import com.assessmate.dto.CandidateExamQuestionsResponse;

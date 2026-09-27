@@ -41,6 +41,9 @@ const JoinAssessment = () => {
     try {
       const res = await joinExamByCode(joinCode.trim());
       setEnrolledExam(res.data);
+      if (res.data?.enrollmentId) {
+        sessionStorage.setItem(`exam_config_${res.data.enrollmentId}`, JSON.stringify(res.data));
+      }
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -52,9 +55,21 @@ const JoinAssessment = () => {
     }
   };
 
-  const handleStartExam = (enrollmentId) => {
+  const handleStartExam = async (enrollmentId, examId) => {
     sessionStorage.setItem('currentEnrollmentId', enrollmentId);
-    navigate(`/candidate/exam/${enrollmentId}`);
+    if (examId) {
+      sessionStorage.setItem('currentExamId', String(examId));
+      sessionStorage.setItem(`exam_id_${enrollmentId}`, String(examId));
+      localStorage.setItem(`exam_id_${enrollmentId}`, String(examId));
+    }
+    try {
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (fsErr) {
+      console.warn('Fullscreen entry on start dismissed:', fsErr);
+    }
+    navigate(`/candidate/exam/${enrollmentId}${examId ? `?examId=${examId}` : ''}`);
   };
 
   return (
@@ -240,8 +255,9 @@ const JoinAssessment = () => {
                 type="button"
                 onClick={() => {
                   const id = enrolledExam.enrollmentId || enrolledExam.id;
+                  const examId = enrolledExam.examId;
                   setEnrolledExam(null);
-                  handleStartExam(id);
+                  handleStartExam(id, examId);
                 }}
                 className="px-6 py-2.5 text-xs shadow-md"
               >

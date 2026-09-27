@@ -42,9 +42,19 @@ const MyAssessments = () => {
     fetchAssessments();
   }, []);
 
-  const handleStartExam = (enrollmentId) => {
+  const handleStartExam = async (enrollmentId, examId) => {
     sessionStorage.setItem('currentEnrollmentId', enrollmentId);
-    navigate(`/candidate/exam/${enrollmentId}`);
+    if (examId) {
+      sessionStorage.setItem('currentExamId', String(examId));
+      sessionStorage.setItem(`exam_id_${enrollmentId}`, String(examId));
+      localStorage.setItem(`exam_id_${enrollmentId}`, String(examId));
+    }
+    try {
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (_) {}
+    navigate(`/candidate/exam/${enrollmentId}${examId ? `?examId=${examId}` : ''}`);
   };
 
   const filtered = assessments.filter((exam) => {
@@ -278,7 +288,7 @@ const MyAssessments = () => {
                     </button>
                   ) : (
                     <button
-                      onClick={() => handleStartExam(exam.enrollmentId)}
+                      onClick={() => handleStartExam(exam.enrollmentId, exam.examId || exam.id)}
                       className="flex-1 bg-secondary-900 hover:bg-secondary-800 text-[#F3EDE0] py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                     >
                       <Play className="w-4 h-4 fill-current" />

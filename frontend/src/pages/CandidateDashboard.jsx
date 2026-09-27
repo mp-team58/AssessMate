@@ -58,9 +58,19 @@ const CandidateDashboard = () => {
     fetchData();
   }, []);
 
-  const handleStartExam = (enrollmentId) => {
+  const handleStartExam = async (enrollmentId, examId) => {
     sessionStorage.setItem('currentEnrollmentId', enrollmentId);
-    navigate(`/candidate/exam/${enrollmentId}`);
+    if (examId) {
+      sessionStorage.setItem('currentExamId', String(examId));
+      sessionStorage.setItem(`exam_id_${enrollmentId}`, String(examId));
+      localStorage.setItem(`exam_id_${enrollmentId}`, String(examId));
+    }
+    try {
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (_) {}
+    navigate(`/candidate/exam/${enrollmentId}${examId ? `?examId=${examId}` : ''}`);
   };
 
   const handleQuickJoin = (e) => {
@@ -106,7 +116,7 @@ const CandidateDashboard = () => {
             <span>Candidate Portal</span>
           </div>
 
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3">
+          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-3 text-white">
             Welcome back, {user?.name || 'Candidate'}!
           </h1>
           <p className="text-brand-100 text-base md:text-lg mb-8 leading-relaxed opacity-90">
@@ -402,7 +412,7 @@ const CandidateDashboard = () => {
                           </Button>
                         ) : (
                           <Button
-                            onClick={() => handleStartExam(exam.enrollmentId)}
+                            onClick={() => handleStartExam(exam.enrollmentId, exam.examId || exam.id)}
                             variant="secondary"
                             className="!w-auto px-4 py-1.5 text-xs"
                           >

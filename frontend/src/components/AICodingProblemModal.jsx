@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   X, Sparkles, Settings, Wand2, Plus, Trash2, 
-  ChevronDown, ChevronUp, AlertTriangle, Eye, EyeOff 
+  ChevronDown, ChevronUp, AlertTriangle, Eye, EyeOff, CheckCircle 
 } from 'lucide-react';
 import Button from './ui/Button';
 import Input from './ui/Input';

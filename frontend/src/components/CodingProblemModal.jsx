@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Code2, AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
+import { X, Plus, Trash2, Code2, AlertCircle, Check, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Button from './ui/Button';
 
 const AVAILABLE_LANGUAGES = [

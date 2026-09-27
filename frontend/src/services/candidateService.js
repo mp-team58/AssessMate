@@ -23,25 +23,45 @@ export const getExamQuestions = async (enrollmentId) => {
 };
 
 /**
- * Step 3: Log Proctoring Events
- * Sends abnormal candidate behaviors asynchronously.
- * Calls https://dxpb79fh-8080.inc1.devtunnels.ms/api/candidate/proctor/log
- * Event types: FULLSCREEN_EXIT, TAB_SWITCH, MULTIPLE_FACES_DETECTED, NO_FACE_DETECTED, RIGHT_CLICK
- * @param {number|string} enrollmentId
- * @param {'FULLSCREEN_EXIT'|'TAB_SWITCH'|'MULTIPLE_FACES_DETECTED'|'NO_FACE_DETECTED'|'RIGHT_CLICK'} eventType
- * @param {string} details
+ * Step 3A: Upload Proctoring Evidence (Image Snapshot or Audio Clip)
+ * Calls POST /api/candidate/proctor/evidence
+ * @param {Blob} fileBlob - image/jpeg or audio/webm Blob
+ * @param {'image'|'audio'} type
+ * @returns {Promise<{data: {url: string}}>}
  */
-export const logProctorEvent = async (enrollmentId, eventType, details = '') => {
-  try {
-    return await candidateApiClient.post('/candidate/proctor/log', {
-      enrollmentId: Number(enrollmentId),
-      eventType,
-      details,
-    });
-  } catch (err) {
-    // Non-blocking catch so background proctoring doesn't crash test experience
-    console.warn('[Candidate Proctoring Log Warning]:', err.message || err);
-  }
+export const uploadProctorEvidence = async (fileBlob, type) => {
+  const formData = new FormData();
+  const filename = type === 'audio' ? 'evidence_audio.webm' : 'evidence_snapshot.jpg';
+  formData.append('file', fileBlob, filename);
+  formData.append('type', type);
+  return candidateApiClient.post('/candidate/proctor/evidence', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
+
+/**
+ * Step 3B: Log Proctoring Events
+ * Sends abnormal candidate behaviors asynchronously.
+ * Calls POST /api/candidate/proctor/log
+ * Event types: NO_FACE, MULTIPLE_FACES, OBJECT_DETECTED, NO_CAMERA, NO_MIC, AUDIO_DETECTED, TAB_SWITCH, FULL_SCREEN_EXIT
+ * @param {number|string} enrollmentId
+ * @param {'NO_FACE'|'MULTIPLE_FACES'|'OBJECT_DETECTED'|'NO_CAMERA'|'NO_MIC'|'AUDIO_DETECTED'|'TAB_SWITCH'|'FULL_SCREEN_EXIT'} eventType
+ * @param {string} details
+ * @param {string|null} imageUrl
+ * @param {string|null} audioUrl
+ * @returns {Promise<{data: {autoSubmitted: boolean}}>}
+ */
+export const logProctorEvent = async (enrollmentId, eventType, details = '', imageUrl = null, audioUrl = null) => {
+  return candidateApiClient.post('/candidate/proctor/log', {
+    enrollmentId: Number(enrollmentId),
+    eventType,
+    details,
+    timestamp: new Date().toISOString(),
+    imageUrl: imageUrl || null,
+    audioUrl: audioUrl || null,
+  });
 };
 
 /**
@@ -133,5 +153,14 @@ export const submitCandidateCode = async ({ enrollmentId, codingQuestionId, lang
     sourceCode,
   });
 };
+
+/**
+ * Step 6C: Get Candidate Assigned Coding Problems
+ * Calls /exams/{examId}/coding/candidate
+ */
+export const getAssignedCodingProblems = async (examId) => {
+  return candidateApiClient.get(`/exams/${examId}/coding/candidate`);
+};
+
 
 

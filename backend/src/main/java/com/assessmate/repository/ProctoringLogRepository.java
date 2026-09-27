@@ -10,6 +10,7 @@ public interface ProctoringLogRepository extends JpaRepository<ProctoringLog, Lo
     java.util.List<ProctoringLog> findByEnrollmentIdIn(java.util.List<Long> enrollmentIds);
     java.util.List<ProctoringLog> findByEnrollmentIdOrderByFlaggedAtAsc(Long enrollmentId);
     long countByEnrollmentIdAndEventType(Long enrollmentId, com.assessmate.entity.ProctoringEventType eventType);
+    long countByEnrollmentIdAndEventTypeIn(Long enrollmentId, java.util.List<com.assessmate.entity.ProctoringEventType> eventTypes);
     java.util.List<ProctoringLog> findByEnrollmentId(Long enrollmentId);
     java.util.Optional<ProctoringLog> findByImageUrl(String imageUrl);
     java.util.Optional<ProctoringLog> findByAudioUrl(String audioUrl);

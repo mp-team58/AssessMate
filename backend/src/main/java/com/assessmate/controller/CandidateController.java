@@ -38,11 +38,11 @@ public class CandidateController {
     }
 
     @PostMapping("/proctor/log")
-    public ResponseEntity<Void> logProctorEvent(
+    public ResponseEntity<Map<String, Boolean>> logProctorEvent(
             @RequestBody com.assessmate.dto.ProctorEventRequest request,
             Principal principal) {
-        candidateService.logProctorEvent(request, principal.getName());
-        return ResponseEntity.ok().build();
+        boolean autoSubmitted = candidateService.logProctorEvent(request, principal.getName());
+        return ResponseEntity.ok(Map.of("autoSubmitted", autoSubmitted));
     }
 
     @PostMapping(value = "/proctor/evidence", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

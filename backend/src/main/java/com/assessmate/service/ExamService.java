@@ -389,9 +389,25 @@ public class ExamService {
             resultMap.put(r.getEnrollment().getId(), r);
         }
 
+        List<ProctoringLog> logs = proctoringLogRepository.findByEnrollmentIdIn(enrollmentIds);
+        java.util.Map<Long, List<ProctoringLog>> logsMap = logs.stream()
+                .collect(Collectors.groupingBy(l -> l.getEnrollment().getId()));
+
         return enrollments.stream()
                 .map(e -> {
                     Result r = resultMap.get(e.getId());
+                    List<ProctoringEventDTO> events = logsMap.getOrDefault(e.getId(), java.util.Collections.emptyList())
+                            .stream()
+                            .sorted(java.util.Comparator.comparing(ProctoringLog::getFlaggedAt))
+                            .map(log -> ProctoringEventDTO.builder()
+                                    .eventType(log.getEventType())
+                                    .severity(log.getSeverity())
+                                    .flaggedAt(log.getFlaggedAt())
+                                    .imageUrl(log.getImageUrl())
+                                    .audioUrl(log.getAudioUrl())
+                                    .build())
+                            .collect(Collectors.toList());
+
                     return ProctoringSummaryDTO.builder()
                             .enrollmentId(e.getId())
                             .candidateName(e.getCandidate().getName())
@@ -399,6 +415,7 @@ public class ExamService {
                             .status(e.getStatus())
                             .honestyScore(r != null ? r.getHonestyScore() : null)
                             .totalViolations(r != null ? r.getTotalViolations() : null)
+                            .events(events)
                             .build();
                 })
                 .sorted((a, b) -> {
@@ -407,29 +424,6 @@ public class ExamService {
                     if (b.getHonestyScore() == null) return -1;
                     return Double.compare(a.getHonestyScore(), b.getHonestyScore());
                 })
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<ProctoringEventDTO> getProctoringEvents(Long examId, Long enrollmentId, String hostEmail) {
-        findExamForHost(examId, hostEmail); // verifies ownership
-
-        ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found"));
-
-        if (!enrollment.getExam().getId().equals(examId)) {
-            throw new BadRequestException("Enrollment does not belong to this exam.");
-        }
-
-        return proctoringLogRepository.findByEnrollmentId(enrollmentId).stream()
-                .sorted(java.util.Comparator.comparing(ProctoringLog::getFlaggedAt))
-                .map(log -> ProctoringEventDTO.builder()
-                        .eventType(log.getEventType())
-                        .severity(log.getSeverity())
-                        .flaggedAt(log.getFlaggedAt())
-                        .imageUrl(log.getImageUrl())
-                        .audioUrl(log.getAudioUrl())
-                        .build())
                 .collect(Collectors.toList());
     }
 

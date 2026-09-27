@@ -13,4 +13,5 @@ public class ProctoringSummaryDTO {
     private Double honestyScore;
     private Integer totalViolations;
     private EnrollmentStatus status;
+    private java.util.List<ProctoringEventDTO> events;
 }

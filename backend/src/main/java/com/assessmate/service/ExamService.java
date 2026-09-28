@@ -232,25 +232,28 @@ public class ExamService {
 
     @Transactional
     public void autoEndExams() {
+        LocalDateTime now = LocalDateTime.now();
         List<Exam> liveExams = examRepository.findByStatus(ExamStatus.LIVE);
         for (Exam exam : liveExams) {
+            if (exam.getScheduledStart() == null) continue;
+
+            int grace = exam.getGracePeriodMinutes() != null ? exam.getGracePeriodMinutes() : 0;
+            LocalDateTime joinWindowEnd = exam.getScheduledStart().plusMinutes(grace);
+
+            // Never auto-end while candidates can still join
+            if (!now.isAfter(joinWindowEnd)) continue;
+
             boolean shouldEnd = false;
             long totalEnrolled = enrollmentRepository.countByExamId(exam.getId());
             if (totalEnrolled > 0) {
-                long submitted = enrollmentRepository.countByExamIdAndStatus(exam.getId(), com.assessmate.entity.EnrollmentStatus.SUBMITTED);
-                long expired = enrollmentRepository.countByExamIdAndStatus(exam.getId(), com.assessmate.entity.EnrollmentStatus.EXPIRED);
-                if (totalEnrolled == (submitted + expired)) {
-                    shouldEnd = true;
-                }
+                long ongoing = enrollmentRepository.countByExamIdAndStatus(exam.getId(), com.assessmate.entity.EnrollmentStatus.ONGOING);
+                shouldEnd = ongoing == 0;
             } else {
                 int totalDuration = exam.getDurationMinutes() != null ? exam.getDurationMinutes() : 240;
-                int grace = exam.getGracePeriodMinutes() != null ? exam.getGracePeriodMinutes() : 0;
                 LocalDateTime maxEndTime = exam.getScheduledStart().plusMinutes(totalDuration + grace + 30);
-                if (LocalDateTime.now().isAfter(maxEndTime)) {
-                    shouldEnd = true;
-                }
+                shouldEnd = now.isAfter(maxEndTime);
             }
-            
+
             if (shouldEnd) {
                 exam.setStatus(ExamStatus.ENDED);
                 exam.setEndedAt(LocalDateTime.now());

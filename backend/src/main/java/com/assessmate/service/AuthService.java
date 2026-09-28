@@ -73,7 +73,7 @@ public class AuthService {
         emailService.sendRegistrationOtp(email, req.getName(), otp);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BadRequestException.class)
     public AuthResponse verifyRegisterOtp(VerifyOtpRequest req) {
         String email = req.getEmail().trim().toLowerCase(Locale.ROOT);
 
@@ -133,7 +133,7 @@ public class AuthService {
         emailService.sendPasswordResetOtp(email, otp);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BadRequestException.class)
     public void resetPassword(ResetPasswordRequest req) {
         String email = req.getEmail().trim().toLowerCase(Locale.ROOT);
 
@@ -155,10 +155,10 @@ public class AuthService {
     public AuthResponse login(LoginRequest req) {
         String email = req.getEmail().trim().toLowerCase(Locale.ROOT);
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new BadRequestException("Invalid email or password"));
 
         if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-            throw new BadRequestException("Invalid password");
+            throw new BadRequestException("Invalid email or password");
         }
 
         if (req.getRole() != null && !req.getRole().isEmpty()) {

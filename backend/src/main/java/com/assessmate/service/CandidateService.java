@@ -38,7 +38,14 @@ public class CandidateService {
     private final CandidateAnswerRepository candidateAnswerRepository;
     private final ResultRepository resultRepository;
     private final GeminiService geminiService;
+    private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
+    private void forceSubmit(Long enrollmentId, String candidateEmail) {
+        SubmitExamRequest emptyRequest = new SubmitExamRequest();
+        emptyRequest.setAnswers(new java.util.HashMap<>());
+        new org.springframework.transaction.support.TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> submitExam(enrollmentId, emptyRequest, candidateEmail));
+    }
     public JoinExamResponse joinExam(String joinCode, String candidateEmail, String userAgent) {
         User candidate = userRepository.findByEmail(candidateEmail)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Candidate not found"));
@@ -80,10 +87,10 @@ public class CandidateService {
             if (enrollment.getStatus() == EnrollmentStatus.ONGOING) {
                 if (enrollment.getPersonalEndTime() != null && now.isAfter(enrollment.getPersonalEndTime())) {
                     try {
-                        SubmitExamRequest emptyRequest = new SubmitExamRequest();
-                        emptyRequest.setAnswers(new java.util.HashMap<>());
-                        submitExam(enrollment.getId(), emptyRequest, candidateEmail);
-                    } catch (Exception e) {}
+                        forceSubmit(enrollment.getId(), candidateEmail);
+                    } catch (Exception e) {
+                        log.warn("Auto-submit on rejoin failed for enrollment {}: {}", enrollment.getId(), e.getMessage());
+                    }
                     throw new BadRequestException("Your time for this exam has expired.");
                 }
                 return buildJoinResponse(enrollment, exam);
@@ -220,10 +227,10 @@ public class CandidateService {
         if (enrollment.getPersonalEndTime() != null) {
             if (now.isAfter(enrollment.getPersonalEndTime())) {
                 try {
-                    SubmitExamRequest emptyRequest = new SubmitExamRequest();
-                    emptyRequest.setAnswers(new java.util.HashMap<>());
-                    submitExam(enrollment.getId(), emptyRequest, candidateEmail);
-                } catch (Exception e) {}
+                    forceSubmit(enrollment.getId(), candidateEmail);
+                } catch (Exception e) {
+                    log.warn("Auto-submit on question fetch failed for enrollment {}: {}", enrollment.getId(), e.getMessage());
+                }
                 throw new BadRequestException("Your time for this exam has expired.");
             }
             remainingSeconds = java.time.Duration.between(now, enrollment.getPersonalEndTime()).getSeconds();
@@ -303,9 +310,11 @@ public class CandidateService {
                 enrollment.getId(), java.util.List.of(ProctoringEventType.TAB_SWITCH, ProctoringEventType.FULL_SCREEN_EXIT));
 
         if (count >= exam.getMaxTabSwitches()) {
-            SubmitExamRequest emptyRequest = new SubmitExamRequest();
-            emptyRequest.setAnswers(new java.util.HashMap<>());
-            submitExam(enrollment.getId(), emptyRequest, enrollment.getCandidate().getEmail());
+            try {
+                forceSubmit(enrollment.getId(), enrollment.getCandidate().getEmail());
+            } catch (Exception e) {
+                log.warn("Auto-submit after tab-switch limit failed for enrollment {}: {}", enrollment.getId(), e.getMessage());
+            }
             return true;
         }
         return false;
@@ -734,7 +743,8 @@ public class CandidateService {
 
     @org.springframework.transaction.annotation.Transactional
     public void saveProgress(Long enrollmentId, com.assessmate.dto.SubmitExamRequest request, String candidateEmail) {
-        ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+        // Lock the row (same as submitExam) so an autosave can't overwrite graded answers mid-submit
+        ExamEnrollment enrollment = enrollmentRepository.findByIdForUpdate(enrollmentId)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
         if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {

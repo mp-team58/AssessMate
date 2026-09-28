@@ -15,10 +15,16 @@ import java.util.HashMap;
 public class ExamSubmissionService {
 
     private final CandidateService candidateService;
+    private final com.assessmate.repository.ExamEnrollmentRepository enrollmentRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitExpiredExam(Long enrollmentId, String candidateEmail) {
+    public void submitExpiredExam(Long enrollmentId) {
         log.info("Auto-submitting expired exam for enrollment: {}", enrollmentId);
+        // Resolve the email inside this transaction (candidate is LAZY)
+        String candidateEmail = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"))
+                .getCandidate().getEmail();
+
         SubmitExamRequest emptyRequest = new SubmitExamRequest();
         emptyRequest.setAnswers(new HashMap<>());
         candidateService.submitExam(enrollmentId, emptyRequest, candidateEmail);

@@ -16,4 +16,5 @@ public class CandidateResultRow {
     private Boolean lateSubmission;
     private Long timeTakenSeconds;
     private Long proctoringFlagCount;
+    private Double honestyScore;
 }

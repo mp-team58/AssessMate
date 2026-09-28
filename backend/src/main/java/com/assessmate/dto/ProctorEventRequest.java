@@ -11,4 +11,5 @@ public class ProctorEventRequest {
     private LocalDateTime timestamp;
     private String imageUrl;
     private String audioUrl;
+    private String details;
 }

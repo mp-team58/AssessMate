@@ -234,12 +234,13 @@ const HostLiveMonitor = () => {
                 <th className="px-6 py-4 text-xs font-extrabold text-secondary-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-xs font-extrabold text-secondary-500 uppercase tracking-wider">Joined At</th>
                 <th className="px-6 py-4 text-xs font-extrabold text-secondary-500 uppercase tracking-wider">Proctoring Flags</th>
+                <th className="px-6 py-4"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-secondary-100">
               {(!data?.candidates || data.candidates.length === 0) ? (
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center">
+                  <td colSpan="5" className="px-6 py-12 text-center">
                     <Users className="w-12 h-12 text-secondary-300 mx-auto mb-3" />
                     <h3 className="text-base font-bold text-secondary-800">No candidates have joined yet.</h3>
                     <p className="text-sm text-secondary-500 mt-1">Share the exam link and code for candidates to join.</p>
@@ -276,6 +277,11 @@ const HostLiveMonitor = () => {
                           {candidate.totalFlags} flags
                         </span>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Link to={`/host/exams/${id}/proctoring`} className="text-brand-600 hover:text-brand-700 font-bold text-sm">
+                        View Logs &rarr;
+                      </Link>
                     </td>
                   </tr>
                 ))

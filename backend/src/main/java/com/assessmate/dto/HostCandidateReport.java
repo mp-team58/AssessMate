@@ -14,4 +14,5 @@ public class HostCandidateReport {
     private List<CandidateAnswerReviewDTO> answers;
     private List<ProctoringEventDTO> proctoringEvents;
     private Long proctoringFlagCount;
+    private List<CodeSubmissionResponse> codeSubmissions;
 }

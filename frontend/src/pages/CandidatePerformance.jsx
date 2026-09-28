@@ -53,12 +53,12 @@ const CandidatePerformance = () => {
   const completedCount = completedExams.length;
   const averageScore =
     scoredExams.length > 0
-      ? (scoredExams.reduce((sum, e) => sum + Number(e.percentage), 0) / scoredExams.length).toFixed(1)
+      ? (scoredExams.reduce((sum, e) => sum + Number(e.percentage), 0) / scoredExams.length).toFixed(2)
       : null;
 
   const highestScore =
     scoredExams.length > 0
-      ? Math.max(...scoredExams.map((e) => Number(e.percentage))).toFixed(1)
+      ? Math.max(...scoredExams.map((e) => Number(e.percentage))).toFixed(2)
       : null;
 
   const passedCount = scoredExams.filter((e) => Number(e.percentage) >= 50).length;
@@ -82,9 +82,9 @@ const CandidatePerformance = () => {
 
   const subjectStats = Object.keys(subjectMap).map((subj) => ({
     subject: subj,
-    avg: (subjectMap[subj].total / subjectMap[subj].count).toFixed(1),
+    avg: (subjectMap[subj].total / subjectMap[subj].count).toFixed(2),
     count: subjectMap[subj].count,
-    highest: subjectMap[subj].highest.toFixed(1)
+    highest: subjectMap[subj].highest.toFixed(2)
   }));
 
   // Chronological score trend (oldest to newest for trend)
@@ -223,7 +223,8 @@ const CandidatePerformance = () => {
               <div className="pt-6 pb-2">
                 <div className="h-52 flex items-end justify-between gap-3 sm:gap-6 border-b border-secondary-200 pb-2 px-2">
                   {scoreTrend.map((exam, index) => {
-                    const score = Number(exam.percentage || 0);
+                    const rawScore = Number(exam.percentage || 0);
+                    const score = Math.round(rawScore * 100) / 100;
                     const isPassed = score >= 50;
 
                     return (
@@ -257,8 +258,8 @@ const CandidatePerformance = () => {
                 {/* X Axis Labels */}
                 <div className="flex justify-between gap-3 sm:gap-6 pt-3 px-2 text-[11px] font-semibold text-secondary-500">
                   {scoreTrend.map((exam, idx) => (
-                    <div key={idx} className="flex-1 text-center truncate" title={exam.examTitle}>
-                      {exam.examTitle}
+                    <div key={idx} className="flex-1 text-center truncate text-[9px] sm:text-[11px]" title={exam.examTitle}>
+                      {exam.examTitle.length > 8 ? exam.examTitle.substring(0, 8) + '...' : exam.examTitle}
                     </div>
                   ))}
                 </div>
@@ -274,7 +275,8 @@ const CandidatePerformance = () => {
 
               <div className="space-y-3">
                 {completedExams.map((exam) => {
-                  const score = exam.percentage !== null && exam.percentage !== undefined ? Number(exam.percentage) : null;
+                  const rawScore = exam.percentage !== null && exam.percentage !== undefined ? Number(exam.percentage) : null;
+                  const score = rawScore !== null ? Math.round(rawScore * 100) / 100 : null;
                   const isQualified = score !== null && score >= 50;
 
                   return (

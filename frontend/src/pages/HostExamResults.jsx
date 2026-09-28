@@ -167,6 +167,7 @@ const HostExamResults = () => {
                   <th className="p-4 font-bold">Candidate</th>
                   <th className="p-4 font-bold">Status</th>
                   <th className="p-4 font-bold">Score</th>
+                  <th className="p-4 font-bold">Honesty</th>
                   <th className="p-4 font-bold">Result</th>
                   <th className="p-4 font-bold">Time Taken</th>
                   <th className="p-4 font-bold">Proctoring</th>
@@ -197,6 +198,15 @@ const HostExamResults = () => {
                           <div className="font-bold text-secondary-900">{candidate.totalScore} / {candidate.maxScore}</div>
                           <div className="text-sm text-secondary-500">{Math.round(candidate.percentage)}%</div>
                         </>
+                      ) : (
+                        <span className="text-secondary-400">-</span>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      {candidate.enrollmentStatus === 'SUBMITTED' && candidate.honestyScore !== null && candidate.honestyScore !== undefined ? (
+                        <div className={`font-bold ${candidate.honestyScore >= 80 ? 'text-emerald-600' : candidate.honestyScore >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                          {Math.round(candidate.honestyScore)}%
+                        </div>
                       ) : (
                         <span className="text-secondary-400">-</span>
                       )}

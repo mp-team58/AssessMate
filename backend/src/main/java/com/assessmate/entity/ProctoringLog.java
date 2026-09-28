@@ -35,6 +35,9 @@ public class ProctoringLog {
 
     private String imageUrl;
     private String audioUrl;
+    
+    @Column(columnDefinition = "TEXT")
+    private String details;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

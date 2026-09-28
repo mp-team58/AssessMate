@@ -21,6 +21,8 @@ public class HostResultService {
     private final ResultRepository resultRepository;
     private final CandidateAnswerRepository candidateAnswerRepository;
     private final QuestionRepository questionRepository;
+    private final com.assessmate.repository.CodeSubmissionRepository codeSubmissionRepository;
+    private final com.assessmate.repository.TestCaseResultRepository testCaseResultRepository;
     private final ProctoringLogRepository proctoringLogRepository;
 
     private Exam getOwnedExam(Long examId, String hostEmail) {
@@ -66,6 +68,7 @@ public class HostResultService {
                             .lateSubmission(r != null ? r.getLateSubmission() : null)
                             .timeTakenSeconds(r != null ? r.getTimeTakenSeconds() : null)
                             .proctoringFlagCount(flagCountByEnrollmentId.getOrDefault(enr.getId(), 0L))
+                            .honestyScore(r != null ? r.getHonestyScore() : null)
                             .build();
                 })
                 .toList();
@@ -235,6 +238,38 @@ public class HostResultService {
                         .build())
                 .toList();
 
+        List<com.assessmate.entity.CodeSubmission> codeSubmissions = codeSubmissionRepository.findByEnrollmentId(enrollmentId);
+        List<CodeSubmissionResponse> codeSubmissionDtos = codeSubmissions.stream().map(sub -> {
+            List<TestCaseResultResponse> tcResults = testCaseResultRepository.findBySubmissionId(sub.getId())
+                    .stream().map(tc -> TestCaseResultResponse.builder()
+                            .testCaseId(tc.getTestCase().getId())
+                            .status(tc.getStatus().name())
+                            .executionTimeMs(tc.getExecutionTimeMs())
+                            .memoryUsedKb(tc.getMemoryUsedKb())
+                            .isHidden(tc.getTestCase().getIsHidden())
+                            .actualOutput(tc.getActualOutput())
+                            .build())
+                    .toList();
+
+            return CodeSubmissionResponse.builder()
+                    .id(sub.getId())
+                    .codingQuestionId(sub.getCodingQuestion().getId())
+                    .problemTitle(sub.getCodingQuestion().getTitle())
+                    .language(sub.getLanguage().name())
+                    .status(sub.getStatus().name())
+                    .testCasesPassed(sub.getTestCasesPassed())
+                    .totalTestCases(sub.getTotalTestCases())
+                    .marksAwarded(sub.getMarksAwarded())
+                    .executionTimeMs(sub.getExecutionTimeMs())
+                    .memoryUsedKb(sub.getMemoryUsedKb())
+                    .compileOutput(sub.getCompileOutput())
+                    .isFinal(sub.getIsFinal())
+                    .submittedAt(sub.getSubmittedAt())
+                    .sourceCode(sub.getSourceCode())
+                    .testCaseResults(tcResults)
+                    .build();
+        }).toList();
+
         return HostCandidateReport.builder()
                 .enrollmentId(enrollment.getId())
                 .candidateId(enrollment.getCandidate().getId())
@@ -245,6 +280,7 @@ public class HostResultService {
                 .answers(answerDtos)
                 .proctoringEvents(eventDtos)
                 .proctoringFlagCount((long) eventDtos.size())
+                .codeSubmissions(codeSubmissionDtos)
                 .build();
     }
 

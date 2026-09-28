@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getExamById, publishExam, endExam } from '../services/examService';
+import { getExamById, publishExam, endExam, duplicateExam } from '../services/examService';
 import { getExamQuestionStats, getExamQuestions } from '../services/questionService';
 import { getExamCodingProblems } from '../services/codingQuestionService';
 import Button from '../components/ui/Button';
@@ -15,6 +15,7 @@ const ManageExam = () => {
   const [exam, setExam] = useState(null);
   const [stats, setStats] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [codingQuestions, setCodingQuestions] = useState([]);
   const [codingQuestionsCount, setCodingQuestionsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -38,6 +39,7 @@ const ManageExam = () => {
         try {
           const codingRes = await getExamCodingProblems(id);
           const cQuestions = codingRes.data || codingRes;
+          setCodingQuestions(Array.isArray(cQuestions) ? cQuestions : []);
           setCodingQuestionsCount(Array.isArray(cQuestions) ? cQuestions.length : 0);
         } catch (cErr) {
           console.error("Failed to fetch coding questions:", cErr);
@@ -88,6 +90,16 @@ const ManageExam = () => {
       showToast('Exam ended successfully!', 'success');
     } catch (err) {
       showToast(err.response?.data?.message || err.message || 'Failed to end exam.', 'error');
+    }
+  };
+
+  const handleDuplicate = async () => {
+    try {
+      const response = await duplicateExam(id);
+      showToast('Exam duplicated successfully! You can now edit the new copy.', 'success');
+      navigate(`/host/exams/${response.data.id}/edit`);
+    } catch (err) {
+      showToast(err.response?.data?.message || err.message || 'Failed to duplicate exam.', 'error');
     }
   };
 
@@ -179,15 +191,15 @@ const ManageExam = () => {
               <Button onClick={() => navigate(`/host/exams/${id}/results`)} variant="outline" className="w-full md:w-auto border-secondary-300 text-brand-700 hover:bg-brand-50 px-6 py-3 text-lg transition-transform shadow-sm">
                 View Results
               </Button>
-              <Button onClick={() => navigate(`/host/exams/${id}/proctoring`)} variant="outline" className="w-full md:w-auto border-secondary-300 text-purple-700 hover:bg-purple-50 px-6 py-3 text-lg transition-transform shadow-sm">
-                Proctoring
+              <Button onClick={() => navigate(exam.status === 'LIVE' ? `/host/exams/${id}/live` : `/host/exams/${id}/proctoring`)} className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 text-lg transition-transform shadow-sm">
+                Proctoring & Live Monitor
               </Button>
-              {exam.status === 'LIVE' && (
-                <Button onClick={() => navigate(`/host/exams/${id}/live`)} className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg transition-transform shadow-sm animate-pulse">
-                  Live Monitor
-                </Button>
-              )}
             </>
+          )}
+          {(exam.status === 'ENDED' || exam.status === 'LIVE') && (
+            <Button onClick={handleDuplicate} variant="outline" className="w-full md:w-auto border-secondary-300 text-amber-600 hover:bg-amber-50 px-6 py-3 text-lg transition-transform shadow-sm flex items-center gap-2 justify-center">
+              Re-conduct / Clone
+            </Button>
           )}
         </div>
       </div>
@@ -321,7 +333,7 @@ const ManageExam = () => {
               </div>
             )}
 
-            {questions.length === 0 ? (
+            {questions.length === 0 && codingQuestions.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-center border-2 border-dashed border-secondary-200 rounded-2xl bg-secondary-50/50">
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-secondary-100 mb-4 text-secondary-400">
                   <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -340,6 +352,37 @@ const ManageExam = () => {
                     showSource={true} 
                     index={index + 1} 
                   />
+                ))}
+                {codingQuestions.map((cq, index) => (
+                  <div key={`coding-${cq.id}`} className="bg-white rounded-2xl border border-secondary-200 shadow-sm hover:shadow-md transition-shadow duration-200 p-5 group relative">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex-shrink-0 flex sm:flex-col items-center gap-2">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 font-bold flex items-center justify-center text-sm shadow-sm border border-indigo-100/50">
+                          Q{questions.length + index + 1}
+                        </div>
+                        <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200/50">
+                          Coding
+                        </span>
+                      </div>
+                      <div className="flex-grow space-y-3 min-w-0">
+                        <h4 className="font-bold text-lg text-secondary-800 break-words">{cq.title}</h4>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          <span className="px-2.5 py-1 bg-secondary-100 text-secondary-700 rounded-lg text-xs font-medium border border-secondary-200/60 flex items-center gap-1">
+                            Marks: {cq.marks || 10}
+                          </span>
+                          <span className="px-2.5 py-1 bg-secondary-100 text-secondary-700 rounded-lg text-xs font-medium border border-secondary-200/60 flex items-center gap-1">
+                            Time: {cq.timeLimitSeconds}s
+                          </span>
+                          <span className="px-2.5 py-1 bg-secondary-100 text-secondary-700 rounded-lg text-xs font-medium border border-secondary-200/60 flex items-center gap-1">
+                            Mem: {cq.memoryLimitMb}MB
+                          </span>
+                        </div>
+                        <div className="text-secondary-600 text-sm bg-secondary-50 p-3 rounded-xl border border-secondary-100 overflow-hidden line-clamp-2">
+                          {cq.description}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

@@ -17,7 +17,9 @@ const MyExams = () => {
     setIsLoading(true);
     try {
       const response = await getMyExams();
-      setExams(response.data);
+      const raw = Array.isArray(response.data) ? response.data : (response.data?.content || []);
+      const sorted = [...raw].sort((a, b) => new Date(b.scheduledStart || b.createdAt || 0) - new Date(a.scheduledStart || a.createdAt || 0));
+      setExams(sorted);
     } catch (err) {
       showToast(err.message || 'Failed to fetch exams.', 'error');
     } finally {

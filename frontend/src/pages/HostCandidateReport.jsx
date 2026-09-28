@@ -4,6 +4,7 @@ import { getCandidateReport } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
 import { ArrowLeft, User, Mail, CheckCircle, XCircle, HelpCircle, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
 import Button from '../components/ui/Button';
+import { getMediaUrl } from '../services/apiClient';
 
 const HostCandidateReport = () => {
   const { id: examId, enrollmentId } = useParams();
@@ -44,7 +45,7 @@ const HostCandidateReport = () => {
     );
   }
 
-  const { result, answers, proctoringEvents } = report;
+  const { result, answers, proctoringEvents, codeSubmissions } = report;
 
   // Safe parse weak topics
   let weakTopics = [];
@@ -191,7 +192,22 @@ const HostCandidateReport = () => {
                     <div className="w-2 h-2 mt-1.5 rounded-full bg-purple-500 shrink-0"></div>
                     <div>
                       <p className="text-sm font-bold text-secondary-800">{evt.eventType.replace(/_/g, ' ')}</p>
-                      <p className="text-xs text-secondary-500">{new Date(evt.flaggedAt).toLocaleTimeString()}</p>
+                      <p className="text-xs text-secondary-500 mb-2">{new Date(evt.flaggedAt).toLocaleTimeString()}</p>
+                      {evt.details && (
+                        <p className="text-sm text-secondary-700 italic border-l-2 border-secondary-200 pl-2 mb-2">
+                          "{evt.details}"
+                        </p>
+                      )}
+                      {evt.imageUrl && (
+                        <div className="mt-1 mb-2 rounded-lg overflow-hidden border border-secondary-200 shadow-sm w-32 h-24 bg-secondary-100">
+                          <img src={getMediaUrl(evt.imageUrl)} alt="Proctoring Evidence" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      {evt.audioUrl && (
+                        <div className="mt-1 mb-2 flex items-center h-12">
+                          <audio controls src={getMediaUrl(evt.audioUrl)} className="w-48 h-8 rounded-full" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -226,7 +242,7 @@ const HostCandidateReport = () => {
                     <p className="text-secondary-900 font-medium mb-4 whitespace-pre-wrap">{ans.questionText}</p>
                     
                     {ans.imageUrl && (
-                      <img src={ans.imageUrl} alt="Question figure" className="max-w-full h-auto rounded-lg border border-secondary-200 mb-4 max-h-64 object-contain" />
+                      <img src={getMediaUrl(ans.imageUrl)} alt="Question figure" className="max-w-full h-auto rounded-lg border border-secondary-200 mb-4 max-h-64 object-contain" />
                     )}
 
                     {ans.type === 'MCQ' && ans.options ? (
@@ -273,6 +289,53 @@ const HostCandidateReport = () => {
               </div>
             )}
           </div>
+
+          {/* Coding Submissions */}
+          {codeSubmissions && codeSubmissions.length > 0 && (
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200/80 mt-8">
+              <h2 className="text-2xl font-bold text-secondary-800 mb-6 border-b border-secondary-100 pb-4">Coding Submissions</h2>
+              <div className="space-y-8">
+                {codeSubmissions.map((sub, idx) => {
+                  const passedAll = sub.testCasesPassed === sub.totalTestCases;
+                  return (
+                    <div key={idx} className={`p-5 rounded-2xl border ${passedAll ? 'border-emerald-200 bg-emerald-50/30' : 'border-red-200 bg-red-50/30'}`}>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex gap-2 items-center">
+                          <span className="font-bold text-secondary-800">Coding {idx + 1}</span>
+                          <span className="text-xs font-bold px-2 py-0.5 rounded bg-brand-50 border border-brand-200 text-brand-700">{sub.language}</span>
+                        </div>
+                        <div className="text-sm font-bold bg-white px-2 py-1 rounded shadow-sm border border-secondary-200">
+                          {sub.marksAwarded} marks
+                        </div>
+                      </div>
+
+                      <h3 className="text-lg font-bold text-secondary-900 mb-2">{sub.problemTitle}</h3>
+                      <div className="flex gap-4 mb-4 text-sm text-secondary-700">
+                        <span className="bg-white px-2 py-1 rounded border border-secondary-200">Test Cases: <span className="font-bold text-secondary-900">{sub.testCasesPassed} / {sub.totalTestCases}</span></span>
+                        <span className="bg-white px-2 py-1 rounded border border-secondary-200">Execution Time: <span className="font-bold text-secondary-900">{sub.executionTimeMs} ms</span></span>
+                      </div>
+
+                      <div className="mb-4">
+                        <p className="text-xs text-secondary-500 font-bold uppercase mb-1">Submitted Code</p>
+                        <pre className="bg-secondary-900 text-secondary-50 p-4 rounded-xl overflow-x-auto text-sm font-mono whitespace-pre-wrap">
+                          {sub.sourceCode || '// No code submitted'}
+                        </pre>
+                      </div>
+
+                      {sub.compileOutput && (
+                        <div className="mb-4">
+                          <p className="text-xs text-red-500 font-bold uppercase mb-1">Compiler/Error Output</p>
+                          <pre className="bg-red-50 text-red-900 p-3 rounded-xl border border-red-200 overflow-x-auto text-xs font-mono">
+                            {sub.compileOutput}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>

@@ -113,4 +113,12 @@ export const apiClient = createApiClient(BASE_URL);
 // Candidate backend client (alias)
 export const candidateApiClient = apiClient;
 
+// Utility to resolve media URLs (images/audio) to the correct backend host
+export const getMediaUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  const baseUrlHost = BASE_URL.replace(/\/api\/?$/, '');
+  return `${baseUrlHost}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 export default apiClient;

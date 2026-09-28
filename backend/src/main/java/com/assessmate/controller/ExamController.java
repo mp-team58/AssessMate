@@ -44,6 +44,11 @@ public class ExamController {
         return ResponseEntity.ok(examService.publishExam(id, principal.getName()));
     }
 
+    @PostMapping("/{id}/duplicate")
+    public ResponseEntity<ExamResponse> duplicateExam(@PathVariable Long id, Principal principal) {
+        return ResponseEntity.ok(examService.duplicateExam(id, principal.getName()));
+    }
+
     @PostMapping("/{id}/end")
     public ResponseEntity<ExamResponse> endExam(@PathVariable Long id, Principal principal) {
         return ResponseEntity.ok(examService.endExam(id, principal.getName()));

@@ -70,12 +70,6 @@ public class CandidateController {
         return ResponseEntity.ok(candidateService.getExamResult(enrollmentId, principal.getName()));
     }
 
-    @GetMapping("/result/{enrollmentId}/answers")
-    public ResponseEntity<java.util.List<com.assessmate.dto.CandidateAnswerReviewDTO>> getAnswerReview(
-            @PathVariable Long enrollmentId,
-            Principal principal) {
-        return ResponseEntity.ok(candidateService.getAnswerReview(enrollmentId, principal.getName()));
-    }
 
     @PostMapping("/exam/{enrollmentId}/progress")
     public ResponseEntity<Void> saveProgress(

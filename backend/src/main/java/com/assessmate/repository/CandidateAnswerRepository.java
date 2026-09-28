@@ -8,6 +8,7 @@ import java.util.List;
 
 @Repository
 public interface CandidateAnswerRepository extends JpaRepository<CandidateAnswer, Long> {
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"question"})
     List<CandidateAnswer> findByEnrollmentId(Long enrollmentId);
 
     List<CandidateAnswer> findByEnrollmentIdIn(List<Long> enrollmentIds);

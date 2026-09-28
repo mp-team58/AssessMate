@@ -30,6 +30,7 @@ const MyAssessments = () => {
       const response = await getCandidateHistory();
       const raw = response.data;
       const list = Array.isArray(raw) ? raw : (raw?.content || []);
+      list.sort((a, b) => new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0));
       setAssessments(list);
     } catch (err) {
       setError(err.message || 'Failed to fetch assessments.');

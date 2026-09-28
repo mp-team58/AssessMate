@@ -34,11 +34,7 @@ export const uploadProctorEvidence = async (fileBlob, type) => {
   const filename = type === 'audio' ? 'evidence_audio.webm' : 'evidence_snapshot.jpg';
   formData.append('file', fileBlob, filename);
   formData.append('type', type);
-  return candidateApiClient.post('/candidate/proctor/evidence', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  return candidateApiClient.post('/candidate/proctor/evidence', formData);
 };
 
 /**
@@ -109,13 +105,7 @@ export const getCandidateDashboard = async () => {
   return candidateApiClient.get('/candidate/dashboard');
 };
 
-/**
- * Question Answer Review
- * Calls /candidate/result/{enrollmentId}/answers
- */
-export const getAnswerReview = async (enrollmentId) => {
-  return candidateApiClient.get(`/candidate/result/${enrollmentId}/answers`);
-};
+
 
 /**
  * Get Ongoing Exam State

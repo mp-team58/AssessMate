@@ -52,7 +52,7 @@ const createApiClient = (baseUrl) => {
         data = isJson ? await response.json() : await response.text();
       }
 
-      // Response Interceptor Logic: Handle 401 and 403
+      // Response Interceptor Logic: Handle 401
       if (response.status === 401) {
         const msg = (data && data.message) ? data.message : "";
         if (msg.includes("Session expired") || msg.includes("another device")) {
@@ -60,9 +60,6 @@ const createApiClient = (baseUrl) => {
           window.location.href = "/login";
           alert("Your session was ended because you logged in from another device.");
         }
-      } else if (response.status === 403) {
-        localStorage.clear();
-        window.location.href = "/login?unauthorized=true";
       }
 
       if (!response.ok) {

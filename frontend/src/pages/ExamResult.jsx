@@ -477,13 +477,6 @@ const ExamResult = () => {
                         )}
                       </div>
                     </div>
-
-                    {item.explanation && (
-                      <div className="mt-3 p-3 bg-white rounded-xl border border-secondary-200 text-xs text-secondary-600">
-                        <strong className="text-secondary-900">Explanation: </strong>
-                        {item.explanation}
-                      </div>
-                    )}
                   </div>
                 );
               })

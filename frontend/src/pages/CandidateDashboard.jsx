@@ -431,33 +431,6 @@ const CandidateDashboard = () => {
 
         {/* Right Column: Quick Join Box & Exam Prep Guidelines (4 Cols) */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Quick Access Code Box */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-brand-50 text-brand-700 rounded-lg border border-brand-100">
-                <KeyRound className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-bold text-secondary-900 text-base">Quick Access Code</h3>
-                <p className="text-xs text-secondary-500">Jump right into your exam</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleQuickJoin} className="space-y-3">
-              <input
-                type="text"
-                placeholder="e.g. EXAM-8492"
-                value={quickCode}
-                onChange={(e) => setQuickCode(e.target.value.toUpperCase())}
-                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-secondary-300 font-mono uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 shadow-sm"
-              />
-              <Button type="submit" disabled={!quickCode.trim()} className="w-full py-2.5 text-sm">
-                <span>Verify & Enroll</span>
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </form>
-          </div>
-
           {/* Assessment Protocol Notice */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 space-y-4">
             <div className="flex items-center gap-2 text-secondary-900 font-bold text-sm">

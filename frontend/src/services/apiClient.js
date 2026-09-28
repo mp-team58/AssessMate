@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://08k7867x-8080.inc1.devtunnels.ms/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 /**
  * Factory creating an API client instance with interceptors for a given base URL.
@@ -58,7 +58,7 @@ const createApiClient = (baseUrl) => {
         if (msg.includes("Session expired") || msg.includes("another device")) {
           localStorage.clear();
           window.location.href = "/login";
-          alert("Your session was ended because you logged in from another device.");
+          window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: "Your session was ended because you logged in from another device.", type: 'warning' } }));
         }
       }
 

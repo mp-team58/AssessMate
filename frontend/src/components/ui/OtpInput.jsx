@@ -64,7 +64,7 @@ const OtpInput = ({ value, onChange, length = 6, disabled = false }) => {
           onChange={(e) => handleChange(e, index)}
           onKeyDown={(e) => handleKeyDown(e, index)}
           disabled={disabled}
-          className="w-12 h-14 text-center text-xl font-bold rounded-lg border border-secondary-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:opacity-50 disabled:bg-secondary-100 transition-all outline-none text-secondary-900 bg-white"
+          className="w-12 h-14 text-center text-xl font-bold rounded-xl border border-secondary-200 bg-secondary-50/50 focus:bg-white hover:border-brand-400 focus:border-brand-500 focus:ring-[3px] focus:ring-brand-500/15 disabled:opacity-50 disabled:bg-secondary-100 transition-all duration-300 outline-none text-secondary-900 shadow-sm"
           aria-label={`OTP digit ${index + 1}`}
         />
       ))}

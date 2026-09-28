@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import * as tf from '@tensorflow/tfjs';
 import * as blazeface from '@tensorflow-models/blazeface';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import { useToast } from '../contexts/ToastContext';
 import {
   Clock,
   Shield,
@@ -60,6 +61,7 @@ const ActiveExam = () => {
   const { enrollmentId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   // Load Exam Configuration
   const [examConfig] = useState(() => {
@@ -286,7 +288,7 @@ const ActiveExam = () => {
       ) {
         handleAutoTermination(errMsg);
       } else {
-        alert(errMsg);
+        showToast(errMsg, 'error');
         setIsSubmitting(false);
         hasSubmittedRef.current = false;
       }

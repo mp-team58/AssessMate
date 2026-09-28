@@ -538,11 +538,14 @@ public class GeminiService {
                     if (response.code() == 429 || response.code() >= 500) {
                         if (attempt < maxAttempts) {
                             log.warn("Gemini API error {}: {}. Retrying attempt {}/{}", response.code(), responseBody, attempt + 1, maxAttempts);
-                            Thread.sleep(1000 * attempt);
+                            Thread.sleep(2000 * attempt); // Increased backoff
                             continue;
                         }
                     }
                     log.error("Gemini API error {}: {}", response.code(), responseBody);
+                    if (response.code() == 429) {
+                        throw new BadRequestException("Too many requests to the AI service. Please wait a moment and try again.");
+                    }
                     throw new BadRequestException("AI service error " + response.code() + ". Please try again.");
                 }
 

@@ -3,26 +3,31 @@ import { BookOpenCheck } from 'lucide-react';
 
 const AuthLayout = ({ children }) => {
   return (
-    <div className="min-h-screen bg-[#F3EDE0] flex items-center justify-center p-6 md:p-12 relative overflow-hidden">
+    <div className="min-h-screen bg-secondary-50 flex items-center justify-center p-6 md:p-12 relative overflow-hidden">
       
-      {/* Decorative large circles on the orange background to make it less flat */}
-      <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-[#DEC430] rounded-full blur-[120px] opacity-20"></div>
-      <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-brand-500 rounded-full blur-[120px] opacity-20"></div>
+      {/* Dynamic decorative gradients */}
+      <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-brand-400 rounded-full blur-[120px] opacity-30 animate-pulse mix-blend-multiply"></div>
+      <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-amber-300 rounded-full blur-[120px] opacity-30 mix-blend-multiply animate-pulse" style={{ animationDelay: '2s' }}></div>
 
       {/* Floating App Window */}
-      <div className="relative w-full max-w-4xl bg-[#ffffff] rounded-3xl shadow-2xl flex flex-col lg:flex-row overflow-hidden min-h-[500px] z-10 border border-secondary-200">
+      <div className="relative w-full max-w-4xl bg-white/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] flex flex-col lg:flex-row overflow-hidden min-h-[550px] z-10 border border-white/50 animate-in fade-in zoom-in-[0.98] duration-700">
         
-        {/* Left Marketing Panel (Light Theme) */}
-        <div className="hidden lg:flex lg:w-1/2 bg-[#ffffff] p-8 lg:p-10 flex-col justify-between border-r border-secondary-100">
+        {/* Left Marketing Panel */}
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-secondary-50/80 to-white/50 p-10 lg:p-12 flex-col justify-between relative overflow-hidden">
           
+          {/* Subtle overlay grid pattern */}
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMCwwLDAsMC4wNSkiLz48L3N2Zz4=')] opacity-50"></div>
+
           {/* Logo */}
-          <div className="flex items-center gap-3 text-xl font-bold tracking-tight text-secondary-900">
-            <BookOpenCheck className="w-8 h-8 text-brand-500" />
+          <div className="relative flex items-center gap-3 text-2xl font-extrabold tracking-tight text-secondary-900 z-10 hover:scale-105 transition-transform origin-left">
+            <div className="p-2 bg-brand-100 rounded-xl">
+              <BookOpenCheck className="w-8 h-8 text-brand-600" />
+            </div>
             <span>AssessMate<span className="text-brand-500">.</span></span>
           </div>
 
-          <div className="mt-12 mb-auto pr-4">
-            <h1 className="text-3xl lg:text-4xl font-extrabold mb-6 leading-[1.2] text-secondary-900 tracking-tight">
+          <div className="relative mt-12 mb-auto pr-4 z-10">
+            <h1 className="text-4xl lg:text-5xl font-black mb-6 leading-[1.15] text-secondary-900 tracking-tighter">
               Intelligent assessment, <br className="hidden xl:block" />
               <span className="text-brand-500">uncompromised</span> integrity.
             </h1>

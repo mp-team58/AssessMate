@@ -156,34 +156,34 @@ const ManageExam = () => {
         <div className="flex gap-3 relative z-10 w-full md:w-auto">
           {exam.status === 'DRAFT' && (
             <>
-              <Button onClick={() => navigate(`/host/exams/${id}/edit`)} variant="outline" className="w-full md:w-auto px-8 py-3 text-lg transition-transform hover:-translate-y-0.5 border-secondary-300 text-secondary-700 bg-white hover:bg-secondary-50 shadow-sm">
+              <Button onClick={() => navigate(`/host/exams/${id}/edit`)} variant="outline" className="w-full md:w-auto px-8 py-3 text-lg transition-transform border-secondary-300 text-secondary-700 bg-white hover:bg-secondary-50 shadow-sm">
                 Edit Exam
               </Button>
-              <Button onClick={handlePublish} className="w-full md:w-auto bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white shadow-lg shadow-brand-500/30 border-0 px-8 py-3 text-lg transition-transform hover:-translate-y-0.5">
+              <Button onClick={handlePublish} className="w-full md:w-auto bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 text-white shadow-lg shadow-brand-500/30 border-0 px-8 py-3 text-lg transition-transform">
                 Publish Exam
               </Button>
             </>
           )}
           {exam.status === 'LIVE' && (
-            <Button onClick={handleEnd} className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 border-0 px-8 py-3 text-lg transition-transform hover:-translate-y-0.5">
+            <Button onClick={handleEnd} className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 border-0 px-8 py-3 text-lg transition-transform">
               End Exam
             </Button>
           )}
           {(exam.status === 'LIVE' || exam.status === 'SCHEDULED') && (
-            <Button onClick={() => setIsShareModalOpen(true)} className="w-full md:w-auto bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-500/30 border-0 px-8 py-3 text-lg transition-transform hover:-translate-y-0.5 flex items-center gap-2 justify-center">
+            <Button onClick={() => setIsShareModalOpen(true)} className="w-full md:w-auto bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-500/30 border-0 px-8 py-3 text-lg transition-transform flex items-center gap-2 justify-center">
               <Share2 className="w-5 h-5" /> Share Exam
             </Button>
           )}
           {(exam.status === 'LIVE' || exam.status === 'ENDED') && (
             <>
-              <Button onClick={() => navigate(`/host/exams/${id}/results`)} variant="outline" className="w-full md:w-auto border-secondary-300 text-brand-700 hover:bg-brand-50 px-6 py-3 text-lg transition-transform hover:-translate-y-0.5 shadow-sm">
+              <Button onClick={() => navigate(`/host/exams/${id}/results`)} variant="outline" className="w-full md:w-auto border-secondary-300 text-brand-700 hover:bg-brand-50 px-6 py-3 text-lg transition-transform shadow-sm">
                 View Results
               </Button>
-              <Button onClick={() => navigate(`/host/exams/${id}/proctoring`)} variant="outline" className="w-full md:w-auto border-secondary-300 text-purple-700 hover:bg-purple-50 px-6 py-3 text-lg transition-transform hover:-translate-y-0.5 shadow-sm">
+              <Button onClick={() => navigate(`/host/exams/${id}/proctoring`)} variant="outline" className="w-full md:w-auto border-secondary-300 text-purple-700 hover:bg-purple-50 px-6 py-3 text-lg transition-transform shadow-sm">
                 Proctoring
               </Button>
               {exam.status === 'LIVE' && (
-                <Button onClick={() => navigate(`/host/exams/${id}/live`)} className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg transition-transform hover:-translate-y-0.5 shadow-sm animate-pulse">
+                <Button onClick={() => navigate(`/host/exams/${id}/live`)} className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white px-6 py-3 text-lg transition-transform shadow-sm animate-pulse">
                   Live Monitor
                 </Button>
               )}
@@ -297,7 +297,7 @@ const ManageExam = () => {
               {exam.status === 'DRAFT' && (
                 <Button 
                   onClick={() => navigate(`/host/exams/${exam.id}/questions`)}
-                  className="!w-auto flex-shrink-0 bg-secondary-900 hover:bg-secondary-800 text-white rounded-xl shadow-md transition-transform hover:-translate-y-0.5"
+                  className="!w-auto flex-shrink-0 bg-secondary-900 hover:bg-secondary-800 text-white rounded-xl shadow-md transition-transform"
                 >
                   <span className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

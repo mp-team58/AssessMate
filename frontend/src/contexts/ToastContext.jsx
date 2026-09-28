@@ -27,19 +27,19 @@ const Toast = ({ id, message, type, onClose }) => {
   };
 
   const colors = {
-    success: 'bg-green-50 border-green-200 text-green-800',
-    error: 'bg-red-50 border-red-200 text-red-800',
-    warning: 'bg-amber-50 border-amber-200 text-amber-800',
-    info: 'bg-blue-50 border-blue-200 text-blue-800'
+    success: 'bg-emerald-50/90 border-emerald-200 text-emerald-900 shadow-emerald-500/10',
+    error: 'bg-red-50/90 border-red-200 text-red-900 shadow-red-500/10',
+    warning: 'bg-amber-50/90 border-amber-200 text-amber-900 shadow-amber-500/10',
+    info: 'bg-blue-50/90 border-blue-200 text-blue-900 shadow-blue-500/10'
   };
 
   return (
-    <div className={`flex items-start gap-3 p-4 rounded-xl border shadow-lg ${colors[type]} animate-in slide-in-from-right-8 fade-in duration-300 max-w-sm w-full pointer-events-auto`}>
+    <div className={`flex items-start gap-3 p-4 rounded-2xl border backdrop-blur-md shadow-xl ${colors[type]} animate-in slide-in-from-right-8 fade-in duration-300 max-w-sm w-full pointer-events-auto transition-all`}>
       <div className="shrink-0 mt-0.5">{icons[type]}</div>
-      <div className="flex-1 text-sm font-medium leading-tight">{message}</div>
+      <div className="flex-1 text-sm font-semibold leading-tight">{message}</div>
       <button 
         onClick={() => onClose(id)} 
-        className="shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
+        className="shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity"
       >
         <X className="w-4 h-4" />
       </button>
@@ -58,6 +58,14 @@ export const ToastProvider = ({ children }) => {
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
+
+  useEffect(() => {
+    const handleGlobalToast = (e) => {
+      showToast(e.detail.message, e.detail.type);
+    };
+    window.addEventListener('SHOW_TOAST', handleGlobalToast);
+    return () => window.removeEventListener('SHOW_TOAST', handleGlobalToast);
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

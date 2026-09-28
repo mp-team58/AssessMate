@@ -19,7 +19,7 @@ const StatCard = ({ title, value, icon: Icon, color, trend }) => {
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-sm border border-secondary-200/60 flex flex-col hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+    <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-sm border border-secondary-200/60 flex flex-col hover:shadow-xl transition-all duration-300 group">
       <div className="flex items-start justify-between mb-4">
         <div className={`p-3.5 rounded-2xl border ${colorMap[color]} group-hover:scale-110 transition-transform duration-300 shadow-sm`}>
           <Icon className="w-6 h-6" />
@@ -134,14 +134,14 @@ const HostDashboard = () => {
             <div className="flex flex-wrap items-center gap-4">
               <Link
                 to="/host/create-exam"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-brand-500 text-white rounded-2xl font-bold hover:bg-brand-400 transition-all shadow-[0_0_30px_rgba(var(--brand-500),0.3)] hover:shadow-[0_0_40px_rgba(var(--brand-500),0.5)] hover:-translate-y-1 text-sm uppercase tracking-wide"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-brand-500 text-white rounded-2xl font-bold hover:bg-brand-400 transition-all shadow-[0_0_30px_rgba(var(--brand-500),0.3)] hover:shadow-[0_0_40px_rgba(var(--brand-500),0.5)] text-sm uppercase tracking-wide"
               >
                 <PlusCircle className="w-5 h-5" />
                 Create Assessment
               </Link>
               <Link
                 to="/host/question-bank"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white/5 backdrop-blur-xl border border-white/10 text-white rounded-2xl font-bold hover:bg-white/10 transition-all hover:-translate-y-1 text-sm uppercase tracking-wide"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-white/5 backdrop-blur-xl border border-white/10 text-white rounded-2xl font-bold hover:bg-white/10 transition-all text-sm uppercase tracking-wide"
               >
                 <Library className="w-5 h-5" />
                 Question Bank
@@ -311,7 +311,7 @@ const HostDashboard = () => {
                 </div>
                 <h3 className="text-xl font-black text-secondary-900 mb-2">No assessments yet</h3>
                 <p className="text-secondary-500 mb-8 max-w-sm mx-auto font-medium">Create your first exam to start evaluating candidates and building your talent pool.</p>
-                <Link to="/host/create-exam" className="px-8 py-3.5 bg-brand-50 text-brand-700 font-bold rounded-xl hover:bg-brand-100 transition-all hover:-translate-y-0.5 shadow-sm">
+                <Link to="/host/create-exam" className="px-8 py-3.5 bg-brand-50 text-brand-700 font-bold rounded-xl hover:bg-brand-100 transition-all shadow-sm">
                   Create First Exam
                 </Link>
               </div>

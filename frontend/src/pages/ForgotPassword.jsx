@@ -25,8 +25,6 @@ const resetSchema = yup.object().shape({
 const ForgotPassword = () => {
   const [step, setStep] = useState('EMAIL'); // 'EMAIL' | 'OTP'
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
   const [otp, setOtp] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [cooldown, setCooldown] = useState(0);
@@ -51,27 +49,25 @@ const ForgotPassword = () => {
 
   const onEmailSubmit = async (data) => {
     setIsLoading(true);
-    setError('');
-    setSuccessMsg('');
     try {
       const response = await requestPasswordResetOtp({ email: data.email });
       const msg = response.data?.message;
       if (msg && (msg.toLowerCase().includes('could not') || msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('error'))) {
-        setError(msg);
+        showToast(msg, 'error');
       } else {
-        setSuccessMsg(msg || 'If an account exists for this email, a verification code has been sent.');
+        showToast(msg || 'If an account exists for this email, a verification code has been sent.', 'success');
         setCooldown(60);
       }
       setResetEmail(data.email);
       setStep('OTP');
     } catch (err) {
       if (err.response?.status === 404) {
-        setSuccessMsg('If an account exists for this email, a verification code has been sent.');
+        showToast('If an account exists for this email, a verification code has been sent.', 'success');
         setResetEmail(data.email);
         setStep('OTP');
         setCooldown(60);
       } else {
-        setError(err.response?.data?.message || 'Failed to send verification code. Please try again.');
+        showToast(err.response?.data?.message || 'Failed to send verification code. Please try again.', 'error');
       }
     } finally {
       setIsLoading(false);
@@ -80,12 +76,11 @@ const ForgotPassword = () => {
 
   const onResetSubmit = async (data) => {
     if (otp.length !== 6) {
-      setError('Please enter the 6-digit verification code.');
+      showToast('Please enter the 6-digit verification code.', 'error');
       return;
     }
 
     setIsLoading(true);
-    setError('');
     try {
       const response = await resetPassword({
         email: resetEmail,
@@ -93,10 +88,10 @@ const ForgotPassword = () => {
         newPassword: data.newPassword
       });
 
-      showToast('success', 'Success', response.data?.message || 'Password reset successfully. Please log in with your new password.');
+      showToast(response.data?.message || 'Password reset successfully. Please log in with your new password.', 'success');
       navigate('/login');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to reset password. Please try again.');
+      showToast(err.response?.data?.message || err.message || 'Failed to reset password. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -105,25 +100,23 @@ const ForgotPassword = () => {
   const handleResend = async () => {
     if (cooldown > 0 || isLoading) return;
     setIsLoading(true);
-    setError('');
-    setSuccessMsg('');
     try {
       const response = await requestPasswordResetOtp({ email: resetEmail });
       const msg = response.data?.message;
       if (msg && (msg.toLowerCase().includes('could not') || msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('error'))) {
-        setError(msg);
+        showToast(msg, 'error');
       } else {
-        setSuccessMsg(msg || 'If an account exists for this email, a verification code has been sent.');
+        showToast(msg || 'If an account exists for this email, a verification code has been sent.', 'success');
         setCooldown(60);
         setOtp('');
       }
     } catch (err) {
       if (err.response?.status === 404) {
-        setSuccessMsg('If an account exists for this email, a verification code has been sent.');
+        showToast('If an account exists for this email, a verification code has been sent.', 'success');
         setCooldown(60);
         setOtp('');
       } else {
-        setError(err.response?.data?.message || 'Failed to resend verification code. Please try again.');
+        showToast(err.response?.data?.message || 'Failed to resend verification code. Please try again.', 'error');
       }
     } finally {
       setIsLoading(false);
@@ -140,7 +133,6 @@ const ForgotPassword = () => {
           </div>
 
           <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-4">
-            {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
 
             <Input
               label="Email"
@@ -170,8 +162,6 @@ const ForgotPassword = () => {
             <button
               onClick={() => {
                 setStep('EMAIL');
-                setError('');
-                setSuccessMsg('');
               }}
               className="text-secondary-400 hover:text-secondary-700 text-sm font-medium mb-6 flex items-center gap-1 transition-colors"
             >
@@ -188,8 +178,6 @@ const ForgotPassword = () => {
           </div>
 
           <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-6">
-            {successMsg && <div className="p-3 bg-emerald-50 text-emerald-700 text-sm rounded-md border border-emerald-100">{successMsg}</div>}
-            {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md border border-red-100">{error}</div>}
 
             <div className="space-y-3">
               <label className="block text-sm font-bold text-secondary-700">Verification Code</label>

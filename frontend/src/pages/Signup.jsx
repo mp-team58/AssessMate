@@ -10,12 +10,13 @@ import Button from '../components/ui/Button';
 import OtpInput from '../components/ui/OtpInput';
 import Countdown from '../components/ui/Countdown';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { requestRegisterOtp, verifyRegisterOtp } from '../services/authService';
 
 const signupSchema = yup.object().shape({
   fullName: yup.string().trim().required('Full name is required'),
   email: yup.string().trim().email('Must be a valid email').required('Email is required'),
-  password: yup.string().trim().min(6, 'Password must be at least 6 characters').required('Password is required'),
+  password: yup.string().trim().min(8, 'Password must be at least 8 characters').required('Password is required'),
   confirmPassword: yup.string()
     .oneOf([yup.ref('password'), null], 'Passwords must match')
     .required('Confirm password is required'),
@@ -25,13 +26,12 @@ const Signup = () => {
   const [role, setRole] = useState('host');
   const [step, setStep] = useState('FORM'); // 'FORM' | 'OTP'
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
   const [otp, setOtp] = useState('');
   const [registrationData, setRegistrationData] = useState(null);
   const [cooldown, setCooldown] = useState(0);
 
   const { login } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const { register, handleSubmit, formState: { errors } } = useForm({
@@ -47,7 +47,6 @@ const Signup = () => {
 
   const onFormSubmit = async (data) => {
     setIsLoading(true);
-    setError('');
     try {
       const payload = {
         fullName: data.fullName,
@@ -59,15 +58,15 @@ const Signup = () => {
       const response = await requestRegisterOtp(payload);
       const msg = response.data?.message;
       if (msg && (msg.toLowerCase().includes('could not') || msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('error'))) {
-        setError(msg);
+        showToast(msg, 'error');
       } else {
-        setSuccessMsg(msg || 'A verification code has been sent to your email.');
+        showToast(msg || 'A verification code has been sent to your email.', 'success');
         setCooldown(60); // 60s cooldown for resend
       }
       setRegistrationData(payload);
       setStep('OTP');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to request verification code. Please try again.');
+      showToast(err.response?.data?.message || err.message || 'Failed to request verification code. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +77,6 @@ const Signup = () => {
     if (otp.length !== 6) return;
     
     setIsLoading(true);
-    setError('');
     try {
       const response = await verifyRegisterOtp({
         email: registrationData.email,
@@ -88,6 +86,7 @@ const Signup = () => {
       const { token, role: userRole, name, id } = response.data;
       login(token, userRole, name, id);
       
+      showToast('Registration successful!', 'success');
       // Navigate to respective dashboard based on role returned from backend
       if (userRole === 'HOST') {
         navigate('/host/dashboard');
@@ -97,7 +96,7 @@ const Signup = () => {
         navigate(role === 'host' ? '/host/dashboard' : '/candidate/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Verification failed. Please check the code and try again.');
+      showToast(err.response?.data?.message || err.message || 'Verification failed. Please check the code and try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -106,20 +105,18 @@ const Signup = () => {
   const handleResend = async () => {
     if (cooldown > 0 || isLoading) return;
     setIsLoading(true);
-    setError('');
-    setSuccessMsg('');
     try {
       const response = await requestRegisterOtp(registrationData);
       const msg = response.data?.message;
       if (msg && (msg.toLowerCase().includes('could not') || msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('error'))) {
-        setError(msg);
+        showToast(msg, 'error');
       } else {
-        setSuccessMsg(msg || 'A new verification code has been sent.');
+        showToast(msg || 'A new verification code has been sent.', 'success');
         setCooldown(60);
         setOtp(''); // Clear old OTP
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to resend code.');
+      showToast(err.response?.data?.message || err.message || 'Failed to resend code.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +134,6 @@ const Signup = () => {
           <Toggle activeRole={role} onChange={setRole} />
 
           <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
-            {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
             
             <Input
               label="Full Name"
@@ -189,8 +185,6 @@ const Signup = () => {
             <button 
               onClick={() => {
                 setStep('FORM');
-                setError('');
-                setSuccessMsg('');
               }} 
               className="text-secondary-400 hover:text-secondary-700 text-sm font-medium mb-6 flex items-center gap-1 transition-colors"
             >
@@ -207,8 +201,6 @@ const Signup = () => {
           </div>
 
           <form onSubmit={onVerifyOtp} className="space-y-6">
-            {successMsg && <div className="p-3 bg-emerald-50 text-emerald-700 text-sm rounded-md border border-emerald-100">{successMsg}</div>}
-            {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md border border-red-100">{error}</div>}
             
             <div className="space-y-3">
               <label className="block text-sm font-bold text-secondary-700">Verification Code</label>

@@ -6,6 +6,7 @@ import Button from './ui/Button';
 import Input from './ui/Input';
 import Select from './ui/Select';
 import { Upload, X } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 const schema = yup.object().shape({
   questionText: yup.string().required('Question text is required'),
@@ -59,6 +60,7 @@ const schema = yup.object().shape({
 });
 
 const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContext = false, examId }) => {
+  const { showToast } = useToast();
   const [imageFile, setImageFile] = useState(null);
   const [existingImageUrl, setExistingImageUrl] = useState(initialData?.imageUrl || null);
 
@@ -96,7 +98,7 @@ const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContex
       correctAnswer = singleChoiceAnswer;
     } else if (questionType === 'MULTIPLE_SELECT') {
       if (multipleChoiceAnswers.length === 0) {
-        alert("Please select at least one correct answer.");
+        showToast("Please select at least one correct answer.", "error");
         return;
       }
       correctAnswer = multipleChoiceAnswers.sort().join(',');

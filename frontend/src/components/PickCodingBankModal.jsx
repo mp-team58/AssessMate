@@ -31,7 +31,17 @@ const PickCodingBankModal = ({
     try {
       const res = await getCodingBank();
       const list = res.data || res || [];
-      setBankProblems(Array.isArray(list) ? list : []);
+      setBankProblems(Array.isArray(list) ? list.map(p => {
+        let langs = p.allowedLanguages;
+        if (typeof langs === 'string') {
+          try { langs = JSON.parse(langs); } catch(e) { langs = langs.split(',').map(s=>s.trim()); }
+        }
+        let tcs = p.testCases;
+        if (typeof tcs === 'string') {
+          try { tcs = JSON.parse(tcs); } catch(e) { tcs = []; }
+        }
+        return { ...p, allowedLanguages: Array.isArray(langs) ? langs : [], testCases: Array.isArray(tcs) ? tcs : [] };
+      }) : []);
     } catch (err) {
       console.error('Failed to load coding bank', err);
       setError('Failed to load problems from Global Coding Bank.');
@@ -72,7 +82,7 @@ const PickCodingBankModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-secondary-200 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
@@ -168,7 +178,7 @@ const PickCodingBankModal = ({
                       type="checkbox"
                       checked={isSelected || isAlreadyAdded}
                       disabled={isAlreadyAdded}
-                      onChange={() => !isAlreadyAdded && handleToggleSelect(problem.id)}
+                      readOnly
                       className="w-4 h-4 rounded text-brand-600 border-secondary-300 focus:ring-brand-500 cursor-pointer disabled:cursor-not-allowed"
                     />
                   </div>

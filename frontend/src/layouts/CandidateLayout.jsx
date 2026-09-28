@@ -152,7 +152,7 @@ const CandidateLayout = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative h-full">
+      <main id="app-scroll-container" className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative h-full">
         {/* Ambient background glows matching Host side */}
         <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-[#DEC430] rounded-full blur-[140px] opacity-10 pointer-events-none" />
         <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-500 rounded-full blur-[140px] opacity-10 pointer-events-none" />

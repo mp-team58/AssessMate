@@ -425,16 +425,28 @@ const ExamResult = () => {
                             {item.topic}
                           </span>
                         )}
+                        {item.type && (
+                          <span className="text-[10px] font-semibold text-secondary-500 uppercase">
+                            {String(item.type).replace('_', ' ')}
+                          </span>
+                        )}
                       </div>
-                      <span
-                        className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                          isCorrect
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {isCorrect ? 'Correct' : 'Incorrect'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {item.marksAwarded !== undefined && item.totalMarks !== undefined && (
+                          <span className="text-xs font-bold text-secondary-600">
+                            {item.marksAwarded} / {item.totalMarks} pts
+                          </span>
+                        )}
+                        <span
+                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                            isCorrect
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {isCorrect ? 'Correct' : 'Incorrect'}
+                        </span>
+                      </div>
                     </div>
 
                     <p className="font-bold text-secondary-900 text-sm mb-3">
@@ -443,7 +455,7 @@ const ExamResult = () => {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div className="p-3 bg-white rounded-xl border border-secondary-200">
-                        <p className="text-secondary-500 font-semibold mb-1">Your Answer:</p>
+                        <p className="text-secondary-500 font-semibold mb-1">Your Submitted Response:</p>
                         {item.type === 'CODING' ? (
                           <pre className="p-2.5 bg-secondary-950 text-emerald-300 rounded-lg font-mono text-[11px] overflow-x-auto whitespace-pre-wrap max-h-48">
                             {item.candidateAnswer || '// No code submitted'}

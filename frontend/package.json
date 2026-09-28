@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@tensorflow-models/blazeface": "^0.1.0",
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs": "^4.22.0",
     "fetch": "^1.1.0",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",

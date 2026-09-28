@@ -10,7 +10,8 @@ import {
   addCodingProblemToExam,
   addCodingProblemsFromBank,
   updateCodingProblem,
-  deleteCodingProblem
+  deleteCodingProblem,
+  addCodingProblemToBank
 } from '../services/codingQuestionService';
 import QuestionForm from '../components/QuestionForm';
 import QuestionCard from '../components/QuestionCard';
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import AICodingProblemModal from '../components/AICodingProblemModal';
+import { scrollAppToTop } from '../utils/scroll';
 
 const ExamQuestions = () => {
   const { examId } = useParams();
@@ -64,7 +66,17 @@ const ExamQuestions = () => {
     try {
       const res = await getExamCodingProblems(examId);
       const list = res.data || res || [];
-      setCodingProblems(Array.isArray(list) ? list : []);
+      setCodingProblems(Array.isArray(list) ? list.map(p => {
+        let langs = p.allowedLanguages;
+        if (typeof langs === 'string') {
+          try { langs = JSON.parse(langs); } catch(e) { langs = langs.split(',').map(s=>s.trim()); }
+        }
+        let tcs = p.testCases;
+        if (typeof tcs === 'string') {
+          try { tcs = JSON.parse(tcs); } catch(e) { tcs = []; }
+        }
+        return { ...p, allowedLanguages: Array.isArray(langs) ? langs : [], testCases: Array.isArray(tcs) ? tcs : [] };
+      }) : []);
     } catch (err) {
       console.error('Failed to fetch coding problems for exam', err);
     } finally {
@@ -191,8 +203,24 @@ const ExamQuestions = () => {
     try {
       if (editingCodingProblem) {
         await updateCodingProblem(editingCodingProblem.id, formData);
+        if (formData.saveToBank) {
+          try {
+            await addCodingProblemToBank(formData);
+          } catch (bankErr) {
+            console.error('Failed to save to bank', bankErr);
+            showToast('Problem updated, but failed to save to bank', 'error');
+          }
+        }
       } else {
         await addCodingProblemToExam(examId, formData);
+        if (formData.saveToBank) {
+          try {
+            await addCodingProblemToBank(formData);
+          } catch (bankErr) {
+            console.error('Failed to save to bank', bankErr);
+            showToast('Problem saved to exam, but failed to save to bank', 'error');
+          }
+        }
       }
       setIsCodingModalOpen(false);
       setEditingCodingProblem(null);
@@ -310,7 +338,8 @@ const ExamQuestions = () => {
   }
 
   return (
-    <div className="w-full h-full space-y-6 animate-in fade-in duration-500 pb-28">
+    <>
+      <div className="w-full h-full space-y-6 animate-in fade-in duration-500 pb-28">
 
       {/* Top Header Section */}
       <div className="relative bg-white rounded-3xl shadow-sm border border-secondary-200 overflow-hidden p-6 md:p-8">
@@ -483,32 +512,6 @@ const ExamQuestions = () => {
               <h3 className="text-lg font-bold text-secondary-900">
                 Exam Coding Problems ({codingPoolCount})
               </h3>
-              {codingProblems.length > 0 && (
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => setIsAIModalOpen(true)}
-                    className="text-xs flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-brand-500 hover:from-purple-700 hover:to-brand-600 text-white border-0 shadow-md"
-                  >
-                    ⚡ Generate with AI
-                  </Button>
-                  <Button
-                    variant="outline-secondary"
-                    onClick={() => {
-                      setEditingCodingProblem(null);
-                      setIsCodingModalOpen(true);
-                    }}
-                    className="text-xs flex items-center gap-1.5"
-                  >
-                    ✍️ Add Manually
-                  </Button>
-                  <button
-                    onClick={() => setIsPickBankModalOpen(true)}
-                    className="px-4 py-2 bg-secondary-100 hover:bg-secondary-200 text-secondary-800 rounded-xl text-xs font-semibold transition-all"
-                  >
-                    Pick from Bank
-                  </button>
-                </div>
-              )}
             </div>
 
             {isCodingLoading ? (
@@ -608,7 +611,7 @@ const ExamQuestions = () => {
                           setEditingCodingProblem(problem);
                           setIsCodingModalOpen(true);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-100 rounded-xl transition-all"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-secondary-600 bg-white hover:bg-secondary-50 border border-secondary-200 hover:border-secondary-300 rounded-xl transition-all"
                       >
                         <Edit2 className="w-3.5 h-3.5" /> Edit
                       </button>
@@ -711,6 +714,7 @@ const ExamQuestions = () => {
               </h2>
 
               <QuestionForm
+                key={editingQuestion?.id || 'new'}
                 initialData={editingQuestion}
                 onSubmit={editingQuestion ? handleEditSubmit : handleManualSubmit}
                 onCancel={() => { setActiveTab(null); setEditingQuestion(null); }}
@@ -832,7 +836,7 @@ const ExamQuestions = () => {
               examId={examId}
               stats={stats}
               onGenerationSuccess={fetchExamData}
-              onEdit={(q) => { setEditingQuestion(q); setActiveTab(null); window.scrollTo(0, 0); }}
+              onEdit={(q) => { setEditingQuestion(q); setActiveTab(null); scrollAppToTop(); }}
               onDelete={handleDelete}
               onClose={() => setActiveTab(null)}
             />
@@ -850,12 +854,15 @@ const ExamQuestions = () => {
               </div>
             ) : (
               <div className="grid gap-4">
-                {questions.map((q, index) => (
+                {[...questions].sort((a, b) => {
+                  if (a.isVerified === b.isVerified) return 0;
+                  return a.isVerified ? 1 : -1;
+                }).map((q, index) => (
                   <QuestionCard
                     key={q.id}
                     question={q}
                     showSource={true}
-                    onEdit={() => { setEditingQuestion(q); setActiveTab(null); window.scrollTo(0, 0); }}
+                    onEdit={() => { setEditingQuestion(q); setActiveTab(null); scrollAppToTop(); }}
                     onDelete={handleDelete}
                     onVerify={handleVerify}
                     index={index + 1}
@@ -867,6 +874,8 @@ const ExamQuestions = () => {
         </div>
       )}
 
+      </div>
+
       {/* Modals for Coding Section */}
       <CodingProblemModal
         isOpen={isCodingModalOpen}
@@ -876,7 +885,6 @@ const ExamQuestions = () => {
         }}
         onSubmit={handleCreateCodingProblem}
         initialData={editingCodingProblem}
-        showSaveToBank={false}
         isSubmitting={isSubmittingCoding}
       />
 
@@ -936,7 +944,7 @@ const ExamQuestions = () => {
         </div>
       </div>
 
-    </div>
+    </>
   );
 };
 

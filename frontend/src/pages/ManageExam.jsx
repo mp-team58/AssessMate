@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getExamById, publishExam, endExam } from '../services/examService';
 import { getExamQuestionStats, getExamQuestions } from '../services/questionService';
+import { getExamCodingProblems } from '../services/codingQuestionService';
 import Button from '../components/ui/Button';
 import QuestionCard from '../components/QuestionCard';
 import ShareExamModal from '../components/ShareExamModal';
@@ -14,6 +15,7 @@ const ManageExam = () => {
   const [exam, setExam] = useState(null);
   const [stats, setStats] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [codingQuestionsCount, setCodingQuestionsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -31,6 +33,16 @@ const ManageExam = () => {
       ]);
       setStats(statsRes.data || statsRes);
       setQuestions(questionsRes.data || questionsRes);
+      
+      if (response.data?.hasCodingSection) {
+        try {
+          const codingRes = await getExamCodingProblems(id);
+          const cQuestions = codingRes.data || codingRes;
+          setCodingQuestionsCount(Array.isArray(cQuestions) ? cQuestions.length : 0);
+        } catch (cErr) {
+          console.error("Failed to fetch coding questions:", cErr);
+        }
+      }
     } catch (err) {
       setError(err.message || 'Failed to fetch exam details.');
     } finally {
@@ -48,8 +60,16 @@ const ManageExam = () => {
       return;
     }
     if (stats?.totalAdded < stats?.totalRequired) {
-      showToast(`You need ${stats.totalRequired} questions to publish this exam, but only have ${stats.totalAdded}.`, 'warning');
+      showToast(`You need ${stats.totalRequired} general questions to publish this exam, but only have ${stats.totalAdded}.`, 'warning');
       return;
+    }
+    
+    if (exam?.hasCodingSection) {
+      const requiredCoding = exam.codingQuestionsCount || 0;
+      if (codingQuestionsCount < requiredCoding) {
+        showToast(`You need ${requiredCoding} coding questions to publish this exam, but only have ${codingQuestionsCount}.`, 'warning');
+        return;
+      }
     }
     
     try {
@@ -90,7 +110,8 @@ const ManageExam = () => {
   if (!exam) return null;
 
   return (
-    <div className="w-full h-full space-y-8 animate-in fade-in duration-300">
+    <>
+      <div className="w-full h-full space-y-8 animate-in fade-in duration-300">
       
       {/* Header Banner */}
       <div className="relative bg-white rounded-3xl p-8 shadow-sm border border-secondary-200 overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -189,9 +210,19 @@ const ManageExam = () => {
                 <span className="text-secondary-800 font-bold text-sm bg-white px-2 py-1 rounded-md shadow-sm">{exam.durationMinutes} Minutes</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-secondary-50 rounded-xl border border-secondary-100">
-                <span className="text-secondary-500 font-medium text-sm">Total Questions</span>
-                <span className="text-secondary-800 font-bold text-sm bg-white px-2 py-1 rounded-md shadow-sm">{exam.totalQuestions} Questions</span>
+                <span className="text-secondary-500 font-medium text-sm">General Questions</span>
+                <span className="text-secondary-800 font-bold text-sm bg-white px-2 py-1 rounded-md shadow-sm">
+                  {exam.totalQuestions || 0}
+                </span>
               </div>
+              {exam.hasCodingSection && (
+                <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                  <span className="text-indigo-600 font-medium text-sm">Coding Questions</span>
+                  <span className="text-indigo-800 font-bold text-sm bg-white px-2 py-1 rounded-md shadow-sm border border-indigo-100">
+                    {exam.codingQuestionsCount || 0}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center p-3 bg-secondary-50 rounded-xl border border-secondary-100">
                 <span className="text-secondary-500 font-medium text-sm">Passing Mark</span>
                 <span className="text-secondary-800 font-bold text-sm bg-white px-2 py-1 rounded-md shadow-sm">{exam.passingPercentage ?? 50}%</span>
@@ -234,6 +265,21 @@ const ManageExam = () => {
                   <div className="w-full bg-secondary-200 rounded-full h-2 mb-2 overflow-hidden">
                     <div className="bg-rose-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, (stats.hardAdded / (stats.hardRequired || 1)) * 100)}%` }}></div>
                   </div>
+                  
+                  {exam.hasCodingSection && (
+                    <>
+                      <div className="flex justify-between text-sm mt-4">
+                        <span className="text-secondary-500 font-medium flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500"></span> Coding
+                        </span>
+                        <span className="font-bold text-secondary-700">{codingQuestionsCount} / {exam.codingQuestionsCount || 0}</span>
+                      </div>
+                      {/* Progress bar Coding */}
+                      <div className="w-full bg-secondary-200 rounded-full h-2 overflow-hidden">
+                        <div className="bg-indigo-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, (codingQuestionsCount / (exam.codingQuestionsCount || 1)) * 100)}%` }}></div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -300,12 +346,13 @@ const ManageExam = () => {
           </div>
         </div>
       </div>
+      </div>
       <ShareExamModal 
         examId={id} 
         isOpen={isShareModalOpen} 
         onClose={() => setIsShareModalOpen(false)} 
       />
-    </div>
+    </>
   );
 };
 

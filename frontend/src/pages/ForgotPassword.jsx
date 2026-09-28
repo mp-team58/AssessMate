@@ -55,10 +55,15 @@ const ForgotPassword = () => {
     setSuccessMsg('');
     try {
       const response = await requestPasswordResetOtp({ email: data.email });
-      setSuccessMsg(response.data?.message || 'If an account exists for this email, a verification code has been sent.');
+      const msg = response.data?.message;
+      if (msg && (msg.toLowerCase().includes('could not') || msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('error'))) {
+        setError(msg);
+      } else {
+        setSuccessMsg(msg || 'If an account exists for this email, a verification code has been sent.');
+        setCooldown(60);
+      }
       setResetEmail(data.email);
       setStep('OTP');
-      setCooldown(60);
     } catch (err) {
       if (err.response?.status === 404) {
         setSuccessMsg('If an account exists for this email, a verification code has been sent.');
@@ -78,7 +83,7 @@ const ForgotPassword = () => {
       setError('Please enter the 6-digit verification code.');
       return;
     }
-    
+
     setIsLoading(true);
     setError('');
     try {
@@ -87,7 +92,7 @@ const ForgotPassword = () => {
         otp,
         newPassword: data.newPassword
       });
-      
+
       showToast('success', 'Success', response.data?.message || 'Password reset successfully. Please log in with your new password.');
       navigate('/login');
     } catch (err) {
@@ -104,9 +109,14 @@ const ForgotPassword = () => {
     setSuccessMsg('');
     try {
       const response = await requestPasswordResetOtp({ email: resetEmail });
-      setSuccessMsg(response.data?.message || 'If an account exists for this email, a verification code has been sent.');
-      setCooldown(60);
-      setOtp('');
+      const msg = response.data?.message;
+      if (msg && (msg.toLowerCase().includes('could not') || msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('error'))) {
+        setError(msg);
+      } else {
+        setSuccessMsg(msg || 'If an account exists for this email, a verification code has been sent.');
+        setCooldown(60);
+        setOtp('');
+      }
     } catch (err) {
       if (err.response?.status === 404) {
         setSuccessMsg('If an account exists for this email, a verification code has been sent.');
@@ -131,7 +141,7 @@ const ForgotPassword = () => {
 
           <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-4">
             {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
-            
+
             <Input
               label="Email"
               type="email"
@@ -157,12 +167,12 @@ const ForgotPassword = () => {
       ) : (
         <div className="flex flex-col animate-in fade-in duration-300">
           <div className="mb-8 text-center lg:text-left">
-            <button 
+            <button
               onClick={() => {
                 setStep('EMAIL');
                 setError('');
                 setSuccessMsg('');
-              }} 
+              }}
               className="text-secondary-400 hover:text-secondary-700 text-sm font-medium mb-6 flex items-center gap-1 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -172,7 +182,7 @@ const ForgotPassword = () => {
             </button>
             <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Reset Password</h2>
             <p className="text-secondary-600 text-sm leading-relaxed">
-              We've sent a verification code to<br/>
+              We've sent a verification code to<br />
               <span className="font-bold text-secondary-900">{maskEmail(resetEmail)}</span>
             </p>
           </div>
@@ -180,7 +190,7 @@ const ForgotPassword = () => {
           <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-6">
             {successMsg && <div className="p-3 bg-emerald-50 text-emerald-700 text-sm rounded-md border border-emerald-100">{successMsg}</div>}
             {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md border border-red-100">{error}</div>}
-            
+
             <div className="space-y-3">
               <label className="block text-sm font-bold text-secondary-700">Verification Code</label>
               <OtpInput value={otp} onChange={setOtp} length={6} disabled={isLoading} />
@@ -215,7 +225,7 @@ const ForgotPassword = () => {
                 Resend code in <Countdown seconds={cooldown} onComplete={() => setCooldown(0)} />
               </span>
             ) : (
-              <button 
+              <button
                 onClick={handleResend}
                 disabled={isLoading}
                 className="text-brand-600 hover:text-brand-700 font-bold disabled:opacity-50 transition-colors"

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Code2, AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
+import { X, Plus, Trash2, Code2, AlertCircle, Check, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Button from './ui/Button';
 
 const AVAILABLE_LANGUAGES = [
@@ -168,11 +168,11 @@ const CodingProblemModal = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col my-auto border border-secondary-200 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-secondary-200 bg-secondary-50/50 rounded-t-3xl">
+        <div className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-secondary-200 bg-white rounded-t-3xl shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-[#362E20] text-amber-300 flex items-center justify-center shadow-sm">
               <Code2 className="w-5 h-5" />
@@ -507,8 +507,10 @@ const CodingProblemModal = ({
 
           </div>
 
+
+
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-secondary-200 bg-secondary-50/50 flex justify-between items-center rounded-b-3xl">
+          <div className="relative z-10 px-6 py-4 border-t border-secondary-200 bg-white flex justify-between items-center rounded-b-3xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
             <button
               type="button"
               onClick={onClose}

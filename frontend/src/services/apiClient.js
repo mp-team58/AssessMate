@@ -22,7 +22,7 @@ const createApiClient = (baseUrl) => {
 
     // Request Interceptor Logic: Add Auth Token
     const token = localStorage.getItem('token');
-    const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register');
+    const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') || endpoint.includes('/auth/forgot-password');
     const isTemplateEndpoint = endpoint.includes('/questions/excel/template');
 
     if (token && token !== 'null' && token !== 'undefined' && !getHeader('authorization') && !isAuthEndpoint && !isTemplateEndpoint) {

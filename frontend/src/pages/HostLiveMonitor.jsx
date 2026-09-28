@@ -116,7 +116,7 @@ const HostLiveMonitor = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <Link to={`/host/manage`} className="inline-flex items-center text-sm font-semibold text-secondary-500 hover:text-brand-600 mb-2 transition-colors">
+          <Link to={`/host/exams/${id}/manage`} className="inline-flex items-center text-sm font-semibold text-secondary-500 hover:text-brand-600 mb-2 transition-colors">
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to Exams
           </Link>

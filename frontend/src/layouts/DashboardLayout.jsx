@@ -16,7 +16,6 @@ const DashboardLayout = () => {
 
   const navItems = [
     { name: 'Dashboard', path: '/host/dashboard', icon: LayoutDashboard },
-    { name: 'Analytics', path: '/host/analytics', icon: BarChart3 },
     { name: 'My Exams', path: '/host/my-exams', icon: FileText },
     { name: 'Create Exam', path: '/host/create-exam', icon: FileText },
     { name: 'Question Bank', path: '/host/question-bank', icon: BookOpenCheck },
@@ -103,11 +102,11 @@ const DashboardLayout = () => {
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative h-full">
+      <main id="app-scroll-container" className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative h-full">
         <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-[#DEC430] rounded-full blur-[140px] opacity-10 pointer-events-none"></div>
         <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-500 rounded-full blur-[140px] opacity-10 pointer-events-none"></div>
         
-        <div className="flex-1 p-6 md:p-8 lg:p-10 z-10 w-full max-w-[1600px] mx-auto">
+        <div className="flex-1 p-4 md:p-6 lg:p-8 z-10 w-full">
           <Outlet />
         </div>
       </main>

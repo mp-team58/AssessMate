@@ -328,7 +328,17 @@ const QuestionBank = () => {
     try {
       const res = await getCodingBank();
       const list = res.data || res || [];
-      setCodingProblems(Array.isArray(list) ? list : []);
+      setCodingProblems(Array.isArray(list) ? list.map(p => {
+        let langs = p.allowedLanguages;
+        if (typeof langs === 'string') {
+          try { langs = JSON.parse(langs); } catch(e) { langs = langs.split(',').map(s=>s.trim()); }
+        }
+        let tcs = p.testCases;
+        if (typeof tcs === 'string') {
+          try { tcs = JSON.parse(tcs); } catch(e) { tcs = []; }
+        }
+        return { ...p, allowedLanguages: Array.isArray(langs) ? langs : [], testCases: Array.isArray(tcs) ? tcs : [] };
+      }) : []);
     } catch (error) {
       console.error('Failed to fetch coding bank', error);
     } finally {
@@ -705,6 +715,7 @@ const QuestionBank = () => {
 
             <div className="p-6 overflow-y-auto">
               <QuestionForm
+                key={editingQuestion?.id || 'new'}
                 initialData={editingQuestion}
                 onSubmit={editingQuestion ? handleEditSubmit : handleAddSubmit}
                 onCancel={() => { setIsModalOpen(false); setEditingQuestion(null); }}

@@ -84,9 +84,9 @@ const Login = () => {
             error={errors.password}
           />
           <div className="flex justify-end mt-1">
-            <a href="#" className="text-sm text-brand-600 hover:text-brand-500 font-medium">
+            <Link to="/forgot-password" className="text-sm text-brand-600 hover:text-brand-500 font-medium">
               Forgot your password?
-            </a>
+            </Link>
           </div>
         </div>
 

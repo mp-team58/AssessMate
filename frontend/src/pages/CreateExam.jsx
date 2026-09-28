@@ -265,12 +265,7 @@ const CreateExam = () => {
   return (
     <div className="w-full h-full font-sans relative z-10 flex flex-col">
       <header className="mb-8">
-        <button onClick={() => isEditMode ? navigate(`/host/exams/${id}/manage`) : navigate('/host/dashboard')} className="text-brand-600 hover:text-brand-700 mb-4 flex items-center gap-2 font-bold text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          {isEditMode ? 'Back to Exam Details' : 'Back to Dashboard'}
-        </button>
+
         <h1 className="text-3xl md:text-4xl font-extrabold text-secondary-800 tracking-tight">{isEditMode ? 'Edit Exam' : 'Create New Exam'}</h1>
         <p className="text-secondary-500 mt-2 text-lg">{isEditMode ? 'Update your assessment details and structure.' : 'Configure your assessment details and structure.'}</p>
       </header>
@@ -543,9 +538,9 @@ const CreateExam = () => {
                     Easy Questions
                   </h3>
                   <div className="space-y-4">
-                    <Input type="number" step="0.1" label="Marks" {...register('easyMark')} error={errors.easyMark} />
+                    <Input type="number" step="0.01" label="Marks" {...register('easyMark')} error={errors.easyMark} />
                     {negativeMarkEnabled && (
-                      <Input type="number" step="0.1" label="Negative Marks" {...register('easyNegative')} error={errors.easyNegative} />
+                      <Input type="number" step="0.01" label="Negative Marks" {...register('easyNegative')} error={errors.easyNegative} />
                     )}
                     {timerType === 'PER_QUESTION' && (
                       <Input type="number" label="Time (Seconds)" {...register('easySeconds')} error={errors.easySeconds} />
@@ -560,9 +555,9 @@ const CreateExam = () => {
                     Medium Questions
                   </h3>
                   <div className="space-y-4">
-                    <Input type="number" step="0.1" label="Marks" {...register('mediumMark')} error={errors.mediumMark} />
+                    <Input type="number" step="0.01" label="Marks" {...register('mediumMark')} error={errors.mediumMark} />
                     {negativeMarkEnabled && (
-                      <Input type="number" step="0.1" label="Negative Marks" {...register('mediumNegative')} error={errors.mediumNegative} />
+                      <Input type="number" step="0.01" label="Negative Marks" {...register('mediumNegative')} error={errors.mediumNegative} />
                     )}
                     {timerType === 'PER_QUESTION' && (
                       <Input type="number" label="Time (Seconds)" {...register('mediumSeconds')} error={errors.mediumSeconds} />
@@ -577,9 +572,9 @@ const CreateExam = () => {
                     Hard Questions
                   </h3>
                   <div className="space-y-4">
-                    <Input type="number" step="0.1" label="Marks" {...register('hardMark')} error={errors.hardMark} />
+                    <Input type="number" step="0.01" label="Marks" {...register('hardMark')} error={errors.hardMark} />
                     {negativeMarkEnabled && (
-                      <Input type="number" step="0.1" label="Negative Marks" {...register('hardNegative')} error={errors.hardNegative} />
+                      <Input type="number" step="0.01" label="Negative Marks" {...register('hardNegative')} error={errors.hardNegative} />
                     )}
                     {timerType === 'PER_QUESTION' && (
                       <Input type="number" label="Time (Seconds)" {...register('hardSeconds')} error={errors.hardSeconds} />

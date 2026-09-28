@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import * as tf from '@tensorflow/tfjs';
+import * as blazeface from '@tensorflow-models/blazeface';
+import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import {
   Clock,
   Shield,
@@ -22,37 +25,76 @@ import {
   FileCode,
   XCircle,
   Copy,
-  Info
+  Info,
+  Mic,
+  MicOff,
+  Volume2,
+  Lock,
+  ArrowRight,
+  Wifi,
+  WifiOff,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import {
   getExamQuestions,
+  getAssignedCodingProblems,
   logProctorEvent,
+  uploadProctorEvidence,
   submitExamAnswers,
   runCandidateCode,
   submitCandidateCode,
-  saveExamProgress
+  saveExamProgress,
+  getExamState
 } from '../services/candidateService';
 
 const STARTER_CODE = {
-  PYTHON: '# Write your Python 3 code here\ndef solution():\n    pass\n\nif __name__ == "__main__":\n    solution()\n',
+  PYTHON: '# Write your Python 3 solution here\ndef solution():\n    pass\n\nif __name__ == "__main__":\n    solution()\n',
   JAVA: 'import java.util.Scanner;\n\npublic class Solution {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Write your solution here\n    }\n}\n',
   CPP: '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write your C++ code here\n    return 0;\n}\n',
   C: '#include <stdio.h>\n\nint main() {\n    // Write your C code here\n    return 0;\n}\n',
-  JAVASCRIPT: '// Write your JavaScript solution here\nconst fs = require("fs");\n\nfunction main() {\n    // Read input if needed\n}\n\nmain();\n'
+  JAVASCRIPT: '// Write your JavaScript solution here\nconst fs = require("fs");\n\nfunction main() {\n    // Read input and compute solution\n}\n\nmain();\n'
 };
 
 const ActiveExam = () => {
   const { enrollmentId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Load Exam Configuration
+  const [examConfig] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem(`exam_config_${enrollmentId}`);
+      return stored ? JSON.parse(stored) : null;
+    } catch (_) {
+      return null;
+    }
+  });
+
+  // Flow Stages:
+  // 1. Permission Gate (permissionState: 'CHECKING' | 'GRANTED' | 'DENIED')
+  // 2. Model Loading (modelsLoading: boolean)
+  // 3. Exam Active
+  const [permissionState, setPermissionState] = useState('CHECKING');
+  const [modelsLoading, setModelsLoading] = useState(true);
+  const [modelLoadStep, setModelLoadStep] = useState('Initializing AI Proctor engine...');
+
+  // Network Offline / Online State
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+  const [showReconnectedToast, setShowReconnectedToast] = useState(false);
 
   // Exam Data State
   const [examData, setExamData] = useState(null);
+  const [questionsList, setQuestionsList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
   // Assessment Progress State
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState({}); // { [questionId]: "A" | "A,B" | "text" | code }
+  const [answers, setAnswers] = useState({}); // { [questionKey]: "A" | "A,B" | "text" | code }
+  const answersRef = useRef({});
+  answersRef.current = answers;
+
   const [flaggedQuestions, setFlaggedQuestions] = useState(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -60,7 +102,11 @@ const ActiveExam = () => {
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [screenshotWarning, setScreenshotWarning] = useState(false);
 
-  // Coding Question Workspace State
+  // Backend / Violation Termination State
+  const [backendTerminated, setBackendTerminated] = useState(false);
+  const [terminationReason, setTerminationReason] = useState('');
+
+  // Coding Workspace State
   const [codeLanguage, setCodeLanguage] = useState('PYTHON');
   const [customInput, setCustomInput] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
@@ -69,56 +115,486 @@ const ActiveExam = () => {
   const [isSubmittingCode, setIsSubmittingCode] = useState(false);
   const [codeSubmitResult, setCodeSubmitResult] = useState(null);
 
-  // Overall Timer State
+  // Timers State
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(null);
   const timerRef = useRef(null);
-
-  // Per-Question Timer State
   const [questionTimeLeft, setQuestionTimeLeft] = useState(null);
   const questionTimerRef = useRef(null);
+  const statePollRef = useRef(null);
 
-  // Proctoring State & Refs
+  // Proctoring & Media Streams State
   const [proctorWarnings, setProctorWarnings] = useState([]);
-  const [isFullscreen, setIsFullscreen] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
   const [webcamActive, setWebcamActive] = useState(false);
-  const [faceStatus, setFaceStatus] = useState('CHECKING'); // 'VERIFIED' | 'NO_FACE' | 'MULTIPLE_FACES' | 'CHECKING'
-  const videoRef = useRef(null);
-  const tabHiddenTimeRef = useRef(null);
-  const hasAutoSubmittedRef = useRef(false);
+  const [micActive, setMicActive] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [faceStatus, setFaceStatus] = useState('CHECKING'); // 'VERIFIED' | 'STANDBY'
 
-  // 1. Fetch Exam & Questions
+  // Tab Switch Counter
+  const tabSwitchCountRef = useRef(0);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+
+  // Refs for AI Models & Media
+  const hiddenVideoRef = useRef(null);
+  const previewVideoRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const audioAnalyserRef = useRef(null);
+  const audioIntervalRef = useRef(null);
+  const detectionIntervalRef = useRef(null);
+  const isDetectingRef = useRef(false);
+  const isRecordingAudioRef = useRef(false);
+  const lastCooldownRef = useRef({}); // { [eventType]: timestamp }
+
+  // TensorFlow Model Refs
+  const blazefaceModelRef = useRef(null);
+  const cocoSsdModelRef = useRef(null);
+
+  const tabHiddenTimeRef = useRef(null);
+  const hasSubmittedRef = useRef(false);
+
+  // Max Tab Switches Allowed
+  const maxAllowedTabSwitches = examConfig?.maxTabSwitches ?? 3;
+
+  // Universal Teardown: ONLY called upon final submission / termination
+  const performFinalTeardown = useCallback(() => {
+    // 1. Clear Timers & Polling
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (questionTimerRef.current) {
+      clearInterval(questionTimerRef.current);
+      questionTimerRef.current = null;
+    }
+    if (statePollRef.current) {
+      clearInterval(statePollRef.current);
+      statePollRef.current = null;
+    }
+    if (audioIntervalRef.current) {
+      clearInterval(audioIntervalRef.current);
+      audioIntervalRef.current = null;
+    }
+    if (detectionIntervalRef.current) {
+      clearInterval(detectionIntervalRef.current);
+      detectionIntervalRef.current = null;
+    }
+
+    // 2. Stop Media Streams
+    if (mediaStreamRef.current) {
+      try {
+        const tracks = mediaStreamRef.current.getTracks();
+        tracks.forEach((track) => track.stop());
+      } catch (_) {}
+      mediaStreamRef.current = null;
+    }
+
+    if (hiddenVideoRef.current && hiddenVideoRef.current.srcObject) {
+      try {
+        const tracks = hiddenVideoRef.current.srcObject.getTracks();
+        tracks.forEach((track) => track.stop());
+        hiddenVideoRef.current.srcObject = null;
+      } catch (_) {}
+    }
+
+    if (previewVideoRef.current && previewVideoRef.current.srcObject) {
+      try {
+        const tracks = previewVideoRef.current.srcObject.getTracks();
+        tracks.forEach((track) => track.stop());
+        previewVideoRef.current.srcObject = null;
+      } catch (_) {}
+    }
+
+    // 3. Close AudioContext
+    if (audioContextRef.current) {
+      try {
+        if (audioContextRef.current.state !== 'closed') {
+          audioContextRef.current.close();
+        }
+      } catch (_) {}
+      audioContextRef.current = null;
+    }
+
+    // 4. Exit Fullscreen on Final Submit
+    if (document.fullscreenElement) {
+      try {
+        document.exitFullscreen().catch(() => {});
+      } catch (_) {}
+    }
+
+    // 5. Clean localStorage timer
+    localStorage.removeItem(`exam_start_${enrollmentId}`);
+  }, [enrollmentId]);
+
+  const handleAutoTerminationRef = useRef(null);
+  const handleSubmitExamRef = useRef(null);
+
+  // Handle Immediate Exam Termination (Backend or Violation)
+  const handleAutoTermination = useCallback(
+    async (reason) => {
+      if (hasSubmittedRef.current) return;
+      hasSubmittedRef.current = true;
+      setIsSubmitting(true);
+
+      performFinalTeardown();
+
+      const finalReason = reason || 'Exam was automatically submitted by the system.';
+      setTerminationReason(finalReason);
+      setBackendTerminated(true);
+
+      // Submit existing candidate responses to save their progress
+      try {
+        const currentAns = answersRef.current || {};
+        const mcqAnswersOnly = {};
+        Object.entries(currentAns).forEach(([key, val]) => {
+          if (!String(key).startsWith('coding_')) {
+            mcqAnswersOnly[key] = val;
+          }
+        });
+        await submitExamAnswers(enrollmentId, mcqAnswersOnly);
+      } catch (_) {}
+    },
+    [performFinalTeardown, enrollmentId]
+  );
+
+  // Normal Candidate Submit Action
+  const handleSubmitExam = useCallback(async () => {
+    if (isSubmitting || hasSubmittedRef.current) return;
+    hasSubmittedRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      const currentAns = answersRef.current || {};
+      const mcqAnswersOnly = {};
+      Object.entries(currentAns).forEach(([key, val]) => {
+        if (!String(key).startsWith('coding_')) {
+          mcqAnswersOnly[key] = val;
+        }
+      });
+
+      performFinalTeardown();
+
+      await submitExamAnswers(enrollmentId, mcqAnswersOnly);
+
+      navigate(`/candidate/result/${enrollmentId}`);
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || 'Failed to submit exam answers.';
+      if (
+        errMsg.toLowerCase().includes('already submitted') ||
+        errMsg.toLowerCase().includes('expired') ||
+        errMsg.toLowerCase().includes('no longer open')
+      ) {
+        handleAutoTermination(errMsg);
+      } else {
+        alert(errMsg);
+        setIsSubmitting(false);
+        hasSubmittedRef.current = false;
+      }
+    }
+  }, [enrollmentId, isSubmitting, navigate, performFinalTeardown, handleAutoTermination]);
+
+  handleAutoTerminationRef.current = handleAutoTermination;
+  handleSubmitExamRef.current = handleSubmitExam;
+
+  // Centralized Send Proctor Log with Evidence & Auto-Submit Reaction
+  const sendProctorLog = useCallback(
+    async (eventType, details = '', imageUrl = null, audioUrl = null) => {
+      if (hasSubmittedRef.current) return;
+
+      // Anti-spam cooldown check (8 seconds per eventType)
+      const now = Date.now();
+      const lastTime = lastCooldownRef.current[eventType] || 0;
+      if (now - lastTime < 8000 && !['TAB_SWITCH', 'FULL_SCREEN_EXIT', 'NO_CAMERA', 'NO_MIC'].includes(eventType)) {
+        return;
+      }
+      lastCooldownRef.current[eventType] = now;
+
+      try {
+        const res = await logProctorEvent(enrollmentId, eventType, details, imageUrl, audioUrl);
+        if (res?.data?.autoSubmitted === true) {
+          handleAutoTerminationRef.current?.(
+            'Multiple proctoring violations were detected. Your exam has been automatically submitted.'
+          );
+        }
+      } catch (err) {
+        const msg = err.response?.data?.message || err.message || '';
+        if (
+          msg.toLowerCase().includes('not ongoing') ||
+          msg.toLowerCase().includes('already submitted') ||
+          msg.toLowerCase().includes('expired') ||
+          msg.toLowerCase().includes('no longer open')
+        ) {
+          handleAutoTerminationRef.current?.(msg || 'Your exam was automatically submitted.');
+        }
+      }
+    },
+    [enrollmentId]
+  );
+
+  // Helper to Capture Current Frame from hidden video and upload as evidence
+  const captureAndUploadEvidence = useCallback(async () => {
+    if (!hiddenVideoRef.current || hiddenVideoRef.current.readyState < 2) return null;
+    try {
+      const video = hiddenVideoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+      if (!blob) return null;
+
+      const uploadRes = await uploadProctorEvidence(blob, 'image');
+      return uploadRes?.data?.url || null;
+    } catch (err) {
+      console.warn('[Proctor Evidence Upload Error]:', err);
+      return null;
+    }
+  }, []);
+
+  // Network Offline / Online Monitor Listener
+  useEffect(() => {
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      setShowReconnectedToast(true);
+      setTimeout(() => setShowReconnectedToast(false), 4000);
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
+  // STEP A: Pre-Exam Permission Gate
+  const requestMediaPermissions = useCallback(async () => {
+    setPermissionState('CHECKING');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: true
+      });
+
+      mediaStreamRef.current = stream;
+
+      // Attach stream to hidden video & preview video
+      if (hiddenVideoRef.current) {
+        hiddenVideoRef.current.srcObject = stream;
+      }
+      if (previewVideoRef.current) {
+        previewVideoRef.current.srcObject = stream;
+      }
+
+      setWebcamActive(true);
+      setMicActive(true);
+      setPermissionState('GRANTED');
+
+      // Hardware Loss Mid-Exam Listeners (track.onended)
+      const videoTracks = stream.getVideoTracks();
+      const audioTracks = stream.getAudioTracks();
+
+      videoTracks.forEach((track) => {
+        track.addEventListener('ended', () => {
+          setWebcamActive(false);
+          sendProctorLog('NO_CAMERA', 'Camera track was lost or disconnected.');
+          setProctorWarnings((prev) => [
+            ...prev,
+            {
+              type: 'NO_CAMERA',
+              message: 'Camera feed disconnected! Please reconnect your camera immediately.',
+              timestamp: new Date()
+            }
+          ]);
+        });
+      });
+
+      audioTracks.forEach((track) => {
+        track.addEventListener('ended', () => {
+          setMicActive(false);
+          sendProctorLog('NO_MIC', 'Microphone track was lost or disconnected.');
+          setProctorWarnings((prev) => [
+            ...prev,
+            {
+              type: 'NO_MIC',
+              message: 'Microphone feed disconnected! Please reconnect your microphone.',
+              timestamp: new Date()
+            }
+          ]);
+        });
+      });
+    } catch (err) {
+      console.warn('[Permission Gate Denied]:', err);
+      setPermissionState('DENIED');
+      setWebcamActive(false);
+      setMicActive(false);
+    }
+  }, [sendProctorLog]);
+
+  // Initial Permission Request on Mount
+  useEffect(() => {
+    requestMediaPermissions();
+  }, [requestMediaPermissions]);
+
+  // STEP B: Load TensorFlow AI Models (blazeface + coco-ssd)
+  useEffect(() => {
+    if (permissionState !== 'GRANTED') return;
+    let isMounted = true;
+
+    const loadModels = async () => {
+      setModelsLoading(true);
+      try {
+        setModelLoadStep('Configuring WebGL acceleration...');
+        try {
+          await tf.setBackend('webgl');
+        } catch (_) {
+          await tf.setBackend('cpu');
+        }
+        await tf.ready();
+
+        if (!isMounted) return;
+        setModelLoadStep('Loading BlazeFace facial detection model...');
+        const faceModel = await blazeface.load();
+
+        if (!isMounted) return;
+        setModelLoadStep('Loading COCO-SSD object detection model...');
+        let objModel = null;
+        try {
+          objModel = await cocoSsd.load({ base: 'mobilenet_v2' });
+        } catch (_) {
+          objModel = await cocoSsd.load();
+        }
+
+        if (!isMounted) return;
+        blazefaceModelRef.current = faceModel;
+        cocoSsdModelRef.current = objModel;
+        setFaceStatus('VERIFIED');
+        setModelsLoading(false);
+      } catch (err) {
+        console.warn('[TensorFlow Models Load Warning]:', err);
+        if (isMounted) {
+          // Allow proceeding even if model load had a transient issue
+          setModelsLoading(false);
+        }
+      }
+    };
+
+    loadModels();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [permissionState]);
+
+  // 1. Fetch Exam, MCQ Questions, and Coding Problems (Runs ONCE per enrollmentId)
   useEffect(() => {
     let isMounted = true;
 
-    const fetchExam = async () => {
+    const fetchExamAndQuestions = async () => {
       setIsLoading(true);
       setError('');
       try {
+        // Fetch Primary Exam MCQ Questions
         const res = await getExamQuestions(enrollmentId);
         if (!isMounted) return;
 
         const data = res.data;
         setExamData(data);
 
-        // Prepopulate saved answers if any
-        if (data.questions && Array.isArray(data.questions)) {
-          const initialAnswers = {};
-          data.questions.forEach((q) => {
-            if (q.savedAnswer) {
-              initialAnswers[q.id] = q.savedAnswer;
+        // Prepopulate saved MCQ answers
+        const initialAnswers = {};
+        const mcqQuestions = (data.questions || []).map((q) => {
+          if (q.savedAnswer) {
+            initialAnswers[q.id] = q.savedAnswer;
+          }
+          return {
+            ...q,
+            isCoding: false
+          };
+        });
+
+        // Determine Exam ID for Coding Questions pool
+        const examIdFromUrl = searchParams.get('examId');
+        const examId =
+          examIdFromUrl ||
+          sessionStorage.getItem(`exam_id_${enrollmentId}`) ||
+          sessionStorage.getItem('currentExamId') ||
+          localStorage.getItem(`exam_id_${enrollmentId}`);
+
+        let codingProblems = [];
+        if (examId) {
+          try {
+            const codingRes = await getAssignedCodingProblems(examId);
+            if (codingRes.data && Array.isArray(codingRes.data)) {
+              codingProblems = codingRes.data.map((cp, idx) => {
+                const questionKey = `coding_${cp.id}`;
+                if (cp.savedCode) {
+                  initialAnswers[questionKey] = cp.savedCode;
+                }
+                let langs = cp.allowedLanguages;
+                if (typeof langs === 'string') {
+                  try { langs = JSON.parse(langs); } catch(e) { langs = langs.split(',').map(s=>s.trim()); }
+                }
+                let tcs = cp.testCases;
+                if (typeof tcs === 'string') {
+                  try { tcs = JSON.parse(tcs); } catch(e) { tcs = []; }
+                }
+                
+                return {
+                  id: questionKey,
+                  rawCodingId: cp.id,
+                  questionText: cp.title || `Coding Problem #${idx + 1}`,
+                  title: cp.title,
+                  description: cp.description,
+                  constraints: cp.constraints,
+                  sampleInput: cp.sampleInput,
+                  sampleOutput: cp.sampleOutput,
+                  explanation: cp.explanation,
+                  allowedLanguages: Array.isArray(langs) ? langs : ['PYTHON', 'JAVA', 'CPP', 'C', 'JAVASCRIPT'],
+                  timeLimitSeconds: cp.timeLimitSeconds || 2,
+                  memoryLimitMb: cp.memoryLimitMb || 256,
+                  marks: cp.marks || 10,
+                  negativeMarks: 0,
+                  type: 'CODING',
+                  isCoding: true,
+                  savedCode: cp.savedCode,
+                  savedLanguage: cp.savedLanguage,
+                  testCases: Array.isArray(tcs) ? tcs : []
+                };
+              });
+
+              // Restore candidate's preferred/saved language
+              const firstWithLang = codingProblems.find((cp) => cp.savedLanguage);
+              if (firstWithLang?.savedLanguage) {
+                setCodeLanguage(firstWithLang.savedLanguage);
+              }
             }
-          });
-          setAnswers(initialAnswers);
+          } catch (_) {
+            // No coding problems in pool
+          }
         }
 
-        // Initialize Timer from durationMinutes or remainingSeconds
+        const allQuestions = [...mcqQuestions, ...codingProblems];
+        if (!isMounted) return;
+
+        setQuestionsList(allQuestions);
+        setAnswers(initialAnswers);
+
+        // Initialize Timer
         const storageKey = `exam_start_${enrollmentId}`;
         const storedStartTime = localStorage.getItem(storageKey);
         const totalDurationSec = (data.durationMinutes || 60) * 60;
 
         let remainingSec = totalDurationSec;
         if (data.remainingSeconds !== undefined && data.remainingSeconds !== null) {
-          remainingSec = data.remainingSeconds;
+          remainingSec = Math.max(0, data.remainingSeconds);
         } else if (storedStartTime) {
           const elapsedSec = Math.floor((Date.now() - parseInt(storedStartTime, 10)) / 1000);
           remainingSec = Math.max(0, totalDurationSec - elapsedSec);
@@ -129,63 +605,40 @@ const ActiveExam = () => {
         setTimeLeftSeconds(remainingSec);
       } catch (err) {
         if (!isMounted) return;
-        setError(err.response?.data?.message || err.message || 'Failed to load exam questions');
+        const msg = err.response?.data?.message || err.message || 'Failed to load assessment data.';
+        if (
+          msg.toLowerCase().includes('already submitted') ||
+          msg.toLowerCase().includes('expired') ||
+          msg.toLowerCase().includes('no longer open')
+        ) {
+          handleAutoTermination(msg);
+        } else {
+          setError(msg);
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
     };
 
-    fetchExam();
+    fetchExamAndQuestions();
 
     return () => {
       isMounted = false;
     };
   }, [enrollmentId]);
 
-  // 2. Submit Action
-  const handleSubmitExam = useCallback(async () => {
-    if (isSubmitting || hasAutoSubmittedRef.current) return;
-    hasAutoSubmittedRef.current = true;
-    setIsSubmitting(true);
-
-    try {
-      localStorage.removeItem(`exam_start_${enrollmentId}`);
-
-      if (videoRef.current && videoRef.current.srcObject) {
-        const tracks = videoRef.current.srcObject.getTracks();
-        tracks.forEach((track) => track.stop());
-      }
-
-      await submitExamAnswers(enrollmentId, answers);
-
-      if (document.fullscreenElement) {
-        try {
-          await document.exitFullscreen();
-        } catch (_) {}
-      }
-
-      navigate(`/candidate/result/${enrollmentId}`);
-    } catch (err) {
-      alert(err.response?.data?.message || err.message || 'Failed to submit exam answers.');
-      setIsSubmitting(false);
-      hasAutoSubmittedRef.current = false;
-    }
-  }, [enrollmentId, answers, isSubmitting, navigate]);
-
-  // 3. Countdown Timer Hook (Overall)
+  // 2. Overall Countdown Timer Interval
   useEffect(() => {
-    if (timeLeftSeconds === null || isSubmitting) return;
-
-    if (timeLeftSeconds <= 0) {
-      handleSubmitExam();
+    if (timeLeftSeconds === null || isSubmitting || backendTerminated || permissionState !== 'GRANTED' || modelsLoading) {
       return;
     }
 
     timerRef.current = setInterval(() => {
       setTimeLeftSeconds((prev) => {
+        if (prev === null) return null;
         if (prev <= 1) {
           clearInterval(timerRef.current);
-          handleSubmitExam();
+          handleSubmitExamRef.current?.();
           return 0;
         }
         return prev - 1;
@@ -193,16 +646,21 @@ const ActiveExam = () => {
     }, 1000);
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
-  }, [timeLeftSeconds, isSubmitting, handleSubmitExam]);
+  }, [timeLeftSeconds !== null, isSubmitting, backendTerminated, permissionState, modelsLoading]);
 
-  // 4. Per-Question Timer Hook
+  // 3. Per-Question Timer Hook
   useEffect(() => {
-    if (!examData || !examData.questions || !examData.questions[currentIndex]) return;
+    if (!questionsList || !questionsList[currentIndex] || backendTerminated || isSubmitting || permissionState !== 'GRANTED' || modelsLoading) {
+      return;
+    }
 
-    const currentQ = examData.questions[currentIndex];
-    const qTimeSec = currentQ.timeSeconds || (examData.timerType === 'PER_QUESTION' ? 60 : null);
+    const currentQ = questionsList[currentIndex];
+    const qTimeSec = currentQ.timeSeconds || (examData?.timerType === 'PER_QUESTION' ? 60 : null);
 
     if (qTimeSec && qTimeSec > 0) {
       setQuestionTimeLeft(qTimeSec);
@@ -213,8 +671,7 @@ const ActiveExam = () => {
         setQuestionTimeLeft((prev) => {
           if (prev <= 1) {
             clearInterval(questionTimerRef.current);
-            // Auto-advance to next question or submit
-            if (currentIndex < examData.questions.length - 1) {
+            if (currentIndex < questionsList.length - 1) {
               setCurrentIndex((idx) => idx + 1);
             } else {
               setShowSubmitModal(true);
@@ -229,48 +686,233 @@ const ActiveExam = () => {
     }
 
     return () => {
-      if (questionTimerRef.current) clearInterval(questionTimerRef.current);
-    };
-  }, [currentIndex, examData]);
-
-  // 5. Context Lock & Anti-Cheat Event Listeners
-  useEffect(() => {
-    // Attempt fullscreen on mount
-    const enterFullscreen = async () => {
-      try {
-        if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
-          await document.documentElement.requestFullscreen();
-          setIsFullscreen(true);
-        }
-      } catch (err) {
-        console.warn('Fullscreen request dismissed:', err);
+      if (questionTimerRef.current) {
+        clearInterval(questionTimerRef.current);
+        questionTimerRef.current = null;
       }
     };
-    enterFullscreen();
+  }, [currentIndex, questionsList.length, backendTerminated, isSubmitting, permissionState, modelsLoading]);
 
-    // Webcam Setup
-    const currentVideo = videoRef.current;
-    const initWebcam = async () => {
+  // 4. Backend State Polling (Runs quietly in background)
+  useEffect(() => {
+    if (isSubmitting || backendTerminated || !enrollmentId || permissionState !== 'GRANTED' || modelsLoading) return;
+
+    statePollRef.current = setInterval(async () => {
       try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 320, height: 240 }
-          });
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            setWebcamActive(true);
-            setFaceStatus('VERIFIED');
+        const stateRes = await getExamState(enrollmentId);
+        if (stateRes.data) {
+          const { status, remainingSeconds } = stateRes.data;
+          if (status === 'SUBMITTED') {
+            handleAutoTerminationRef.current?.('Exam was submitted by the system.');
+          } else if (status === 'EXPIRED') {
+            handleAutoTerminationRef.current?.('Exam time limit expired on the server.');
+          } else if (remainingSeconds !== undefined && remainingSeconds !== null && remainingSeconds <= 0) {
+            handleAutoTerminationRef.current?.('Exam time limit expired.');
           }
         }
       } catch (err) {
-        console.warn('Webcam permission not granted:', err);
-        setWebcamActive(false);
-        setFaceStatus('NO_FACE');
+        const msg = err.response?.data?.message || '';
+        if (
+          msg.toLowerCase().includes('already submitted') ||
+          msg.toLowerCase().includes('expired') ||
+          msg.toLowerCase().includes('no longer open')
+        ) {
+          handleAutoTerminationRef.current?.(msg);
+        }
+      }
+    }, 6000);
+
+    return () => {
+      if (statePollRef.current) {
+        clearInterval(statePollRef.current);
+        statePollRef.current = null;
       }
     };
-    initWebcam();
+  }, [enrollmentId, isSubmitting, backendTerminated, permissionState, modelsLoading]);
 
-    // Browser Context Lock: Back navigation prevention
+  // 5. STEP C: Live Proctoring (Face & Object Detection Loop + Audio Pipeline)
+  useEffect(() => {
+    if (permissionState !== 'GRANTED' || modelsLoading || backendTerminated) return;
+
+    setIsFullscreen(!!document.fullscreenElement);
+
+    // 5.1 Web Audio API RMS Volume Monitor
+    if (mediaStreamRef.current) {
+      try {
+        const stream = mediaStreamRef.current;
+        const audioTracks = stream.getAudioTracks();
+
+        if (audioTracks.length > 0) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            const audioCtx = new AudioContextClass();
+            audioContextRef.current = audioCtx;
+
+            const source = audioCtx.createMediaStreamSource(stream);
+            const analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 2048;
+            analyser.smoothingTimeConstant = 0.8;
+            source.connect(analyser);
+            audioAnalyserRef.current = analyser;
+
+            const bufferLength = analyser.fftSize;
+            const timeDomainData = new Uint8Array(bufferLength);
+
+            audioIntervalRef.current = setInterval(async () => {
+              if (!audioAnalyserRef.current || hasSubmittedRef.current) return;
+              audioAnalyserRef.current.getByteTimeDomainData(timeDomainData);
+
+              let sumSquares = 0;
+              for (let i = 0; i < bufferLength; i++) {
+                const norm = (timeDomainData[i] - 128) / 128;
+                sumSquares += norm * norm;
+              }
+              const rms = Math.sqrt(sumSquares / bufferLength);
+              setAudioLevel(Math.min(100, Math.round(rms * 250)));
+
+              // RMS Threshold for Noise / Voice Activity (0.16)
+              if (rms > 0.16 && !isRecordingAudioRef.current) {
+                const now = Date.now();
+                const lastTime = lastCooldownRef.current['AUDIO_DETECTED'] || 0;
+                if (now - lastTime >= 8000) {
+                  isRecordingAudioRef.current = true;
+                  lastCooldownRef.current['AUDIO_DETECTED'] = now;
+
+                  try {
+                    const audioStream = new MediaStream(audioTracks);
+                    const recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+                    const audioChunks = [];
+
+                    recorder.ondataavailable = (e) => {
+                      if (e.data && e.data.size > 0) {
+                        audioChunks.push(e.data);
+                      }
+                    };
+
+                    recorder.onstop = async () => {
+                      isRecordingAudioRef.current = false;
+                      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                      try {
+                        const uploadRes = await uploadProctorEvidence(audioBlob, 'audio');
+                        const audioUrl = uploadRes?.data?.url || null;
+
+                        sendProctorLog('AUDIO_DETECTED', 'Speech or elevated ambient noise detected', null, audioUrl);
+
+                        setProctorWarnings((prev) => [
+                          ...prev,
+                          {
+                            type: 'AUDIO_DETECTED',
+                            message: 'Elevated noise / speech activity detected in your environment. Please maintain silence.',
+                            timestamp: new Date()
+                          }
+                        ]);
+                      } catch (err) {
+                        console.warn('[Audio Evidence Upload Error]:', err);
+                      }
+                    };
+
+                    recorder.start();
+                    setTimeout(() => {
+                      if (recorder.state === 'recording') {
+                        recorder.stop();
+                      }
+                    }, 3000);
+                  } catch (recErr) {
+                    isRecordingAudioRef.current = false;
+                    console.warn('[MediaRecorder Error]:', recErr);
+                  }
+                }
+              }
+            }, 200);
+          }
+        }
+      } catch (audioInitErr) {
+        console.warn('[Audio Init Error]:', audioInitErr);
+      }
+    }
+
+    // 5.2 4-Second Camera Pipeline (Face + Object Detection)
+    detectionIntervalRef.current = setInterval(async () => {
+      if (isDetectingRef.current || hasSubmittedRef.current) return;
+
+      const video = hiddenVideoRef.current || previewVideoRef.current;
+      if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+        return;
+      }
+
+      isDetectingRef.current = true;
+
+      try {
+        let faces = [];
+        if (blazefaceModelRef.current) {
+          faces = await blazefaceModelRef.current.estimateFaces(video, false);
+        }
+
+        let objects = [];
+        if (cocoSsdModelRef.current) {
+          objects = await cocoSsdModelRef.current.detect(video);
+        }
+
+        // Decision logic per spec
+        if (faces.length === 0) {
+          setFaceStatus('STANDBY');
+          const evidenceUrl = await captureAndUploadEvidence();
+          sendProctorLog('NO_FACE', 'No face detected in camera viewport', evidenceUrl, null);
+
+          setProctorWarnings((prev) => [
+            ...prev,
+            {
+              type: 'NO_FACE',
+              message: 'No face detected in camera view. Ensure your face is centered and clearly visible.',
+              timestamp: new Date()
+            }
+          ]);
+        } else if (faces.length > 1) {
+          setFaceStatus('VERIFIED');
+          const evidenceUrl = await captureAndUploadEvidence();
+          sendProctorLog('MULTIPLE_FACES', `Multiple faces detected in camera frame (${faces.length})`, evidenceUrl, null);
+
+          setProctorWarnings((prev) => [
+            ...prev,
+            {
+              type: 'MULTIPLE_FACES',
+              message: `Multiple people detected in view (${faces.length} faces). Only the candidate is permitted.`,
+              timestamp: new Date()
+            }
+          ]);
+        } else {
+          setFaceStatus('VERIFIED');
+        }
+
+        // Object Detection: phone, laptop, book
+        const suspiciousObjects = objects.filter((obj) => {
+          const label = String(obj.class).toLowerCase();
+          const isTargetClass = ['cell phone', 'phone', 'laptop', 'book'].includes(label);
+          return isTargetClass && obj.score >= 0.50;
+        });
+
+        if (suspiciousObjects.length > 0) {
+          const detectedNames = suspiciousObjects.map((o) => `${o.class} (${Math.round(o.score * 100)}%)`).join(', ');
+          const evidenceUrl = await captureAndUploadEvidence();
+          sendProctorLog('OBJECT_DETECTED', `Prohibited object(s) detected: ${detectedNames}`, evidenceUrl, null);
+
+          setProctorWarnings((prev) => [
+            ...prev,
+            {
+              type: 'OBJECT_DETECTED',
+              message: `Prohibited object detected in frame: ${detectedNames}. Remove all secondary devices.`,
+              timestamp: new Date()
+            }
+          ]);
+        }
+      } catch (detectErr) {
+        console.warn('[Detection Tick Warning]:', detectErr);
+      } finally {
+        isDetectingRef.current = false;
+      }
+    }, 4000);
+
+    // 5.3 Prevent Back Navigation
     window.history.pushState(null, '', window.location.href);
     const handlePopState = () => {
       window.history.pushState(null, '', window.location.href);
@@ -278,65 +920,63 @@ const ActiveExam = () => {
     };
     window.addEventListener('popstate', handlePopState);
 
-    // Tab Switch / Visibility Listener
+    // 5.4 Tab Switch / Visibility Change Guard
     const handleVisibilityChange = () => {
       if (document.hidden) {
         tabHiddenTimeRef.current = Date.now();
-      } else if (tabHiddenTimeRef.current) {
-        const awaySeconds = Math.max(1, Math.round((Date.now() - tabHiddenTimeRef.current) / 1000));
-        tabHiddenTimeRef.current = null;
+        tabSwitchCountRef.current += 1;
+        const count = tabSwitchCountRef.current;
+        setTabSwitchCount(count);
 
-        const details = `Candidate switched away from exam window for ${awaySeconds}s`;
-        logProctorEvent(enrollmentId, 'TAB_SWITCH', details);
+        sendProctorLog('TAB_SWITCH', `Candidate switched away from exam tab (Violation #${count})`);
 
-        setProctorWarnings((prev) => [
-          ...prev,
-          {
-            type: 'TAB_SWITCH',
-            message: `Tab Switch detected! Stay on this screen. (${awaySeconds}s)`,
-            timestamp: new Date()
-          }
-        ]);
+        const maxAllowed = examConfig?.maxTabSwitches ?? 3;
+        if (count >= maxAllowed) {
+          handleAutoTerminationRef.current?.(
+            `Maximum tab switch limit exceeded (${count} of ${maxAllowed} allowed). Exam automatically submitted due to proctoring violation.`
+          );
+        } else {
+          const remaining = maxAllowed - count;
+          setProctorWarnings((prev) => [
+            ...prev,
+            {
+              type: 'TAB_SWITCH',
+              message: `Tab Switch Violation (${count}/${maxAllowed})! Stay on this screen. ${remaining} more violation(s) will terminate the exam!`,
+              timestamp: new Date()
+            }
+          ]);
+        }
       }
     };
 
-    // Fullscreen Exit Listener
+    // 5.5 Fullscreen Exit Handler
     const handleFullscreenChange = () => {
       const inFullscreen = !!document.fullscreenElement;
       setIsFullscreen(inFullscreen);
 
-      if (!inFullscreen) {
-        logProctorEvent(enrollmentId, 'FULLSCREEN_EXIT', 'Candidate exited full screen mode');
-        setProctorWarnings((prev) => [
-          ...prev,
-          {
-            type: 'FULLSCREEN_EXIT',
-            message: 'Full screen exit detected! Please return to full screen mode.',
-            timestamp: new Date()
-          }
-        ]);
+      if (!inFullscreen && !hasSubmittedRef.current && !backendTerminated) {
+        sendProctorLog('FULL_SCREEN_EXIT', 'Candidate exited full screen mode');
+        handleAutoTerminationRef.current?.(
+          'Full-screen mode was exited. Your assessment has been automatically submitted.'
+        );
       }
     };
 
-    // Right-Click Context Menu Prevention
+    // 5.6 Right-Click Context Menu Prevention
     const handleContextMenu = (e) => {
       e.preventDefault();
-      logProctorEvent(enrollmentId, 'RIGHT_CLICK', 'Candidate attempted right-click context menu');
       return false;
     };
 
-    // Copy / Paste & PrintScreen Key Prevention
+    // 5.7 Copy / Paste / Screenshot Prevention
     const handleKeyDown = (e) => {
-      // PrintScreen key prevention
       if (e.key === 'PrintScreen') {
         e.preventDefault();
         setScreenshotWarning(true);
         setTimeout(() => setScreenshotWarning(false), 3500);
-        logProctorEvent(enrollmentId, 'SCREEN_SHARE_STOPPED', 'Screenshot key event detected');
         return false;
       }
 
-      // Check if target is inside code editor or text input (allow normal code editing)
       const isInputOrEditor =
         e.target.tagName === 'INPUT' ||
         e.target.tagName === 'TEXTAREA' ||
@@ -350,7 +990,7 @@ const ActiveExam = () => {
       }
     };
 
-    // Before Unload Warning
+    // 5.8 Before Unload Warning
     const handleBeforeUnload = (e) => {
       e.preventDefault();
       e.returnValue = 'Assessment in progress! Are you sure you want to exit?';
@@ -371,13 +1011,18 @@ const ActiveExam = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('beforeunload', handleBeforeUnload);
 
-      if (currentVideo && currentVideo.srcObject) {
-        const tracks = currentVideo.srcObject.getTracks();
-        tracks.forEach((t) => t.stop());
+      if (audioIntervalRef.current) {
+        clearInterval(audioIntervalRef.current);
+        audioIntervalRef.current = null;
+      }
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current);
+        detectionIntervalRef.current = null;
       }
     };
-  }, [enrollmentId]);
+  }, [permissionState, modelsLoading, backendTerminated, sendProctorLog, captureAndUploadEvidence, examConfig]);
 
+  // Request Fullscreen Button Handler
   const requestFullscreenAgain = async () => {
     try {
       if (document.documentElement.requestFullscreen) {
@@ -389,7 +1034,7 @@ const ActiveExam = () => {
     }
   };
 
-  // Answer modification handlers
+  // Answer Modification Handlers
   const handleSingleChoiceSelect = (questionId, optionKey) => {
     setAnswers((prev) => {
       const updated = { ...prev, [questionId]: optionKey };
@@ -420,7 +1065,9 @@ const ActiveExam = () => {
   const handleTextAnswerChange = (questionId, value) => {
     setAnswers((prev) => {
       const updated = { ...prev, [questionId]: value };
-      saveExamProgress(enrollmentId, updated).catch(() => {});
+      if (!String(questionId).startsWith('coding_')) {
+        saveExamProgress(enrollmentId, updated).catch(() => {});
+      }
       return updated;
     });
   };
@@ -429,7 +1076,9 @@ const ActiveExam = () => {
     setAnswers((prev) => {
       const copy = { ...prev };
       delete copy[questionId];
-      saveExamProgress(enrollmentId, copy).catch(() => {});
+      if (!String(questionId).startsWith('coding_')) {
+        saveExamProgress(enrollmentId, copy).catch(() => {});
+      }
       return copy;
     });
   };
@@ -447,23 +1096,25 @@ const ActiveExam = () => {
   };
 
   // Coding Question: Run Code Handler
-  const handleRunCandidateCode = async (questionId) => {
-    const currentCode = answers[questionId] || STARTER_CODE[codeLanguage] || '';
+  const handleRunCandidateCode = async (rawCodingId, questionKey) => {
+    const currentCode = answers[questionKey] || STARTER_CODE[codeLanguage] || '';
+    handleTextAnswerChange(questionKey, currentCode);
     setIsRunningCode(true);
     setRunResult(null);
 
     try {
       const res = await runCandidateCode({
-        codingQuestionId: questionId,
+        codingQuestionId: rawCodingId,
         language: codeLanguage,
         sourceCode: currentCode,
         customInput: showCustomInput ? customInput : ''
       });
       setRunResult(res.data);
     } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || 'Execution error.';
       setRunResult({
         status: 'EXECUTION_ERROR',
-        stderr: err.response?.data?.message || err.message || 'Execution failed.',
+        stderr: errMsg,
         passed: false
       });
     } finally {
@@ -472,23 +1123,25 @@ const ActiveExam = () => {
   };
 
   // Coding Question: Submit Code Solution Handler
-  const handleSubmitCandidateCode = async (questionId) => {
-    const currentCode = answers[questionId] || STARTER_CODE[codeLanguage] || '';
+  const handleSubmitCandidateCode = async (rawCodingId, questionKey) => {
+    const currentCode = answers[questionKey] || STARTER_CODE[codeLanguage] || '';
+    handleTextAnswerChange(questionKey, currentCode);
     setIsSubmittingCode(true);
     setCodeSubmitResult(null);
 
     try {
       const res = await submitCandidateCode({
         enrollmentId,
-        codingQuestionId: questionId,
+        codingQuestionId: rawCodingId,
         language: codeLanguage,
         sourceCode: currentCode
       });
       setCodeSubmitResult(res.data);
     } catch (err) {
+      const errMsg = err.response?.data?.message || err.message || 'Submission error.';
       setCodeSubmitResult({
         status: 'SUBMISSION_ERROR',
-        compileOutput: err.response?.data?.message || err.message || 'Code submission failed.'
+        compileOutput: errMsg
       });
     } finally {
       setIsSubmittingCode(false);
@@ -508,51 +1161,208 @@ const ActiveExam = () => {
       : `${pad(minutes)}:${pad(seconds)}`;
   };
 
-  if (isLoading) {
+  // STEP A: Permission Gate Screen (Blocking if Denied)
+  if (permissionState === 'DENIED') {
     return (
-      <div className="min-h-screen bg-[#F3EDE0] flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-12 h-12 border-4 border-brand-500/20 border-t-brand-600 rounded-full animate-spin mb-4" />
-        <h2 className="text-xl font-bold text-secondary-900">Preparing Your Assessment Environment</h2>
-        <p className="text-secondary-600 text-sm mt-1">Configuring anti-cheating monitor &amp; questions...</p>
-      </div>
-    );
-  }
+      <div className="min-h-screen bg-[#F3EDE0] flex items-center justify-center p-6 text-center select-none font-sans">
+        <div className="max-w-lg w-full bg-white p-8 md:p-10 rounded-3xl border border-secondary-200 shadow-2xl space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+            <Camera className="w-8 h-8" />
+          </div>
 
-  if (error || !examData || !examData.questions || examData.questions.length === 0) {
-    return (
-      <div className="min-h-screen bg-[#F3EDE0] flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-secondary-200 shadow-xl text-center space-y-4">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
-          <h2 className="text-xl font-bold text-secondary-900">Unable to Start Assessment</h2>
-          <p className="text-secondary-600 text-sm">{error || 'No questions available for this exam.'}</p>
-          <button
-            onClick={() => navigate('/candidate/dashboard')}
-            className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition-all shadow-md"
-          >
-            Return to Dashboard
-          </button>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-secondary-900 tracking-tight">
+              Hardware Permissions Required
+            </h2>
+            <p className="text-secondary-600 text-sm leading-relaxed">
+              AssessMate requires continuous webcam and microphone access during this assessment to ensure identity verification and proctoring compliance.
+            </p>
+          </div>
+
+          <div className="bg-secondary-50 p-4 rounded-2xl border border-secondary-200 text-left space-y-2 text-xs text-secondary-700">
+            <div className="flex items-center gap-2 font-bold text-secondary-900">
+              <Shield className="w-4 h-4 text-brand-600" />
+              <span>How to grant permission:</span>
+            </div>
+            <p>1. Click the camera icon in your browser address bar.</p>
+            <p>2. Select <strong>&quot;Allow&quot;</strong> for camera and microphone access.</p>
+            <p>3. Click the retry button below to start your exam.</p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/candidate/dashboard')}
+              className="flex-1 py-3 px-4 rounded-xl border border-secondary-300 text-secondary-700 font-bold text-sm hover:bg-secondary-50"
+            >
+              Back to Dashboard
+            </button>
+            <button
+              type="button"
+              onClick={requestMediaPermissions}
+              className="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Grant &amp; Retry</span>
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  const questions = examData.questions;
-  const currentQuestion = questions[currentIndex];
+  // STEP B: AI Models Loading Screen
+  if (permissionState === 'GRANTED' && modelsLoading) {
+    return (
+      <div className="min-h-screen bg-[#F3EDE0] flex flex-col items-center justify-center p-6 text-center select-none font-sans">
+        {/* Hidden video element keeping stream active for model warmup */}
+        <video
+          ref={hiddenVideoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none', top: '-9999px' }}
+        />
+
+        <div className="relative mb-6">
+          <div className="w-20 h-20 rounded-2xl bg-brand-500/15 border-2 border-brand-500/30 flex items-center justify-center animate-pulse">
+            <Shield className="w-10 h-10 text-brand-600 animate-spin" style={{ animationDuration: '6s' }} />
+          </div>
+          <div className="absolute -bottom-1 -right-1 p-1.5 bg-brand-600 rounded-lg text-white shadow-md">
+            <Sparkles className="w-3.5 h-3.5 animate-bounce" />
+          </div>
+        </div>
+
+        <h2 className="text-2xl font-extrabold text-secondary-900 tracking-tight mb-2">
+          Preparing Proctoring AI Engine
+        </h2>
+        <p className="text-secondary-600 text-sm max-w-md font-medium mb-4">
+          {modelLoadStep}
+        </p>
+
+        <div className="w-64 h-2 bg-secondary-200 rounded-full overflow-hidden">
+          <div className="h-full bg-brand-500 animate-pulse rounded-full w-4/5" />
+        </div>
+      </div>
+    );
+  }
+
+  // Data Loading Screen
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F3EDE0] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-12 h-12 border-4 border-brand-500/20 border-t-brand-600 rounded-full animate-spin mb-4" />
+        <h2 className="text-xl font-bold text-secondary-900">Preparing Your Assessment Environment</h2>
+        <p className="text-secondary-600 text-sm mt-1">Configuring examination questions...</p>
+      </div>
+    );
+  }
+
+  // Error Screen
+  if (error || !examData || questionsList.length === 0) {
+    if (!backendTerminated) {
+      return (
+        <div className="min-h-screen bg-[#F3EDE0] flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-secondary-200 shadow-xl text-center space-y-4">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
+            <h2 className="text-xl font-bold text-secondary-900">Unable to Start Assessment</h2>
+            <p className="text-secondary-600 text-sm">{error || 'No questions available for this exam.'}</p>
+            <button
+              onClick={() => navigate('/candidate/dashboard')}
+              className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition-all shadow-md"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  const currentQuestion = questionsList[currentIndex] || {};
   const currentAnswer = answers[currentQuestion.id] || '';
   const isCurrentFlagged = flaggedQuestions.has(currentQuestion.id);
 
   // Status computation for palette
   const answeredCount = Object.keys(answers).filter((k) => answers[k] !== undefined && answers[k] !== '').length;
   const flaggedCount = flaggedQuestions.size;
-  const remainingCount = questions.length - answeredCount;
+  const remainingCount = Math.max(0, questionsList.length - answeredCount);
 
   const isTimeUrgent = timeLeftSeconds !== null && timeLeftSeconds < 300;
 
   return (
     <div className="min-h-screen bg-[#F3EDE0] text-secondary-900 font-sans flex flex-col select-none relative overflow-x-hidden">
+      {/* Hidden continuous video element for AI detection pipeline */}
+      <video
+        ref={hiddenVideoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none', top: '-9999px' }}
+      />
+
       {/* Background Glowing Ambient Orbs */}
       <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-[#DEC430] rounded-full blur-[140px] opacity-10 pointer-events-none" />
       <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-500 rounded-full blur-[140px] opacity-10 pointer-events-none" />
+
+      {/* Network Disconnection Toast Banner */}
+      {!isOnline && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-red-400/30 animate-bounce">
+          <WifiOff className="w-5 h-5 text-white flex-shrink-0" />
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider">Network Disconnected</p>
+            <p className="text-xs text-white/90">Your progress is cached locally and will sync once reconnected.</p>
+          </div>
+        </div>
+      )}
+
+      {showReconnectedToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-emerald-400/30 animate-in fade-in slide-in-from-top-2">
+          <Wifi className="w-5 h-5 text-white flex-shrink-0" />
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider">Network Restored</p>
+            <p className="text-xs text-white/90">Your connection is back online and progress is synced.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Auto-Submit / Violation Termination Modal (Strict) */}
+      {backendTerminated && (
+        <div className="fixed inset-0 z-[100] bg-secondary-950/85 backdrop-blur-md flex items-center justify-center p-4 select-text">
+          <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center space-y-6 shadow-2xl border border-secondary-200 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
+              <Lock className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-secondary-900 tracking-tight">
+                Your Test Was Submitted Automatically
+              </h2>
+              <div className="bg-secondary-50 p-4 rounded-2xl border border-secondary-200 text-left space-y-1">
+                <span className="text-[11px] font-bold text-secondary-500 uppercase tracking-wider block">
+                  Submission Reason
+                </span>
+                <p className="text-sm font-semibold text-secondary-800 leading-relaxed">
+                  Reason: {terminationReason || 'Your exam was automatically submitted by the system.'}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-secondary-500 leading-relaxed">
+              All proctoring streams, questions, and timers have been terminated. You can now view your calculated evaluation report.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => navigate(`/candidate/result/${enrollmentId}`)}
+              className="w-full py-3.5 px-6 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
+            >
+              <span>View Assessment Results</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Screenshot Warning Toast */}
       {screenshotWarning && (
@@ -563,7 +1373,7 @@ const ActiveExam = () => {
       )}
 
       {/* Fullscreen Alert Banner */}
-      {!isFullscreen && (
+      {!isFullscreen && !backendTerminated && (
         <div className="bg-red-600 text-white py-2.5 px-4 text-center text-xs sm:text-sm font-semibold flex items-center justify-center gap-3 sticky top-0 z-50 animate-pulse">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>Full screen mode is required for proctoring compliance. Incident has been logged.</span>
@@ -586,14 +1396,14 @@ const ActiveExam = () => {
           <div>
             <span className="text-xl font-extrabold tracking-tight block leading-tight">AssessMate</span>
             <span className="text-xs text-brand-300 font-semibold uppercase truncate max-w-[200px] sm:max-w-xs block">
-              {examData.examTitle || 'Proctored Assessment'}
+              {examData?.examTitle || 'Proctored Assessment'}
             </span>
           </div>
         </div>
 
         {/* Dynamic Timers & Action Header */}
         <div className="flex items-center gap-3 sm:gap-5">
-          {/* Per-Question Timer (if enabled) */}
+          {/* Per-Question Timer */}
           {questionTimeLeft !== null && (
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-amber-950/70 border border-amber-500/50 text-amber-300 rounded-xl text-xs font-mono font-bold">
               <Clock className="w-3.5 h-3.5 text-amber-400" />
@@ -623,8 +1433,8 @@ const ActiveExam = () => {
 
           <button
             onClick={() => setShowSubmitModal(true)}
-            disabled={isSubmitting}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-md flex items-center gap-1.5"
+            disabled={isSubmitting || backendTerminated}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50"
           >
             <Send className="w-3.5 h-3.5" />
             <span>Submit</span>
@@ -641,9 +1451,15 @@ const ActiveExam = () => {
             <div className="flex items-center justify-between border-b border-secondary-100 pb-4 mb-6">
               <div className="flex items-center gap-3">
                 <span className="px-3 py-1 bg-brand-50 border border-brand-200 text-brand-800 rounded-xl text-xs font-extrabold">
-                  Question {currentIndex + 1} of {questions.length}
+                  Question {currentIndex + 1} of {questionsList.length}
                 </span>
-                <span className="text-xs font-semibold uppercase px-2.5 py-1 bg-secondary-100 text-secondary-700 rounded-lg">
+                <span
+                  className={`text-xs font-bold uppercase px-2.5 py-1 rounded-lg ${
+                    currentQuestion.type === 'CODING'
+                      ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                      : 'bg-secondary-100 text-secondary-700'
+                  }`}
+                >
                   {currentQuestion.type ? String(currentQuestion.type).replace('_', ' ') : 'MULTIPLE CHOICE'}
                 </span>
               </div>
@@ -675,6 +1491,32 @@ const ActiveExam = () => {
               <h2 className="text-lg md:text-xl font-bold text-secondary-900 leading-relaxed">
                 {currentQuestion.questionText}
               </h2>
+
+              {currentQuestion.description && currentQuestion.type === 'CODING' && (
+                <div className="mt-3 text-secondary-700 text-sm leading-relaxed whitespace-pre-line bg-secondary-50/70 p-4 rounded-2xl border border-secondary-200">
+                  {currentQuestion.description}
+                </div>
+              )}
+
+              {currentQuestion.constraints && currentQuestion.type === 'CODING' && (
+                <div className="mt-3 p-3 bg-amber-50/60 rounded-xl border border-amber-100 text-xs text-amber-900">
+                  <span className="font-bold uppercase tracking-wider text-[10px] text-amber-700 block mb-1">Constraints:</span>
+                  <pre className="font-mono whitespace-pre-wrap">{currentQuestion.constraints}</pre>
+                </div>
+              )}
+
+              {currentQuestion.sampleInput && currentQuestion.type === 'CODING' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 text-xs">
+                  <div className="p-3 bg-secondary-50 rounded-xl border border-secondary-200">
+                    <span className="font-bold uppercase tracking-wider text-[10px] text-secondary-500 block mb-1">Sample Input:</span>
+                    <pre className="font-mono bg-white p-2 rounded-lg border border-secondary-200 whitespace-pre-wrap">{currentQuestion.sampleInput}</pre>
+                  </div>
+                  <div className="p-3 bg-secondary-50 rounded-xl border border-secondary-200">
+                    <span className="font-bold uppercase tracking-wider text-[10px] text-secondary-500 block mb-1">Sample Output:</span>
+                    <pre className="font-mono bg-white p-2 rounded-lg border border-secondary-200 whitespace-pre-wrap">{currentQuestion.sampleOutput}</pre>
+                  </div>
+                </div>
+              )}
 
               {currentQuestion.imageUrl && (
                 <div className="mt-4 rounded-2xl overflow-hidden border border-secondary-200 max-h-72">
@@ -803,34 +1645,60 @@ const ActiveExam = () => {
               {/* Type: CODING Problem Workspace */}
               {currentQuestion.type === 'CODING' && (
                 <div className="space-y-4 pt-2">
-                  {/* Language Selector Toolbar */}
+                  {/* Language Selector Toolbar & Reset Button */}
                   <div className="flex flex-wrap items-center justify-between gap-3 bg-secondary-900 text-white p-3 rounded-2xl">
-                    <div className="flex items-center gap-2">
-                      <Code2 className="w-4 h-4 text-brand-400" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Language:</span>
-                      <select
-                        value={codeLanguage}
-                        onChange={(e) => {
-                          const lang = e.target.value;
-                          setCodeLanguage(lang);
-                          if (!currentAnswer) {
-                            handleTextAnswerChange(currentQuestion.id, STARTER_CODE[lang] || '');
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <Code2 className="w-4 h-4 text-brand-400" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Language:</span>
+                        <select
+                          value={codeLanguage}
+                          onChange={(e) => {
+                            const lang = e.target.value;
+                            setCodeLanguage(lang);
+                            if (!currentAnswer) {
+                              handleTextAnswerChange(currentQuestion.id, STARTER_CODE[lang] || '');
+                            }
+                          }}
+                          className="bg-secondary-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        >
+                          {(currentQuestion.allowedLanguages || ['PYTHON', 'JAVA', 'CPP', 'C', 'JAVASCRIPT']).map((lang) => (
+                            <option key={lang} value={lang}>
+                              {lang === 'PYTHON'
+                                ? 'Python 3'
+                                : lang === 'JAVA'
+                                ? 'Java (OpenJDK)'
+                                : lang === 'CPP'
+                                ? 'C++ (GCC)'
+                                : lang === 'C'
+                                ? 'C (GCC)'
+                                : 'JavaScript (Node.js)'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Coding Editor "Reset to Template" Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('Reset code for this question back to the initial starter template? Your current edits will be replaced.')) {
+                            const template = STARTER_CODE[codeLanguage] || '';
+                            handleTextAnswerChange(currentQuestion.id, template);
                           }
                         }}
-                        className="bg-secondary-800 text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-secondary-300 hover:text-white bg-secondary-800 hover:bg-secondary-700 rounded-lg transition-colors border border-secondary-700"
+                        title="Reset code to starter template"
                       >
-                        <option value="PYTHON">Python 3</option>
-                        <option value="JAVA">Java (OpenJDK)</option>
-                        <option value="CPP">C++ (GCC)</option>
-                        <option value="C">C (GCC)</option>
-                        <option value="JAVASCRIPT">JavaScript (Node.js)</option>
-                      </select>
+                        <RotateCcw className="w-3.5 h-3.5 text-brand-400" />
+                        <span>Reset to Template</span>
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => handleRunCandidateCode(currentQuestion.id)}
+                        onClick={() => handleRunCandidateCode(currentQuestion.rawCodingId || currentQuestion.id, currentQuestion.id)}
                         disabled={isRunningCode}
                         className="px-3.5 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow"
                       >
@@ -844,7 +1712,7 @@ const ActiveExam = () => {
 
                       <button
                         type="button"
-                        onClick={() => handleSubmitCandidateCode(currentQuestion.id)}
+                        onClick={() => handleSubmitCandidateCode(currentQuestion.rawCodingId || currentQuestion.id, currentQuestion.id)}
                         disabled={isSubmittingCode}
                         className="px-3.5 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow"
                       >
@@ -858,7 +1726,7 @@ const ActiveExam = () => {
                     </div>
                   </div>
 
-                  {/* Code Area */}
+                  {/* Code Editor Area */}
                   <textarea
                     rows={12}
                     value={currentAnswer || STARTER_CODE[codeLanguage] || ''}
@@ -894,7 +1762,7 @@ const ActiveExam = () => {
                       <div className="flex items-center justify-between border-b border-secondary-800 pb-2">
                         <div className="flex items-center gap-2 font-bold text-white">
                           <Terminal className="w-4 h-4 text-brand-400" />
-                          <span>Console Output</span>
+                          <span>Execution Console Output</span>
                         </div>
                         {runResult?.status && (
                           <span
@@ -939,7 +1807,12 @@ const ActiveExam = () => {
                             Test cases passed: {codeSubmitResult.testCasesPassed ?? 0} / {codeSubmitResult.totalTestCases ?? 'all'}
                           </p>
                           {codeSubmitResult.marksAwarded !== undefined && (
-                            <p className="text-brand-300">Marks Awarded: {codeSubmitResult.marksAwarded} pts</p>
+                            <p className="text-brand-300 font-bold">Marks Awarded: {codeSubmitResult.marksAwarded} pts</p>
+                          )}
+                          {codeSubmitResult.compileOutput && (
+                            <pre className="p-2 bg-secondary-950 rounded-lg text-amber-300 whitespace-pre-wrap text-[11px]">
+                              {codeSubmitResult.compileOutput}
+                            </pre>
                           )}
                         </div>
                       )}
@@ -949,12 +1822,12 @@ const ActiveExam = () => {
               )}
             </div>
 
-            {/* Bottom Actions Bar */}
+            {/* Bottom Navigation & Action Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-secondary-100 pt-6">
               <button
                 type="button"
                 onClick={() => handleClearAnswer(currentQuestion.id)}
-                disabled={!currentAnswer}
+                disabled={!currentAnswer || currentQuestion.type === 'CODING'}
                 className="px-4 py-2.5 rounded-xl border border-secondary-200 text-secondary-600 hover:text-secondary-900 hover:bg-secondary-100 disabled:opacity-40 text-xs font-bold transition-all flex items-center gap-1.5"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -972,10 +1845,10 @@ const ActiveExam = () => {
                   <span>Previous</span>
                 </button>
 
-                {currentIndex < questions.length - 1 ? (
+                {currentIndex < questionsList.length - 1 ? (
                   <button
                     type="button"
-                    onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
+                    onClick={() => setCurrentIndex((prev) => Math.min(questionsList.length - 1, prev + 1))}
                     className="px-6 py-2.5 bg-secondary-900 hover:bg-secondary-800 text-[#F3EDE0] font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center gap-1.5"
                   >
                     <span>Next</span>
@@ -1007,22 +1880,39 @@ const ActiveExam = () => {
                   AI Proctor Guard
                 </span>
               </div>
-              <span
-                className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                  webcamActive
-                    ? 'bg-green-50 text-green-700 border-green-200'
-                    : 'bg-amber-50 text-amber-700 border-amber-200'
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${webcamActive ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
-                {webcamActive ? 'Active' : 'Standby'}
-              </span>
+              <div className="flex items-center gap-2">
+                {/* Audio Activity Sensor Indicator */}
+                <span
+                  className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    micActive
+                      ? audioLevel > 40
+                        ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-secondary-100 text-secondary-600 border-secondary-200'
+                  }`}
+                  title={micActive ? `Microphone Active (Activity Level: ${audioLevel})` : 'Microphone Standby'}
+                >
+                  {micActive ? <Volume2 className="w-3 h-3 text-emerald-600" /> : <MicOff className="w-3 h-3 text-secondary-400" />}
+                  <span>{micActive ? (audioLevel > 40 ? 'Voice Detected' : 'Mic Active') : 'Mic Off'}</span>
+                </span>
+
+                <span
+                  className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                    webcamActive
+                      ? 'bg-green-50 text-green-700 border-green-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${webcamActive ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
+                  {webcamActive ? 'Active' : 'Standby'}
+                </span>
+              </div>
             </div>
 
             {/* Camera Video Stream Preview */}
             <div className="relative rounded-2xl overflow-hidden bg-secondary-900 aspect-video flex items-center justify-center border border-secondary-700">
               <video
-                ref={videoRef}
+                ref={previewVideoRef}
                 autoPlay
                 playsInline
                 muted
@@ -1038,6 +1928,22 @@ const ActiveExam = () => {
                 <Eye className="w-3 h-3 text-green-400" />
                 <span>{faceStatus === 'VERIFIED' ? 'Face Verified' : 'Proctor Active'}</span>
               </div>
+            </div>
+
+            {/* Tab Switch & Violation Summary */}
+            <div className="p-3 bg-secondary-50 border border-secondary-200 rounded-xl flex items-center justify-between text-xs font-semibold">
+              <span className="text-secondary-600">Tab Switch Violations:</span>
+              <span
+                className={`px-2 py-0.5 rounded-md font-bold ${
+                  tabSwitchCount === 0
+                    ? 'bg-green-100 text-green-800'
+                    : tabSwitchCount >= maxAllowedTabSwitches
+                    ? 'bg-red-100 text-red-800 font-black'
+                    : 'bg-amber-100 text-amber-800'
+                }`}
+              >
+                {tabSwitchCount} / {maxAllowedTabSwitches} Allowed
+              </span>
             </div>
 
             {/* Warnings Log Summary */}
@@ -1059,7 +1965,7 @@ const ActiveExam = () => {
             <div className="flex items-center justify-between border-b border-secondary-100 pb-3">
               <h3 className="text-xs font-black text-secondary-900 uppercase tracking-wider">Question Map</h3>
               <span className="text-xs font-bold text-secondary-500">
-                {answeredCount}/{questions.length} Answered
+                {answeredCount}/{questionsList.length} Answered
               </span>
             </div>
 
@@ -1085,7 +1991,7 @@ const ActiveExam = () => {
 
             {/* Questions Grid */}
             <div className="grid grid-cols-5 gap-2.5 pt-2 max-h-64 overflow-y-auto pr-1">
-              {questions.map((q, idx) => {
+              {questionsList.map((q, idx) => {
                 const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                 const isFlagged = flaggedQuestions.has(q.id);
                 const isCurrent = currentIndex === idx;
@@ -1107,6 +2013,9 @@ const ActiveExam = () => {
                     className={`h-10 rounded-xl text-xs sm:text-sm transition-all relative flex items-center justify-center ${btnStyle}`}
                   >
                     <span>{idx + 1}</span>
+                    {q.type === 'CODING' && (
+                      <span className="absolute bottom-0.5 right-0.5 text-[8px] font-mono text-purple-600 font-black">{'</>'}</span>
+                    )}
                     {isFlagged && isAnswered && (
                       <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-300" />
                     )}
@@ -1136,10 +2045,11 @@ const ActiveExam = () => {
             </div>
 
             <div className="space-y-3 text-xs text-secondary-600 leading-relaxed max-h-80 overflow-y-auto pr-1">
-              <p>• <strong>Full-Screen Enforced:</strong> Maintain full-screen mode throughout testing.</p>
-              <p>• <strong>No Tab Switching:</strong> Navigating away from this window triggers proctor violations.</p>
-              <p>• <strong>Timer &amp; Auto-Submit:</strong> When the countdown reaches zero, all answers auto-submit.</p>
-              <p>• <strong>Coding Questions:</strong> Use the &quot;Run Code&quot; button to test with sample inputs before final submission.</p>
+              <p>• <strong>Full-Screen Enforced:</strong> Maintain full-screen mode throughout testing. Exits are monitored.</p>
+              <p>• <strong>Strict Tab Switch Limit:</strong> You are allowed a maximum of <strong>{maxAllowedTabSwitches}</strong> tab switches before the test is automatically submitted.</p>
+              <p>• <strong>Audio &amp; Mic Monitoring:</strong> Ambient noise and speech activity are detected in real-time.</p>
+              <p>• <strong>Timer &amp; Auto-Submit:</strong> When the countdown reaches zero, all answers auto-submit immediately.</p>
+              <p>• <strong>Coding Questions:</strong> Use &quot;Run Code&quot; to test with sample inputs before clicking &quot;Submit Solution&quot;.</p>
               <p>• <strong>AI Diagnostic Feedback:</strong> Personalized insights from Gemini AI are delivered immediately upon completion.</p>
             </div>
 

@@ -53,44 +53,84 @@ export const loginCandidate = async (payload) => {
 };
 
 /**
- * Sign up a Host
- * @param {SignupPayload} payload 
+ * Unified OTP Request for Registration
+ * @param {SignupPayload & { role: string }} payload 
  * @returns {Promise<any>}
  */
-export const signupHost = async (payload) => {
-  return apiClient.post('/auth/register', {
-    name: payload.fullName,
-    email: payload.email,
-    password: payload.password,
-    role: 'HOST'
-  });
+export const requestRegisterOtp = async (payload) => {
+  if (payload.role === 'CANDIDATE') {
+    try {
+      return await candidateApiClient.post('/auth/register/request-otp', {
+        name: payload.fullName || payload.name,
+        email: payload.email,
+        password: payload.password,
+        role: payload.role
+      });
+    } catch (err) {
+      if (err.response?.status === 404) {
+        return await apiClient.post('/auth/register/request-otp', {
+          name: payload.fullName || payload.name,
+          email: payload.email,
+          password: payload.password,
+          role: payload.role
+        });
+      }
+      throw err;
+    }
+  } else {
+    return await apiClient.post('/auth/register/request-otp', {
+      name: payload.fullName || payload.name,
+      email: payload.email,
+      password: payload.password,
+      role: payload.role
+    });
+  }
 };
 
 /**
- * Sign up a Candidate
- * @param {SignupPayload} payload 
+ * Unified OTP Verify for Registration
+ * @param {{ email: string, otp: string }} payload 
  * @returns {Promise<any>}
  */
-export const signupCandidate = async (payload) => {
+export const verifyRegisterOtp = async (payload) => {
   try {
-    return await candidateApiClient.post('/auth/register', {
-      name: payload.fullName,
+    return await apiClient.post('/auth/register/verify-otp', {
       email: payload.email,
-      password: payload.password,
-      role: 'CANDIDATE'
+      otp: payload.otp
     });
   } catch (err) {
-    // If Candidate backend does not serve /auth/register, fallback to main backend
     if (err.response?.status === 404) {
-      return await apiClient.post('/auth/register', {
-        name: payload.fullName,
+      return await candidateApiClient.post('/auth/register/verify-otp', {
         email: payload.email,
-        password: payload.password,
-        role: 'CANDIDATE'
+        otp: payload.otp
       });
     }
     throw err;
   }
+};
+
+/**
+ * Request Password Reset OTP
+ * @param {{ email: string }} payload 
+ * @returns {Promise<any>}
+ */
+export const requestPasswordResetOtp = async (payload) => {
+  return apiClient.post('/auth/forgot-password/request-otp', {
+    email: payload.email
+  });
+};
+
+/**
+ * Reset Password
+ * @param {{ email: string, otp: string, newPassword: string }} payload 
+ * @returns {Promise<any>}
+ */
+export const resetPassword = async (payload) => {
+  return apiClient.post('/auth/forgot-password/reset', {
+    email: payload.email,
+    otp: payload.otp,
+    newPassword: payload.newPassword
+  });
 };
 
 /**

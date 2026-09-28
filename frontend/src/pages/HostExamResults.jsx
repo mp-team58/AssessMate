@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getExamResults } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
@@ -13,18 +13,40 @@ const HostExamResults = () => {
   const [results, setResults] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const intervalRef = useRef(null);
+
+  const fetchResults = async (isBackground = false) => {
+    try {
+      if (!isBackground && !results) setIsLoading(true);
+      const response = await getExamResults(id);
+      setResults(response.data);
+    } catch (error) {
+      if (!isBackground) showToast('Unable to load exam results. Please try again.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startPolling = () => {
+    stopPolling();
+    intervalRef.current = setInterval(() => {
+      fetchResults(true);
+    }, 6000);
+  };
+
+  const stopPolling = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
   useEffect(() => {
-    const fetchResults = async () => {
-      try {
-        const response = await getExamResults(id);
-        setResults(response.data);
-      } catch (error) {
-        showToast('Unable to load exam results. Please try again.', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchResults();
+    startPolling();
+    return () => {
+      stopPolling();
+    };
   }, [id, showToast]);
 
   if (isLoading) {
@@ -152,19 +174,25 @@ const HostExamResults = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-secondary-100">
-                {results.candidates.map((candidate) => (
+                {[...(results.candidates || [])].sort((a, b) => {
+                  const aDone = a.enrollmentStatus === 'SUBMITTED';
+                  const bDone = b.enrollmentStatus === 'SUBMITTED';
+                  if (aDone !== bDone) return aDone ? -1 : 1;
+                  if (!aDone) return 0;
+                  return (b.percentage ?? 0) - (a.percentage ?? 0);
+                }).map((candidate) => (
                   <tr key={candidate.enrollmentId} className="hover:bg-secondary-50 transition-colors">
                     <td className="p-4">
                       <div className="font-bold text-secondary-900">{candidate.candidateName}</div>
                       <div className="text-sm text-secondary-500">{candidate.candidateEmail}</div>
                     </td>
                     <td className="p-4">
-                      <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${candidate.enrollmentStatus === 'COMPLETED' ? 'bg-blue-100 text-blue-700' : 'bg-secondary-100 text-secondary-600'}`}>
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${candidate.enrollmentStatus === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' : 'bg-secondary-100 text-secondary-600'}`}>
                         {candidate.enrollmentStatus}
                       </span>
                     </td>
                     <td className="p-4">
-                      {candidate.enrollmentStatus === 'COMPLETED' ? (
+                      {candidate.enrollmentStatus === 'SUBMITTED' ? (
                         <>
                           <div className="font-bold text-secondary-900">{candidate.totalScore} / {candidate.maxScore}</div>
                           <div className="text-sm text-secondary-500">{Math.round(candidate.percentage)}%</div>
@@ -174,7 +202,7 @@ const HostExamResults = () => {
                       )}
                     </td>
                     <td className="p-4">
-                      {candidate.enrollmentStatus === 'COMPLETED' ? (
+                      {candidate.enrollmentStatus === 'SUBMITTED' ? (
                         candidate.passed ? (
                           <span className="flex items-center gap-1 text-emerald-600 font-bold text-sm">
                             <CheckCircle className="w-4 h-4" /> Passed
@@ -202,7 +230,7 @@ const HostExamResults = () => {
                       )}
                     </td>
                     <td className="p-4 text-right">
-                      {candidate.enrollmentStatus === 'COMPLETED' && (
+                      {candidate.enrollmentStatus === 'SUBMITTED' && (
                         <Link to={`/host/exams/${id}/results/${candidate.enrollmentId}`}>
                           <Button variant="outline" className="px-4 py-1.5 text-sm h-auto bg-white hover:bg-brand-50 border-secondary-300 text-brand-700 shadow-sm">
                             View Report

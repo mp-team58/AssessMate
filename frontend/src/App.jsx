@@ -2,8 +2,8 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
 import HostDashboard from './pages/HostDashboard';
-import HostAnalytics from './pages/HostAnalytics';
 import HostExamResults from './pages/HostExamResults';
 import HostCandidateReport from './pages/HostCandidateReport';
 import HostProctoring from './pages/HostProctoring';
@@ -26,19 +26,28 @@ import CandidateProfile from './pages/CandidateProfile';
 import JoinAssessment from './pages/JoinAssessment';
 import ActiveExam from './pages/ActiveExam';
 import ExamResult from './pages/ExamResult';
+import { useLocation } from 'react-router-dom';
+import { scrollAppToTop } from './utils/scroll';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  React.useEffect(() => { scrollAppToTop(); }, [pathname]);
+  return null;
+}
 
 function App() {
   return (
     <ToastProvider>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       
       {/* Protected Routes (Role based protection will be added later) */}
       <Route element={<DashboardLayout />}>
         <Route path="/host/dashboard" element={<HostDashboard />} />
-        <Route path="/host/analytics" element={<HostAnalytics />} />
         <Route path="/host/my-exams" element={<MyExams />} />
         <Route path="/host/exams/:id/manage" element={<ManageExam />} />
         <Route path="/host/exams/:id/results" element={<HostExamResults />} />

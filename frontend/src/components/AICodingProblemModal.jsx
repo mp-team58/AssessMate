@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   X, Sparkles, Settings, Wand2, Plus, Trash2, 
-  ChevronDown, ChevronUp, AlertTriangle, Eye, EyeOff 
+  ChevronDown, ChevronUp, AlertTriangle, Eye, EyeOff, CheckCircle 
 } from 'lucide-react';
 import Button from './ui/Button';
 import Input from './ui/Input';
@@ -145,7 +145,7 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}

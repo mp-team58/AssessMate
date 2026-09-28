@@ -1,19 +1,19 @@
 import React, { useState, useRef } from 'react';
-import { 
-  Zap, 
-  FileText, 
-  Upload, 
-  AlertTriangle, 
+import {
+  Zap,
+  FileText,
+  Upload,
+  AlertTriangle,
   CheckCircle,
   X,
   Loader2
 } from 'lucide-react';
 import Button from './ui/Button';
 import QuestionCard from './QuestionCard';
-import { 
-  generateQuestionsFromTopic, 
-  generateQuestionsFromText, 
-  generateQuestionsFromFile 
+import {
+  generateQuestionsFromTopic,
+  generateQuestionsFromText,
+  generateQuestionsFromFile
 } from '../services/aiQuestionService';
 
 const ALLOWED_FILE_EXTENSIONS = ['pdf', 'pptx', 'docx', 'jpg', 'jpeg', 'png'];
@@ -174,7 +174,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           file: selectedAiFile,
         });
       }
-      
+
       const responseData = response.data || response;
       setGenerationResult(responseData);
       onGenerationSuccess();
@@ -254,11 +254,11 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
             </p>
             <div className="space-y-4">
               {verifiedQuestions.map(q => (
-                <QuestionCard 
-                  key={q.id} 
-                  question={q} 
-                  onEdit={onEdit} 
-                  onDelete={onDelete} 
+                <QuestionCard
+                  key={q.id}
+                  question={q}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
                 />
               ))}
             </div>
@@ -276,11 +276,11 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
             </p>
             <div className="space-y-4">
               {unverifiedQuestions.map(q => (
-                <QuestionCard 
-                  key={q.id} 
-                  question={q} 
-                  onEdit={onEdit} 
-                  onDelete={onDelete} 
+                <QuestionCard
+                  key={q.id}
+                  question={q}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
                 />
               ))}
             </div>
@@ -327,11 +327,10 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
               key={mode.id}
               onClick={() => { setAiMode(mode.id); setGenerationError(""); setGenerationResult(null); }}
               disabled={isGenerating}
-              className={`px-6 py-2.5 rounded-xl font-bold transition-all text-sm ${
-                aiMode === mode.id 
-                  ? 'bg-white text-brand-700 shadow-sm border border-secondary-200/50 scale-100' 
+              className={`px-6 py-2.5 rounded-xl font-bold transition-all text-sm ${aiMode === mode.id
+                  ? 'bg-white text-brand-700 shadow-sm border border-secondary-200/50 scale-100'
                   : 'text-secondary-500 hover:text-secondary-900 hover:bg-secondary-200/50 border border-transparent scale-95'
-              } disabled:opacity-50`}
+                } disabled:opacity-50`}
             >
               {mode.label}
             </button>
@@ -347,7 +346,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
       )}
 
       {/* Form Area */}
-      <div className="flex flex-col gap-8 relative max-w-4xl mx-auto w-full">
+      <div className="flex flex-col gap-6 relative w-full">
         {isGenerating && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-xl">
             <Loader2 className="w-10 h-10 text-brand-600 animate-spin mb-4" />
@@ -356,7 +355,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           </div>
         )}
 
-        <div className="bg-secondary-50/50 rounded-3xl p-6 md:p-8 border border-secondary-200 space-y-6">
+        <div className="bg-white rounded-2xl p-6 md:p-8 border border-secondary-200 shadow-sm space-y-6">
           <h3 className="text-xs font-black text-secondary-500 uppercase tracking-widest mb-2 flex items-center gap-2">
             <span className="w-6 h-px bg-secondary-300"></span> Source Material
           </h3>
@@ -401,10 +400,10 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           {/* File Upload (File Mode) */}
           {aiMode === "FILE" && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Upload Source File *
+              <label className="block text-xs font-bold text-secondary-700 uppercase tracking-wider mb-2">
+                Upload Source File <span className="text-red-500">*</span>
               </label>
-              <div 
+              <div
                 className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors relative cursor-pointer
                   ${selectedAiFile ? 'border-brand-500 bg-brand-50' : 'border-gray-300 hover:border-brand-400 hover:bg-gray-50'}`}
                 onClick={() => { if (!selectedAiFile && !isGenerating) fileInputRef.current?.click(); }}
@@ -421,7 +420,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
                     <X className="w-5 h-5" />
                   </button>
                 )}
-                
+
                 <Upload className={`w-8 h-8 mx-auto mb-3 ${selectedAiFile ? 'text-brand-500' : 'text-gray-400'}`} />
                 {selectedAiFile ? (
                   <div>
@@ -448,7 +447,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           )}
         </div>
 
-        <div className="bg-secondary-50/50 rounded-3xl p-6 md:p-8 border border-secondary-200 space-y-6 mt-6">
+        <div className="bg-white rounded-2xl p-6 md:p-8 border border-secondary-200 shadow-sm space-y-6">
           <h3 className="text-xs font-black text-secondary-500 uppercase tracking-widest mb-2 flex items-center gap-2">
             <span className="w-6 h-px bg-secondary-300"></span> Configuration
           </h3>
@@ -469,9 +468,9 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
             />
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border border-secondary-200 shadow-sm">
+          <div className="bg-secondary-50 rounded-2xl p-6 border border-secondary-200 shadow-inner">
             <h4 className="text-sm font-black text-secondary-800 mb-5">Question Type Distribution</h4>
-            
+
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <label className="text-sm font-semibold text-secondary-700">Multiple Select</label>
@@ -485,7 +484,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
                   className="w-20 px-3 py-1.5 font-bold rounded-lg border border-secondary-300 outline-none focus:ring-2 focus:ring-brand-500 text-center"
                 />
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <label className="text-sm font-semibold text-secondary-700">Fill in the Blank</label>
                 <input
@@ -498,7 +497,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
                   className="w-20 px-3 py-1.5 font-bold rounded-lg border border-secondary-300 outline-none focus:ring-2 focus:ring-brand-500 text-center"
                 />
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <label className="text-sm font-semibold text-secondary-700">Numerical</label>
                 <input
@@ -530,7 +529,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
             </div>
           )}
 
-          <Button 
+          <Button
             onClick={handleGenerate}
             disabled={isGenerating || singleChoiceCount < 0 || (aiMode === "TEXT" && pastedWordCount < 50)}
             className="w-full flex justify-center items-center gap-2 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-700 hover:to-brand-600 shadow-lg shadow-brand-500/30 border-0 h-14 text-lg mt-4"

@@ -22,7 +22,7 @@ public class ExamScheduler {
         log.info("Running scheduled task to check for expired exams...");
         candidateService.getExpiredEnrollments().forEach(enrollment -> {
             try {
-                examSubmissionService.submitExpiredExam(enrollment.getId(), enrollment.getCandidate().getEmail());
+                examSubmissionService.submitExpiredExam(enrollment.getId());
             } catch (Exception e) {
                 log.error("Failed to auto-submit enrollment {}", enrollment.getId(), e);
             }

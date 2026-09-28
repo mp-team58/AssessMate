@@ -4,6 +4,7 @@ import { getProctoringDashboard, getCandidateProctoringTimeline } from '../servi
 import { useToast } from '../contexts/ToastContext';
 import { ShieldAlert, ArrowLeft, EyeOff, Users, Monitor, Maximize, AlertTriangle, Activity } from 'lucide-react';
 import Button from '../components/ui/Button';
+import { getMediaUrl } from '../services/apiClient';
 
 const ProctoringRow = ({ candidate, examId }) => {
   const [timeline, setTimeline] = useState(null);
@@ -97,18 +98,23 @@ const ProctoringRow = ({ candidate, examId }) => {
                         <div className="text-sm font-medium text-secondary-500">
                           {new Date(evt.flaggedAt).toLocaleString()}
                         </div>
+                        {evt.details && (
+                          <div className="mt-1 text-sm text-secondary-700 italic border-l-2 border-secondary-200 pl-2">
+                            "{evt.details}"
+                          </div>
+                        )}
                       </div>
                       
                       {/* Media Evidences */}
                       <div className="flex gap-2 shrink-0 mt-3 sm:mt-0">
                         {evt.imageUrl && (
                           <div className="rounded-lg overflow-hidden border border-secondary-200 shadow-sm w-32 h-24 bg-secondary-100">
-                            <img src={evt.imageUrl} alt="Proctoring Evidence" className="w-full h-full object-cover" />
+                            <img src={getMediaUrl(evt.imageUrl)} alt="Proctoring Evidence" className="w-full h-full object-cover" />
                           </div>
                         )}
                         {evt.audioUrl && (
                           <div className="flex items-center h-24">
-                            <audio controls src={evt.audioUrl} className="w-48 h-8 rounded-full" />
+                            <audio controls src={getMediaUrl(evt.audioUrl)} className="w-48 h-8 rounded-full" />
                           </div>
                         )}
                       </div>

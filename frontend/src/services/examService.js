@@ -45,3 +45,7 @@ export const publishExam = async (id) => {
 export const endExam = async (id) => {
   return apiClient.post(`/exams/${id}/end`);
 };
+
+export const duplicateExam = async (id) => {
+  return apiClient.post(`/exams/${id}/duplicate`);
+};

@@ -2,12 +2,12 @@ import React, { forwardRef } from 'react';
 
 const Input = forwardRef(({ label, error, className = '', containerClassName = '', ...props }, ref) => {
   return (
-    <div className={`mb-5 ${containerClassName}`}>
-      {label && <label className="block text-[14px] font-semibold text-secondary-800 mb-2">{label}</label>}
+    <div className={`mb-5 group ${containerClassName}`}>
+      {label && <label className="block text-sm font-semibold text-secondary-700 mb-2 group-focus-within:text-brand-600 transition-colors">{label}</label>}
       <input
         ref={ref}
-        className={`w-full px-4 py-3 text-[15px] bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all shadow-sm ${
-          error ? 'border-red-400 focus:ring-red-500' : 'border-secondary-300 hover:border-brand-400 text-secondary-900'
+        className={`w-full px-4 py-3 text-[15px] bg-secondary-50/50 hover:bg-white focus:bg-white border rounded-xl focus:outline-none focus:ring-[3px] focus:border-brand-500 transition-all duration-300 shadow-sm ${
+          error ? 'border-red-400 focus:ring-red-500/20' : 'border-secondary-200 focus:ring-brand-500/15 hover:border-brand-400 text-secondary-900'
         } ${className}`}
         {...props}
       />

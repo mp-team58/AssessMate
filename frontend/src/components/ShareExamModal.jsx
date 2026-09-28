@@ -100,7 +100,7 @@ const ShareExamModal = ({ examId, isOpen, onClose }) => {
               
               <Button 
                 onClick={handleCopy} 
-                className="w-full h-12 text-lg shadow-md flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5"
+                className="w-full h-12 text-lg shadow-md flex items-center justify-center gap-2 transition-all"
                 variant={isCopied ? 'success' : 'primary'}
               >
                 {isCopied ? (

@@ -2,14 +2,20 @@ import React from 'react';
 
 const Toggle = ({ activeRole, onChange }) => {
   return (
-    <div className="flex p-1.5 bg-secondary-50 border border-secondary-100 rounded-xl w-full mb-8">
+    <div className="relative flex p-1.5 bg-secondary-100/50 rounded-xl w-full mb-8">
+      {/* Sliding background */}
+      <div 
+        className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white rounded-lg shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] transition-all duration-300 ease-out ${
+          activeRole === 'candidate' ? 'translate-x-full left-[3px]' : 'translate-x-0 left-[3px]'
+        }`}
+      />
       <button
         type="button"
         onClick={() => onChange('host')}
-        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${
+        className={`relative z-10 flex-1 py-3 text-sm font-bold rounded-lg transition-colors duration-300 ${
           activeRole === 'host'
-            ? 'bg-white text-secondary-900 shadow-md'
-            : 'text-secondary-400 hover:text-secondary-600'
+            ? 'text-brand-600'
+            : 'text-secondary-400 hover:text-secondary-700'
         }`}
       >
         Host
@@ -17,10 +23,10 @@ const Toggle = ({ activeRole, onChange }) => {
       <button
         type="button"
         onClick={() => onChange('candidate')}
-        className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${
+        className={`relative z-10 flex-1 py-3 text-sm font-bold rounded-lg transition-colors duration-300 ${
           activeRole === 'candidate'
-            ? 'bg-white text-secondary-900 shadow-md'
-            : 'text-secondary-400 hover:text-secondary-600'
+            ? 'text-brand-600'
+            : 'text-secondary-400 hover:text-secondary-700'
         }`}
       >
         Candidate

@@ -3,6 +3,11 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import * as tf from '@tensorflow/tfjs';
 import * as blazeface from '@tensorflow-models/blazeface';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
+
+// Global cache to prevent re-downloading models on every render
+let globalBlazefaceModel = null;
+let globalCocoSsdModel = null;
+import { useToast } from '../contexts/ToastContext';
 import {
   Clock,
   Shield,
@@ -34,7 +39,8 @@ import {
   Wifi,
   WifiOff,
   Loader2,
-  Sparkles
+  Sparkles,
+  Maximize
 } from 'lucide-react';
 import {
   getExamQuestions,
@@ -47,6 +53,7 @@ import {
   saveExamProgress,
   getExamState
 } from '../services/candidateService';
+import { getMediaUrl } from '../services/apiClient';
 
 const STARTER_CODE = {
   PYTHON: '# Write your Python 3 solution here\ndef solution():\n    pass\n\nif __name__ == "__main__":\n    solution()\n',
@@ -60,6 +67,7 @@ const ActiveExam = () => {
   const { enrollmentId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   // Load Exam Configuration
   const [examConfig] = useState(() => {
@@ -286,7 +294,7 @@ const ActiveExam = () => {
       ) {
         handleAutoTermination(errMsg);
       } else {
-        alert(errMsg);
+        showToast(errMsg, 'error');
         setIsSubmitting(false);
         hasSubmittedRef.current = false;
       }
@@ -443,6 +451,18 @@ const ActiveExam = () => {
     requestMediaPermissions();
   }, [requestMediaPermissions]);
 
+  // Ensure stream is attached to video elements once they render
+  useEffect(() => {
+    if (mediaStreamRef.current) {
+      if (hiddenVideoRef.current && hiddenVideoRef.current.srcObject !== mediaStreamRef.current) {
+        hiddenVideoRef.current.srcObject = mediaStreamRef.current;
+      }
+      if (previewVideoRef.current && previewVideoRef.current.srcObject !== mediaStreamRef.current) {
+        previewVideoRef.current.srcObject = mediaStreamRef.current;
+      }
+    }
+  });
+
   // STEP B: Load TensorFlow AI Models (blazeface + coco-ssd)
   useEffect(() => {
     if (permissionState !== 'GRANTED') return;
@@ -460,16 +480,23 @@ const ActiveExam = () => {
         await tf.ready();
 
         if (!isMounted) return;
-        setModelLoadStep('Loading BlazeFace facial detection model...');
-        const faceModel = await blazeface.load();
+        
+        setModelLoadStep('Loading AI Proctoring Engine...');
+        if (!globalBlazefaceModel) {
+          globalBlazefaceModel = await blazeface.load();
+        }
+        const faceModel = globalBlazefaceModel;
 
         if (!isMounted) return;
-        setModelLoadStep('Loading COCO-SSD object detection model...');
-        let objModel = null;
-        try {
-          objModel = await cocoSsd.load({ base: 'mobilenet_v2' });
-        } catch (_) {
-          objModel = await cocoSsd.load();
+        setModelLoadStep('Loading AI Proctoring Engine...');
+        let objModel = globalCocoSsdModel;
+        if (!objModel) {
+          try {
+            objModel = await cocoSsd.load({ base: 'mobilenet_v2' });
+          } catch (_) {
+            objModel = await cocoSsd.load();
+          }
+          globalCocoSsdModel = objModel;
         }
 
         if (!isMounted) return;
@@ -770,8 +797,8 @@ const ActiveExam = () => {
               const rms = Math.sqrt(sumSquares / bufferLength);
               setAudioLevel(Math.min(100, Math.round(rms * 250)));
 
-              // RMS Threshold for Noise / Voice Activity (0.16)
-              if (rms > 0.16 && !isRecordingAudioRef.current) {
+              // RMS Threshold for Noise / Voice Activity (lowered to 0.05 to ensure normal speech is caught)
+              if (rms > 0.05 && !isRecordingAudioRef.current) {
                 const now = Date.now();
                 const lastTime = lastCooldownRef.current['AUDIO_DETECTED'] || 0;
                 if (now - lastTime >= 8000) {
@@ -853,64 +880,68 @@ const ActiveExam = () => {
           objects = await cocoSsdModelRef.current.detect(video);
         }
 
-        // Decision logic per spec
-        if (faces.length === 0) {
-          setFaceStatus('STANDBY');
-          const evidenceUrl = await captureAndUploadEvidence();
-          sendProctorLog('NO_FACE', 'No face detected in camera viewport', evidenceUrl, null);
+        // Face Detection Decision Logic
+        if (examConfig?.enableFaceDetection !== false) {
+          if (faces.length === 0) {
+            setFaceStatus('STANDBY');
+            const evidenceUrl = await captureAndUploadEvidence();
+            sendProctorLog('NO_FACE', 'No face detected in camera viewport', evidenceUrl, null);
 
-          setProctorWarnings((prev) => [
-            ...prev,
-            {
-              type: 'NO_FACE',
-              message: 'No face detected in camera view. Ensure your face is centered and clearly visible.',
-              timestamp: new Date()
-            }
-          ]);
-        } else if (faces.length > 1) {
-          setFaceStatus('VERIFIED');
-          const evidenceUrl = await captureAndUploadEvidence();
-          sendProctorLog('MULTIPLE_FACES', `Multiple faces detected in camera frame (${faces.length})`, evidenceUrl, null);
+            setProctorWarnings((prev) => [
+              ...prev,
+              {
+                type: 'NO_FACE',
+                message: 'No face detected in camera view. Ensure your face is centered and clearly visible.',
+                timestamp: new Date()
+              }
+            ]);
+          } else if (faces.length > 1) {
+            setFaceStatus('VERIFIED');
+            const evidenceUrl = await captureAndUploadEvidence();
+            sendProctorLog('MULTIPLE_FACES', `Multiple faces detected in camera frame (${faces.length})`, evidenceUrl, null);
 
-          setProctorWarnings((prev) => [
-            ...prev,
-            {
-              type: 'MULTIPLE_FACES',
-              message: `Multiple people detected in view (${faces.length} faces). Only the candidate is permitted.`,
-              timestamp: new Date()
-            }
-          ]);
-        } else {
-          setFaceStatus('VERIFIED');
+            setProctorWarnings((prev) => [
+              ...prev,
+              {
+                type: 'MULTIPLE_FACES',
+                message: `Multiple people detected in view (${faces.length} faces). Only the candidate is permitted.`,
+                timestamp: new Date()
+              }
+            ]);
+          } else {
+            setFaceStatus('VERIFIED');
+          }
         }
 
         // Object Detection: phone, laptop, book
-        const suspiciousObjects = objects.filter((obj) => {
-          const label = String(obj.class).toLowerCase();
-          const isTargetClass = ['cell phone', 'phone', 'laptop', 'book'].includes(label);
-          return isTargetClass && obj.score >= 0.50;
-        });
+        if (examConfig?.enableObjectDetection !== false) {
+          const suspiciousObjects = objects.filter((obj) => {
+            const label = String(obj.class).toLowerCase();
+            const isTargetClass = ['cell phone', 'phone', 'laptop', 'book'].includes(label);
+            return isTargetClass && obj.score >= 0.50;
+          });
 
-        if (suspiciousObjects.length > 0) {
-          const detectedNames = suspiciousObjects.map((o) => `${o.class} (${Math.round(o.score * 100)}%)`).join(', ');
-          const evidenceUrl = await captureAndUploadEvidence();
-          sendProctorLog('OBJECT_DETECTED', `Prohibited object(s) detected: ${detectedNames}`, evidenceUrl, null);
+          if (suspiciousObjects.length > 0) {
+            const detectedNames = suspiciousObjects.map((o) => `${o.class} (${Math.round(o.score * 100)}%)`).join(', ');
+            const evidenceUrl = await captureAndUploadEvidence();
+            sendProctorLog('OBJECT_DETECTED', `Prohibited object(s) detected: ${detectedNames}`, evidenceUrl, null);
 
-          setProctorWarnings((prev) => [
-            ...prev,
-            {
-              type: 'OBJECT_DETECTED',
-              message: `Prohibited object detected in frame: ${detectedNames}. Remove all secondary devices.`,
-              timestamp: new Date()
-            }
-          ]);
+            setProctorWarnings((prev) => [
+              ...prev,
+              {
+                type: 'OBJECT_DETECTED',
+                message: `Prohibited object detected in frame: ${detectedNames}. Remove all secondary devices.`,
+                timestamp: new Date()
+              }
+            ]);
+          }
         }
       } catch (detectErr) {
         console.warn('[Detection Tick Warning]:', detectErr);
       } finally {
         isDetectingRef.current = false;
       }
-    }, 4000);
+    }, 1000);
 
     // 5.3 Prevent Back Navigation
     window.history.pushState(null, '', window.location.href);
@@ -931,9 +962,9 @@ const ActiveExam = () => {
         sendProctorLog('TAB_SWITCH', `Candidate switched away from exam tab (Violation #${count})`);
 
         const maxAllowed = examConfig?.maxTabSwitches ?? 3;
-        if (count >= maxAllowed) {
+        if (count > maxAllowed) {
           handleAutoTerminationRef.current?.(
-            `Maximum tab switch limit exceeded (${count} of ${maxAllowed} allowed). Exam automatically submitted due to proctoring violation.`
+            `Maximum violation limit exceeded (${count} of ${maxAllowed} allowed). Exam automatically submitted due to proctoring violation.`
           );
         } else {
           const remaining = maxAllowed - count;
@@ -955,10 +986,28 @@ const ActiveExam = () => {
       setIsFullscreen(inFullscreen);
 
       if (!inFullscreen && !hasSubmittedRef.current && !backendTerminated) {
-        sendProctorLog('FULL_SCREEN_EXIT', 'Candidate exited full screen mode');
-        handleAutoTerminationRef.current?.(
-          'Full-screen mode was exited. Your assessment has been automatically submitted.'
-        );
+        tabSwitchCountRef.current += 1;
+        const count = tabSwitchCountRef.current;
+        setTabSwitchCount(count);
+
+        sendProctorLog('FULL_SCREEN_EXIT', `Candidate exited full screen mode (Violation #${count})`);
+        
+        const maxAllowed = examConfig?.maxTabSwitches ?? 3;
+        if (count > maxAllowed) {
+          handleAutoTerminationRef.current?.(
+            `Maximum violation limit exceeded (${count} of ${maxAllowed} allowed). Exam automatically submitted.`
+          );
+        } else {
+          const remaining = maxAllowed - count;
+          setProctorWarnings((prev) => [
+            ...prev,
+            {
+              type: 'FULL_SCREEN_EXIT',
+              message: `Full Screen Violation (${count}/${maxAllowed})! Please return to full screen. ${remaining} more violation(s) will terminate the exam!`,
+              timestamp: new Date()
+            }
+          ]);
+        }
       }
     };
 
@@ -1326,6 +1375,36 @@ const ActiveExam = () => {
         </div>
       )}
 
+      {/* Fullscreen Violation Overlay */}
+      {!isFullscreen && !backendTerminated && permissionState === 'GRANTED' && (
+        <div className="fixed inset-0 z-[110] bg-red-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center">
+          <div className="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl border-4 border-red-500 animate-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Maximize className="w-10 h-10" />
+            </div>
+            <h2 className="text-3xl font-black text-red-600 mb-4 tracking-tight">Full Screen Required</h2>
+            <p className="text-secondary-600 font-medium mb-6 leading-relaxed">
+              You have exited full-screen mode, which is a proctoring violation. Please return to full-screen mode immediately to continue your assessment.
+            </p>
+            <p className="text-sm font-bold text-red-500 mb-8 px-4 py-3 bg-red-50 rounded-xl border border-red-200">
+              Multiple violations will result in automatic submission of your exam!
+            </p>
+            <button
+              onClick={() => {
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) elem.requestFullscreen();
+                else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+                else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+              }}
+              className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white text-lg font-black rounded-xl transition-all shadow-xl hover:shadow-2xl active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              <Maximize className="w-5 h-5" />
+              Return to Full Screen
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Auto-Submit / Violation Termination Modal (Strict) */}
       {backendTerminated && (
         <div className="fixed inset-0 z-[100] bg-secondary-950/85 backdrop-blur-md flex items-center justify-center p-4 select-text">
@@ -1520,7 +1599,7 @@ const ActiveExam = () => {
 
               {currentQuestion.imageUrl && (
                 <div className="mt-4 rounded-2xl overflow-hidden border border-secondary-200 max-h-72">
-                  <img src={currentQuestion.imageUrl} alt="Question diagram" className="w-full object-contain" />
+                  <img src={getMediaUrl(currentQuestion.imageUrl)} alt="Question diagram" className="w-full object-contain max-h-72" />
                 </div>
               )}
             </div>

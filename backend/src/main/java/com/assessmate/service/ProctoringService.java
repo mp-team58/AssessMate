@@ -22,6 +22,17 @@ public class ProctoringService {
     private final com.assessmate.repository.ExamRepository examRepository;
     private final com.assessmate.repository.ExamEnrollmentRepository enrollmentRepository;
     private final com.assessmate.repository.ProctoringLogRepository proctoringLogRepository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @jakarta.annotation.PostConstruct
+    public void dropConstraint() {
+        try {
+            jdbcTemplate.execute("ALTER TABLE proctoring_logs DROP CONSTRAINT IF EXISTS proctoring_logs_event_type_check;");
+            System.out.println("Dropped check constraint for proctoring_logs event_type");
+        } catch (Exception e) {
+            System.out.println("Could not drop constraint: " + e.getMessage());
+        }
+    }
 
     private Exam getOwnedExam(Long examId, String hostEmail) {
         Exam exam = examRepository.findById(examId)
@@ -95,6 +106,7 @@ public class ProctoringService {
                         .flaggedAt(l.getFlaggedAt())
                         .imageUrl(l.getImageUrl())
                         .audioUrl(l.getAudioUrl())
+                        .details(l.getDetails())
                         .build())
                 .toList();
     }
@@ -186,7 +198,7 @@ public class ProctoringService {
         }
 
         String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("audio/webm") && !contentType.equals("audio/ogg") && !contentType.equals("audio/wav"))) {
+        if (contentType == null || (!contentType.equals("audio/webm") && !contentType.equals("audio/ogg") && !contentType.equals("audio/wav") && !contentType.equals("application/octet-stream") && !contentType.equals("video/webm"))) {
             throw new BadRequestException("Only WebM, OGG, and WAV audio are allowed.");
         }
 

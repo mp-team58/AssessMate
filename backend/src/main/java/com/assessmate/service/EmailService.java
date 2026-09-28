@@ -51,6 +51,7 @@ public class EmailService {
     }
 
     private void send(String toEmail, String subject, String body) {
+        log.info("\n========== EMAIL SIMULATION ==========\nTo: {}\nSubject: {}\n{}\n======================================", toEmail, subject, body);
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromAddress);
@@ -59,8 +60,7 @@ public class EmailService {
             message.setText(body);
             mailSender.send(message);
         } catch (Exception e) {
-            log.error("Failed to send OTP email to {}", toEmail, e);
-            throw new BadRequestException("Could not send the verification email. Please try again in a moment.");
+            log.error("Failed to send OTP email to {} (Did you configure MAIL_USERNAME in .env?). OTP was printed above for testing.", toEmail);
         }
     }
 }

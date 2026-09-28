@@ -115,6 +115,120 @@ public class ExamService {
     }
 
     @Transactional
+    public ExamResponse duplicateExam(Long id, String hostEmail) {
+        Exam originalExam = findExamForHost(id, hostEmail);
+
+        Exam newExam = Exam.builder()
+                .host(originalExam.getHost())
+                .title("Copy of " + originalExam.getTitle())
+                .subject(originalExam.getSubject())
+                .scheduledStart(originalExam.getScheduledStart())
+                .gracePeriodMinutes(originalExam.getGracePeriodMinutes())
+                .timerType(originalExam.getTimerType())
+                .durationMinutes(originalExam.getDurationMinutes())
+                .totalQuestions(originalExam.getTotalQuestions())
+                .easyPercent(originalExam.getEasyPercent())
+                .mediumPercent(originalExam.getMediumPercent())
+                .hardPercent(originalExam.getHardPercent())
+                .easyMark(originalExam.getEasyMark())
+                .mediumMark(originalExam.getMediumMark())
+                .hardMark(originalExam.getHardMark())
+                .easyNegative(originalExam.getEasyNegative())
+                .mediumNegative(originalExam.getMediumNegative())
+                .hardNegative(originalExam.getHardNegative())
+                .easySeconds(originalExam.getEasySeconds())
+                .mediumSeconds(originalExam.getMediumSeconds())
+                .hardSeconds(originalExam.getHardSeconds())
+                .negativeMark(originalExam.getNegativeMark())
+                .passingPercentage(originalExam.getPassingPercentage())
+                .deviceAccess(originalExam.getDeviceAccess())
+                .joinCode(generateUniqueJoinCode())
+                .hasCodingSection(originalExam.getHasCodingSection())
+                .codingDurationMinutes(originalExam.getCodingDurationMinutes())
+                .codingQuestionsCount(originalExam.getCodingQuestionsCount())
+                .requireCamera(originalExam.getRequireCamera())
+                .requireMic(originalExam.getRequireMic())
+                .requireScreenShare(originalExam.getRequireScreenShare())
+                .enableFaceDetection(originalExam.getEnableFaceDetection())
+                .enableObjectDetection(originalExam.getEnableObjectDetection())
+                .enableTabSwitchDetection(originalExam.getEnableTabSwitchDetection())
+                .enableAudioDetection(originalExam.getEnableAudioDetection())
+                .maxTabSwitches(originalExam.getMaxTabSwitches())
+                .status(ExamStatus.DRAFT)
+                .build();
+
+        newExam = examRepository.save(newExam);
+
+        // Copy regular questions
+        List<Question> oldQuestions = questionRepository.findByExamId(originalExam.getId());
+        for (Question q : oldQuestions) {
+            Question newQ = Question.builder()
+                    .exam(newExam)
+                    .createdBy(q.getCreatedBy())
+                    .questionText(q.getQuestionText())
+                    .imageUrl(q.getImageUrl())
+                    .type(q.getType())
+                    .difficulty(q.getDifficulty())
+                    .topic(q.getTopic())
+                    .explanation(q.getExplanation())
+                    .optionA(q.getOptionA())
+                    .optionB(q.getOptionB())
+                    .optionC(q.getOptionC())
+                    .optionD(q.getOptionD())
+                    .correctAnswer(q.getCorrectAnswer())
+                    .tolerance(q.getTolerance())
+                    .strictMarking(q.getStrictMarking())
+                    .addedBy(q.getAddedBy())
+                    .marks(q.getMarks())
+                    .negativeMarks(q.getNegativeMarks())
+                    .timeSeconds(q.getTimeSeconds())
+                    .isGlobal(false)
+                    .isVerified(q.getIsVerified())
+                    .build();
+            questionRepository.save(newQ);
+        }
+
+        // Copy coding questions
+        List<CodingQuestion> oldCoding = codingQuestionRepository.findByExamId(originalExam.getId());
+        for (CodingQuestion cq : oldCoding) {
+            CodingQuestion newCq = CodingQuestion.builder()
+                    .exam(newExam)
+                    .createdBy(cq.getCreatedBy())
+                    .title(cq.getTitle())
+                    .description(cq.getDescription())
+                    .constraints(cq.getConstraints())
+                    .sampleInput(cq.getSampleInput())
+                    .sampleOutput(cq.getSampleOutput())
+                    .explanation(cq.getExplanation())
+                    .allowedLanguages(cq.getAllowedLanguages())
+                    .timeLimitSeconds(cq.getTimeLimitSeconds())
+                    .memoryLimitMb(cq.getMemoryLimitMb())
+                    .marks(cq.getMarks())
+                    .partialMarking(cq.getPartialMarking())
+                    .isGlobal(false)
+                    .orderIndex(cq.getOrderIndex())
+                    .build();
+            newCq = codingQuestionRepository.save(newCq);
+
+            // Copy test cases
+            List<TestCase> oldTestCases = testCaseRepository.findByCodingQuestionId(cq.getId());
+            for (TestCase tc : oldTestCases) {
+                TestCase newTc = TestCase.builder()
+                        .codingQuestion(newCq)
+                        .input(tc.getInput())
+                        .expectedOutput(tc.getExpectedOutput())
+                        .isHidden(tc.getIsHidden())
+                        .points(tc.getPoints())
+                        .orderIndex(tc.getOrderIndex())
+                        .build();
+                testCaseRepository.save(newTc);
+            }
+        }
+
+        return mapToResponse(newExam);
+    }
+
+    @Transactional
     public ExamResponse updateExam(Long id, ExamRequest req, String hostEmail) {
         Exam exam = findExamForHost(id, hostEmail);
 

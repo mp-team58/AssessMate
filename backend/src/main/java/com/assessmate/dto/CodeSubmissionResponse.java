@@ -22,5 +22,6 @@ public class CodeSubmissionResponse {
     private String compileOutput;
     private Boolean isFinal;
     private LocalDateTime submittedAt;
+    private String sourceCode;
     private List<TestCaseResultResponse> testCaseResults;
 }

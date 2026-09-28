@@ -58,7 +58,7 @@ const CandidateResults = () => {
   const scoredList = results.filter((r) => r.percentage !== null && r.percentage !== undefined);
   const averagePercentage =
     scoredList.length > 0
-      ? (scoredList.reduce((acc, r) => acc + Number(r.percentage), 0) / scoredList.length).toFixed(1)
+      ? (scoredList.reduce((acc, r) => acc + Number(r.percentage), 0) / scoredList.length).toFixed(2)
       : null;
   const passedCount = scoredList.filter((r) => Number(r.percentage) >= 50).length;
 
@@ -171,7 +171,8 @@ const CandidateResults = () => {
         <div className="space-y-4">
           {filtered.map((item) => {
             const hasScore = item.percentage !== null && item.percentage !== undefined;
-            const isQualified = hasScore && Number(item.percentage) >= 50;
+            const score = hasScore ? Math.round(Number(item.percentage) * 100) / 100 : null;
+            const isQualified = hasScore && score >= 50;
 
             return (
               <div
@@ -224,7 +225,7 @@ const CandidateResults = () => {
                   {hasScore && (
                     <div className="bg-secondary-50 border border-secondary-200 px-4 py-2 rounded-xl text-center">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-secondary-400">Score</p>
-                      <p className="text-xl font-black text-brand-600">{item.percentage}%</p>
+                      <p className="text-xl font-black text-brand-600">{score}%</p>
                     </div>
                   )}
 

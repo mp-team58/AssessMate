@@ -594,7 +594,7 @@ const QuestionBank = () => {
                 <p className="text-secondary-500 text-sm mt-2 max-w-sm text-center">
                   Adjust your filters or add a new question to your bank to see it here.
                 </p>
-                <Button onClick={() => setIsModalOpen(true)} className="mt-6 px-6 shadow-md shadow-brand-500/20 hover:-translate-y-0.5 transition-transform text-sm">
+                <Button onClick={() => setIsModalOpen(true)} className="mt-6 px-6 shadow-md shadow-brand-500/20 transition-transform text-sm">
                   <Plus className="w-4 h-4 mr-1.5" /> Add First Question
                 </Button>
               </div>
@@ -673,7 +673,7 @@ const QuestionBank = () => {
                     setEditingCodingProblem(null);
                     setIsCodingModalOpen(true);
                   }}
-                  className="mt-6 px-6 bg-secondary-900 hover:bg-secondary-800 text-white shadow-md hover:-translate-y-0.5 transition-transform text-sm flex items-center gap-1.5"
+                  className="mt-6 px-6 bg-secondary-900 hover:bg-secondary-800 text-white shadow-md transition-transform text-sm flex items-center gap-1.5"
                 >
                   <Plus className="w-4 h-4" /> Add First Problem
                 </Button>

@@ -8,6 +8,7 @@ import Toggle from '../components/ui/Toggle';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { loginHost, loginCandidate } from '../services/authService';
 
 const loginSchema = yup.object().shape({
@@ -18,8 +19,8 @@ const loginSchema = yup.object().shape({
 const Login = () => {
   const [role, setRole] = useState('host');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const { login } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const { register, handleSubmit, formState: { errors } } = useForm({
@@ -28,7 +29,6 @@ const Login = () => {
 
   const onSubmit = async (data) => {
     setIsLoading(true);
-    setError('');
     try {
       let response;
       if (role === 'host') {
@@ -49,7 +49,7 @@ const Login = () => {
         navigate(role === 'host' ? '/host/dashboard' : '/candidate/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to login. Please check your credentials.');
+      showToast(err.response?.data?.message || err.message || 'Failed to login. Please check your credentials.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +65,6 @@ const Login = () => {
       <Toggle activeRole={role} onChange={setRole} />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
 
         <Input
           label="Email Address"

@@ -2,8 +2,10 @@ import React, { useState, useRef } from 'react';
 import { Download, Upload, CheckCircle, AlertTriangle, XCircle, FileSpreadsheet } from 'lucide-react';
 import Button from './ui/Button';
 import { downloadExcelTemplate, uploadExcel } from '../services/excelService';
+import { useToast } from '../contexts/ToastContext';
 
 const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
+  const { showToast } = useToast();
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
@@ -14,7 +16,7 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
     try {
       await downloadExcelTemplate();
     } catch (err) {
-      alert('Failed to download template. Please try again.');
+      showToast('Failed to download template. Please try again.', 'error');
     }
   };
 

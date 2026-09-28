@@ -845,10 +845,10 @@ const ExamQuestions = () => {
           {/* MCQ Questions List */}
           <div className="space-y-4 pt-2">
             <h3 className="text-xl font-bold text-secondary-900">
-              Exam Questions ({questions.length})
+              Exam Questions ({questions.length + codingProblems.length})
             </h3>
 
-            {questions.length === 0 ? (
+            {questions.length === 0 && codingProblems.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-300">
                 <p className="text-gray-500">No questions added yet. Add some to get started!</p>
               </div>
@@ -867,6 +867,48 @@ const ExamQuestions = () => {
                     onVerify={handleVerify}
                     index={index + 1}
                   />
+                ))}
+
+                {codingProblems.map((cq, index) => (
+                  <div key={`coding-mcq-${cq.id}`} className="bg-white rounded-2xl border border-secondary-200 shadow-sm hover:shadow-md transition-shadow duration-200 p-5 group relative">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex-shrink-0 flex sm:flex-col items-center gap-2">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 font-bold flex items-center justify-center text-sm shadow-sm border border-indigo-100/50">
+                          Q{questions.length + index + 1}
+                        </div>
+                        <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200/50">
+                          Coding
+                        </span>
+                      </div>
+                      <div className="flex-grow space-y-3 min-w-0">
+                        <div className="flex justify-between items-start gap-4">
+                          <h4 className="font-bold text-lg text-secondary-800 break-words">{cq.title}</h4>
+                          <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => { setEditingCodingProblem(cq); setIsCodingModalOpen(true); setSectionTab('coding'); scrollAppToTop(); }} className="p-2 text-secondary-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDeleteCodingProblem(cq.id)} className="p-2 text-secondary-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          <span className="px-2.5 py-1 bg-secondary-100 text-secondary-700 rounded-lg text-xs font-medium border border-secondary-200/60 flex items-center gap-1">
+                            Marks: {cq.marks || 10}
+                          </span>
+                          <span className="px-2.5 py-1 bg-secondary-100 text-secondary-700 rounded-lg text-xs font-medium border border-secondary-200/60 flex items-center gap-1">
+                            Time: {cq.timeLimitSeconds}s
+                          </span>
+                          <span className="px-2.5 py-1 bg-secondary-100 text-secondary-700 rounded-lg text-xs font-medium border border-secondary-200/60 flex items-center gap-1">
+                            Mem: {cq.memoryLimitMb}MB
+                          </span>
+                        </div>
+                        <div className="text-secondary-600 text-sm bg-secondary-50 p-3 rounded-xl border border-secondary-100 overflow-hidden line-clamp-2">
+                          {cq.description}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

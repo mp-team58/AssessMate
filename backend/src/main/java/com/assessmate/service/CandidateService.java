@@ -39,6 +39,8 @@ public class CandidateService {
     private final ResultRepository resultRepository;
     private final GeminiService geminiService;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
+    private final com.assessmate.repository.CodingQuestionRepository codingQuestionRepository;
+    private final com.assessmate.repository.CodeSubmissionRepository codeSubmissionRepository;
 
     private void forceSubmit(Long enrollmentId, String candidateEmail) {
         SubmitExamRequest emptyRequest = new SubmitExamRequest();
@@ -279,6 +281,7 @@ public class CandidateService {
                 .clientReportedAt(clientTime)
                 .imageUrl(request.getImageUrl())
                 .audioUrl(request.getAudioUrl())
+                .details(request.getDetails())
                 .severity(resolveSeverity(request.getEventType()))
                 .build();
 
@@ -514,6 +517,27 @@ public class CandidateService {
             answersToSave.add(answer);
         }
 
+        // Add Coding Questions marks
+        java.util.List<com.assessmate.entity.CodingQuestion> codingQuestions = codingQuestionRepository.findByExamId(exam.getId());
+        java.util.List<com.assessmate.entity.CodeSubmission> codeSubmissions = codeSubmissionRepository.findByEnrollmentId(enrollmentId);
+        java.util.Map<Long, com.assessmate.entity.CodeSubmission> latestSubmissions = new java.util.HashMap<>();
+        for (com.assessmate.entity.CodeSubmission sub : codeSubmissions) {
+            com.assessmate.entity.CodeSubmission existing = latestSubmissions.get(sub.getCodingQuestion().getId());
+            if (existing == null || sub.getSubmittedAt().isAfter(existing.getSubmittedAt())) {
+                latestSubmissions.put(sub.getCodingQuestion().getId(), sub);
+            }
+        }
+
+        for (com.assessmate.entity.CodingQuestion cq : codingQuestions) {
+            maxScore += cq.getMarks() != null ? cq.getMarks() : 10.0;
+            com.assessmate.entity.CodeSubmission latest = latestSubmissions.get(cq.getId());
+            if (latest != null && latest.getMarksAwarded() != null) {
+                totalScore += latest.getMarksAwarded();
+            } else {
+                unansweredCount++;
+            }
+        }
+
         // Clear any autosaved rows before inserting the final graded ones —
         // required now that (enrollment_id, question_id) is unique. Without
         // this, submitting after even one autosave call throws a
@@ -641,48 +665,6 @@ public class CandidateService {
                 .build();
     }
 
-    public List<com.assessmate.dto.CandidateAnswerReviewDTO> getAnswerReview(Long enrollmentId, String candidateEmail) {
-        ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
-
-        if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
-            throw new ForbiddenException("You do not have access to this enrollment.");
-        }
-
-        if (enrollment.getStatus() != EnrollmentStatus.SUBMITTED && enrollment.getStatus() != EnrollmentStatus.EXPIRED) {
-            throw new BadRequestException("Exam is not completed yet.");
-        }
-
-        List<CandidateAnswer> answers = candidateAnswerRepository.findByEnrollmentId(enrollmentId);
-        
-        return answers.stream().map(a -> {
-            Question q = a.getQuestion();
-            List<com.assessmate.dto.CandidateAnswerReviewDTO.OptionDTO> options = new java.util.ArrayList<>();
-            if (q.getType() == QuestionType.SINGLE_CHOICE || q.getType() == QuestionType.MULTIPLE_SELECT) {
-                if (q.getOptionA() != null && !q.getOptionA().trim().isEmpty()) options.add(com.assessmate.dto.CandidateAnswerReviewDTO.OptionDTO.builder().key("A").value(q.getOptionA()).build());
-                if (q.getOptionB() != null && !q.getOptionB().trim().isEmpty()) options.add(com.assessmate.dto.CandidateAnswerReviewDTO.OptionDTO.builder().key("B").value(q.getOptionB()).build());
-                if (q.getOptionC() != null && !q.getOptionC().trim().isEmpty()) options.add(com.assessmate.dto.CandidateAnswerReviewDTO.OptionDTO.builder().key("C").value(q.getOptionC()).build());
-                if (q.getOptionD() != null && !q.getOptionD().trim().isEmpty()) options.add(com.assessmate.dto.CandidateAnswerReviewDTO.OptionDTO.builder().key("D").value(q.getOptionD()).build());
-            }
-
-            return com.assessmate.dto.CandidateAnswerReviewDTO.builder()
-                    .questionId(q.getId())
-                    .questionText(q.getQuestionText())
-                    .imageUrl(q.getImageUrl())
-                    .type(q.getType())
-                    .totalMarks(q.getMarks() != null ? q.getMarks() : 0.0)
-                    .marksAwarded(a.getMarksAwarded())
-                    .isCorrect(a.getIsCorrect())
-                    .candidateAnswer(a.getCandidateAnswer())
-                    .correctAnswer(q.getCorrectAnswer())
-                    .explanation(q.getExplanation())
-                    .topic(q.getTopic())
-                    .difficulty(q.getDifficulty() != null ? q.getDifficulty().name() : null)
-                    .options(options)
-                    .build();
-        }).collect(java.util.stream.Collectors.toList());
-    }
-
     public org.springframework.data.domain.Page<CandidateHistoryDTO> getCandidateHistory(String candidateEmail, org.springframework.data.domain.Pageable pageable) {
         User candidate = userRepository.findByEmail(candidateEmail)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Candidate not found"));
@@ -757,20 +739,26 @@ public class CandidateService {
 
         Exam exam = enrollment.getExam();
         List<Question> questions = questionRepository.findByExamId(exam.getId());
-
-        candidateAnswerRepository.deleteByEnrollmentId(enrollmentId);
+        List<CandidateAnswer> existingAnswers = candidateAnswerRepository.findByEnrollmentId(enrollmentId);
+        java.util.Map<Long, CandidateAnswer> existingMap = existingAnswers.stream()
+                .collect(java.util.stream.Collectors.toMap(a -> a.getQuestion().getId(), a -> a));
 
         java.util.List<CandidateAnswer> answersToSave = new java.util.ArrayList<>();
         for (Question q : questions) {
             String candidateAnswerStr = request.getAnswers() != null ? request.getAnswers().get(q.getId()) : null;
             if (candidateAnswerStr != null && !candidateAnswerStr.trim().isEmpty()) {
-                CandidateAnswer answer = CandidateAnswer.builder()
-                        .enrollment(enrollment)
-                        .question(q)
-                        .candidateAnswer(candidateAnswerStr.trim())
-                        .isCorrect(null)
-                        .marksAwarded(0.0)
-                        .build();
+                CandidateAnswer answer = existingMap.get(q.getId());
+                if (answer == null) {
+                    answer = CandidateAnswer.builder()
+                            .enrollment(enrollment)
+                            .question(q)
+                            .candidateAnswer(candidateAnswerStr.trim())
+                            .isCorrect(null)
+                            .marksAwarded(0.0)
+                            .build();
+                } else {
+                    answer.setCandidateAnswer(candidateAnswerStr.trim());
+                }
                 answersToSave.add(answer);
             }
         }

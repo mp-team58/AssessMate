@@ -45,9 +45,7 @@ public class AuthService {
             throw new BadRequestException("Email already registered");
         }
 
-        if ("HOST".equalsIgnoreCase(req.getRole())) {
-            throw new BadRequestException("Host registration is currently disabled.");
-        }
+
 
         checkCooldown(email, OtpPurpose.REGISTER);
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pencil, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { getMediaUrl } from '../services/apiClient';
 
 const getDifficultyColor = (difficulty) => {
   switch (difficulty) {
@@ -96,7 +97,7 @@ const QuestionCard = ({
           {question.imageUrl && (
             <div className="mt-2 mb-1 border-2 border-gray-100 rounded-xl overflow-hidden bg-gray-50 flex justify-center max-h-[300px]">
               <img
-                src={question.imageUrl.startsWith('http') ? question.imageUrl : `https://08k7867x-8080.inc1.devtunnels.ms${question.imageUrl.startsWith('/') ? '' : '/'}${question.imageUrl}`}
+                src={getMediaUrl(question.imageUrl)}
                 alt="Question Context"
                 className="max-w-full max-h-[300px] object-contain p-2"
               />

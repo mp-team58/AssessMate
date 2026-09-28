@@ -18,16 +18,13 @@ import {
   Award
 } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { getExamResult, getAnswerReview } from '../services/candidateService';
+import { getExamResult } from '../services/candidateService';
 
 const ExamResult = () => {
   const { enrollmentId } = useParams();
   const navigate = useNavigate();
 
   const [result, setResult] = useState(null);
-  const [answersReview, setAnswersReview] = useState(null);
-  const [showReview, setShowReview] = useState(false);
-  const [isLoadingReview, setIsLoadingReview] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [loadingStep, setLoadingStep] = useState(0);
@@ -66,24 +63,7 @@ const ExamResult = () => {
     fetchResult();
   }, [fetchResult]);
 
-  const loadAnswersReview = async () => {
-    if (answersReview !== null) {
-      setShowReview(!showReview);
-      return;
-    }
-    setIsLoadingReview(true);
-    try {
-      const res = await getAnswerReview(enrollmentId);
-      setAnswersReview(Array.isArray(res.data) ? res.data : []);
-      setShowReview(true);
-    } catch (err) {
-      console.warn('Failed to load answer review:', err);
-      setAnswersReview([]);
-      setShowReview(true);
-    } finally {
-      setIsLoadingReview(false);
-    }
-  };
+
 
   const parseWeakTopics = (weakTopicsRaw) => {
     if (!weakTopicsRaw) return [];
@@ -367,123 +347,7 @@ const ExamResult = () => {
         )}
       </div>
 
-      {/* Optional Question-by-Question Review Section */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileCheck2 className="w-5 h-5 text-brand-600" />
-            <h2 className="text-xl font-bold text-secondary-900">Question &amp; Answer Review</h2>
-          </div>
 
-          <Button
-            onClick={loadAnswersReview}
-            disabled={isLoadingReview}
-            variant="outline"
-            className="!w-auto px-4 py-2 text-xs"
-          >
-            {isLoadingReview ? (
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-            ) : showReview ? (
-              <>
-                <span>Hide Detailed Review</span>
-                <ChevronUp className="w-4 h-4" />
-              </>
-            ) : (
-              <>
-                <span>Show Detailed Review</span>
-                <ChevronDown className="w-4 h-4" />
-              </>
-            )}
-          </Button>
-        </div>
-
-        {showReview && answersReview && (
-          <div className="space-y-4 pt-4 border-t border-secondary-100">
-            {answersReview.length === 0 ? (
-              <p className="text-secondary-500 text-sm text-center py-4">
-                Detailed answer review is not available for this exam.
-              </p>
-            ) : (
-              answersReview.map((item, index) => {
-                const isCorrect = item.isCorrect === true || item.candidateAnswer === item.correctAnswer;
-                return (
-                  <div
-                    key={item.questionId || index}
-                    className={`p-5 rounded-2xl border transition-all ${
-                      isCorrect
-                        ? 'bg-green-50/30 border-green-200'
-                        : 'bg-red-50/30 border-red-200'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4 mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-white border border-secondary-200 text-secondary-800">
-                          Q{index + 1}
-                        </span>
-                        {item.topic && (
-                          <span className="text-xs text-brand-700 font-semibold bg-brand-50 px-2 py-0.5 rounded">
-                            {item.topic}
-                          </span>
-                        )}
-                        {item.type && (
-                          <span className="text-[10px] font-semibold text-secondary-500 uppercase">
-                            {String(item.type).replace('_', ' ')}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {item.marksAwarded !== undefined && item.totalMarks !== undefined && (
-                          <span className="text-xs font-bold text-secondary-600">
-                            {item.marksAwarded} / {item.totalMarks} pts
-                          </span>
-                        )}
-                        <span
-                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                            isCorrect
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          {isCorrect ? 'Correct' : 'Incorrect'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="font-bold text-secondary-900 text-sm mb-3">
-                      {item.questionText}
-                    </p>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      <div className="p-3 bg-white rounded-xl border border-secondary-200">
-                        <p className="text-secondary-500 font-semibold mb-1">Your Submitted Response:</p>
-                        {item.type === 'CODING' ? (
-                          <pre className="p-2.5 bg-secondary-950 text-emerald-300 rounded-lg font-mono text-[11px] overflow-x-auto whitespace-pre-wrap max-h-48">
-                            {item.candidateAnswer || '// No code submitted'}
-                          </pre>
-                        ) : (
-                          <p className={`font-bold ${isCorrect ? 'text-green-700' : 'text-red-700'}`}>
-                            {item.candidateAnswer || '(No answer provided)'}
-                          </p>
-                        )}
-                      </div>
-                      <div className="p-3 bg-white rounded-xl border border-secondary-200">
-                        <p className="text-secondary-500 font-semibold mb-1">Correct / Model Answer:</p>
-                        {item.type === 'CODING' ? (
-                          <pre className="p-2.5 bg-secondary-950 text-green-300 rounded-lg font-mono text-[11px] overflow-x-auto whitespace-pre-wrap max-h-48">
-                            {item.correctAnswer || '// Model solution evaluated by test cases'}
-                          </pre>
-                        ) : (
-                          <p className="font-bold text-green-700">{item.correctAnswer}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-      </div>
 
       {/* Bottom Actions */}
       <div className="flex items-center gap-4 pt-2">

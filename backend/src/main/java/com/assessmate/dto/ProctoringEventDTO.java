@@ -14,4 +14,5 @@ public class ProctoringEventDTO {
     private LocalDateTime flaggedAt;
     private String imageUrl;
     private String audioUrl;
+    private String details;
 }

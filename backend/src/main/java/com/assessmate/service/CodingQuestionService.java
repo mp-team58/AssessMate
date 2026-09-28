@@ -201,7 +201,12 @@ public class CodingQuestionService {
             Long examId,
             String hostEmail) {
 
-        validateExamAccess(examId, hostEmail);
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Exam not found."));
+
+        if (!exam.getHost().getEmail().equals(hostEmail)) {
+            throw new com.assessmate.exception.ForbiddenException("Not authorized to access this exam.");
+        }
 
         return codingQuestionRepository.findByExamId(examId)
                 .stream()

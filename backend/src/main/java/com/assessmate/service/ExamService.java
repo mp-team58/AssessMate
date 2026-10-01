@@ -320,6 +320,12 @@ public class ExamService {
             throw new BadRequestException("Only DRAFT exams can be published.");
         }
 
+        if (exam.getScheduledStart().isBefore(LocalDateTime.now())) {
+            throw new BadRequestException(
+                    "This exam's scheduled start (" + exam.getScheduledStart()
+                            + ") has already passed. Update the schedule before publishing.");
+        }
+
         validateMcqQuestions(exam);
         validateCodingSection(exam);
 
@@ -360,8 +366,19 @@ public class ExamService {
             boolean shouldEnd = false;
             long totalEnrolled = enrollmentRepository.countByExamId(exam.getId());
             if (totalEnrolled > 0) {
-                long ongoing = enrollmentRepository.countByExamIdAndStatus(exam.getId(), com.assessmate.entity.EnrollmentStatus.ONGOING);
-                shouldEnd = ongoing == 0;
+                long submitted = enrollmentRepository.countByExamIdAndStatus(
+                        exam.getId(),
+                        com.assessmate.entity.EnrollmentStatus.SUBMITTED
+                );
+
+                long expired = enrollmentRepository.countByExamIdAndStatus(
+                        exam.getId(),
+                        com.assessmate.entity.EnrollmentStatus.EXPIRED
+                );
+
+                if (totalEnrolled == (submitted + expired)) {
+                    shouldEnd = true;
+                }
             } else {
                 int totalDuration = exam.getDurationMinutes() != null ? exam.getDurationMinutes() : 240;
                 LocalDateTime maxEndTime = exam.getScheduledStart().plusMinutes(totalDuration + grace + 30);
@@ -386,8 +403,19 @@ public class ExamService {
             throw new ForbiddenException("Not authorized to delete this exam.");
         }
 
-        if (exam.getStatus() != ExamStatus.DRAFT) {
-            throw new BadRequestException("Only DRAFT exams can be deleted.");
+        if (exam.getStatus() == ExamStatus.LIVE) {
+            throw new BadRequestException("A LIVE exam cannot be deleted. End it first.");
+        }
+
+        if (exam.getStatus() == ExamStatus.ENDED) {
+            long enrolledCount = enrollmentRepository.countByExamId(id);
+
+            if (enrolledCount > 0) {
+                throw new BadRequestException(
+                        "This exam has " + enrolledCount
+                                + " candidate(s) with results tied to it, "
+                                + "so it can't be deleted.");
+            }
         }
 
         List<Question> questions = questionRepository.findByExamId(id);

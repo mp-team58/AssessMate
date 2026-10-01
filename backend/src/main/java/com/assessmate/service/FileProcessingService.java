@@ -327,64 +327,62 @@ public class FileProcessingService {
             return new ArrayList<>();
         }
 
-        String[] paragraphs = text.split("\n\n+");
+        // IMPORTANT: we chunk by a hard word-count
+        // window over the WHOLE word stream, not by
+        // "paragraphs" (text.split("\n\n+")).
+        //
+        // Why: PDFBox/slide-style extraction rarely
+        // produces real blank-line paragraph breaks.
+        // For a bullet/slide PDF, a "paragraph" as
+        // detected by \n\n+ can accidentally span many
+        // pages and many unrelated sections (we saw a
+        // single 226-page SQL deck collapse into ~11
+        // "paragraphs", two of which were 1100-1400
+        // words each, mixing SELECT/INSERT/UPDATE/
+        // DELETE/DCL/TCL all into one blob). The old
+        // code only checked the size limit BEFORE
+        // adding a whole paragraph, so an oversized
+        // paragraph was never split — it became one
+        // giant chunk on its own. That destroys TF-IDF
+        // topic matching, since every topic's content
+        // ends up glued into the same one or two chunks.
+        //
+        // A fixed-size sliding window guarantees every
+        // chunk stays at/under CHUNK_SIZE words, so
+        // topic-specific terms (e.g. "INSERT") end up
+        // concentrated in a few chunks instead of
+        // diluted across one giant chunk of everything.
+        String[] words = text.trim().split("\\s+");
+        int totalWords = words.length;
 
         List<TextChunk> chunks = new ArrayList<>();
-        StringBuilder currentChunk = new StringBuilder();
-        int wordCount = 0;
         int chunkIndex = 0;
+        int start = 0;
 
-        for (String paragraph : paragraphs) {
-            String trimmed = paragraph.trim();
-            if (trimmed.isEmpty())
-                continue;
+        while (start < totalWords) {
+            int end = Math.min(
+                    start + CHUNK_SIZE, totalWords);
 
-            String[] words = trimmed.split("\\s+");
-
-            if (wordCount + words.length > CHUNK_SIZE
-                    && wordCount > 0) {
-
-                String chunkText = currentChunk.toString().trim();
-                if (!chunkText.isEmpty()) {
-                    chunks.add(TextChunk.builder()
-                            .index(chunkIndex++)
-                            .text(chunkText)
-                            .wordCount(wordCount)
-                            // score set later
-                            .relevanceScore(0.0)
-                            .build());
-                }
-
-                // Overlap for context continuity
-                String[] chunkWords = currentChunk.toString()
-                        .split("\\s+");
-                int overlapStart = Math.max(0,
-                        chunkWords.length
-                                - CHUNK_OVERLAP);
-                currentChunk = new StringBuilder();
-                wordCount = 0;
-
-                for (int i = overlapStart; i < chunkWords.length; i++) {
-                    currentChunk.append(
-                            chunkWords[i]).append(" ");
-                    wordCount++;
-                }
+            StringBuilder sb = new StringBuilder();
+            for (int i = start; i < end; i++) {
+                sb.append(words[i]).append(" ");
             }
 
-            currentChunk.append(trimmed)
-                    .append("\n\n");
-            wordCount += words.length;
-        }
-
-        // Last chunk
-        String lastChunk = currentChunk.toString().trim();
-        if (!lastChunk.isEmpty()) {
             chunks.add(TextChunk.builder()
-                    .index(chunkIndex)
-                    .text(lastChunk)
-                    .wordCount(wordCount)
+                    .index(chunkIndex++)
+                    .text(sb.toString().trim())
+                    .wordCount(end - start)
+                    // score set later
                     .relevanceScore(0.0)
                     .build());
+
+            if (end >= totalWords) {
+                break;
+            }
+
+            // Step forward, leaving CHUNK_OVERLAP words
+            // of overlap for context continuity
+            start = end - CHUNK_OVERLAP;
         }
 
         // Return in original document order

@@ -49,4 +49,6 @@ public class QuestionRequest {
     // true = also save copy to global bank
     // false = exam only, skip global bank
     private Boolean saveToBank;
+
+    private Boolean removeImage;
 }

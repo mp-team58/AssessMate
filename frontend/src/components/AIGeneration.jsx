@@ -235,11 +235,21 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           </div>
         </div>
 
+        {generatedCount > 0 && generatedCount < requestedCount && (
+          <div className="bg-amber-100 border-l-4 border-amber-500 rounded-r-xl p-4 flex gap-3 text-amber-900">
+            <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
+            <div>
+              <h4 className="font-bold">Shortfall Notice</h4>
+              <p className="text-sm mt-1">Requested {requestedCount} questions, but only {generatedCount} were saved. See the warning below for details.</p>
+            </div>
+          </div>
+        )}
+
         {/* Warning Banner */}
         {warning && (
           <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex gap-3 text-amber-900">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-sm font-medium">{warning}</p>
+            <p className="text-sm font-medium whitespace-pre-line">{warning}</p>
           </div>
         )}
 

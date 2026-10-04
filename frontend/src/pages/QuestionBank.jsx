@@ -288,6 +288,7 @@ const QuestionBank = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
+  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     topic: '',
@@ -367,6 +368,8 @@ const QuestionBank = () => {
 
   // MCQ Action Handlers
   const handleAddSubmit = async (formData) => {
+    if (isSubmittingQuestion) return;
+    setIsSubmittingQuestion(true);
     try {
       await addQuestionToBank(formData);
       setIsModalOpen(false);
@@ -375,10 +378,14 @@ const QuestionBank = () => {
     } catch (error) {
       console.error('Failed to add question', error);
       showToast(error.message || 'Failed to add question', 'error');
+    } finally {
+      setIsSubmittingQuestion(false);
     }
   };
 
   const handleEditSubmit = async (formData) => {
+    if (isSubmittingQuestion) return;
+    setIsSubmittingQuestion(true);
     try {
       await editQuestion(editingQuestion.id, formData);
       setEditingQuestion(null);
@@ -387,6 +394,8 @@ const QuestionBank = () => {
     } catch (error) {
       console.error('Failed to edit question', error);
       showToast(error.message || 'Failed to edit question', 'error');
+    } finally {
+      setIsSubmittingQuestion(false);
     }
   };
 
@@ -720,6 +729,7 @@ const QuestionBank = () => {
                 onSubmit={editingQuestion ? handleEditSubmit : handleAddSubmit}
                 onCancel={() => { setIsModalOpen(false); setEditingQuestion(null); }}
                 isExamContext={false}
+                isLoading={isSubmittingQuestion}
               />
             </div>
           </div>

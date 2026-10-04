@@ -45,6 +45,7 @@ const ExamQuestions = () => {
   // MCQ Tab Actions ('manual', 'bank', 'excel', 'ai')
   const [activeTab, setActiveTab] = useState(null);
   const [editingQuestion, setEditingQuestion] = useState(null);
+  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
 
   // Bank Tab State for MCQ
   const [bankQuestions, setBankQuestions] = useState([]);
@@ -136,6 +137,8 @@ const ExamQuestions = () => {
 
   // MCQ Handlers
   const handleManualSubmit = async (formData) => {
+    if (isSubmittingQuestion) return;
+    setIsSubmittingQuestion(true);
     try {
       await addQuestionManually(examId, formData);
       setActiveTab(null);
@@ -144,10 +147,14 @@ const ExamQuestions = () => {
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to add question', 'error');
+    } finally {
+      setIsSubmittingQuestion(false);
     }
   };
 
   const handleEditSubmit = async (formData) => {
+    if (isSubmittingQuestion) return;
+    setIsSubmittingQuestion(true);
     try {
       await editQuestion(editingQuestion.id, formData);
       setEditingQuestion(null);
@@ -156,6 +163,8 @@ const ExamQuestions = () => {
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to edit question', 'error');
+    } finally {
+      setIsSubmittingQuestion(false);
     }
   };
 
@@ -720,6 +729,7 @@ const ExamQuestions = () => {
                 onCancel={() => { setActiveTab(null); setEditingQuestion(null); }}
                 isExamContext={true}
                 examId={examId}
+                isLoading={isSubmittingQuestion}
               />
             </div>
           )}

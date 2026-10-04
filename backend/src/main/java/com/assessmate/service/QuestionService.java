@@ -37,39 +37,43 @@ public class QuestionService {
     private void validateQuestion(
             QuestionRequest req) {
 
-        if (req.getQuestionText() == null
-                || req.getQuestionText()
-                .trim().isEmpty()) {
-            throw new BadRequestException(
-                    "Question text is required");
+        if (req.getQuestionText() != null) {
+            req.setQuestionText(req.getQuestionText().trim());
+        }
+        if (req.getTopic() != null) {
+            req.setTopic(req.getTopic().trim());
+        }
+        if (req.getExplanation() != null) {
+            req.setExplanation(req.getExplanation().trim());
+        }
+        if (req.getCorrectAnswer() != null) {
+            req.setCorrectAnswer(req.getCorrectAnswer().trim());
+        }
+        if (req.getOptionA() != null) req.setOptionA(req.getOptionA().trim());
+        if (req.getOptionB() != null) req.setOptionB(req.getOptionB().trim());
+        if (req.getOptionC() != null) req.setOptionC(req.getOptionC().trim());
+        if (req.getOptionD() != null) req.setOptionD(req.getOptionD().trim());
+
+        if (req.getQuestionText() == null || req.getQuestionText().isEmpty()) {
+            throw new BadRequestException("Question text is required");
         }
         if (req.getType() == null) {
-            throw new BadRequestException(
-                    "Question type is required");
+            throw new BadRequestException("Question type is required");
         }
         if (req.getDifficulty() == null) {
-            throw new BadRequestException(
-                    "Difficulty is required");
+            throw new BadRequestException("Difficulty is required");
         }
-        if (req.getCorrectAnswer() == null
-                || req.getCorrectAnswer()
-                .trim().isEmpty()) {
-            throw new BadRequestException(
-                    "Correct answer is required");
+        if (req.getCorrectAnswer() == null || req.getCorrectAnswer().isEmpty()) {
+            throw new BadRequestException("Correct answer is required");
         }
 
-        if (req.getType() ==
-                QuestionType.SINGLE_CHOICE ||
-                req.getType() ==
-                        QuestionType.MULTIPLE_SELECT) {
+        if (req.getType() == QuestionType.SINGLE_CHOICE || req.getType() == QuestionType.MULTIPLE_SELECT) {
 
-            if (req.getOptionA() == null
-                    || req.getOptionB() == null
-                    || req.getOptionC() == null
-                    || req.getOptionD() == null) {
-                throw new BadRequestException(
-                        "All 4 options are required " +
-                                "for this question type");
+            if (req.getOptionA() == null || req.getOptionA().isBlank()
+                    || req.getOptionB() == null || req.getOptionB().isBlank()
+                    || req.getOptionC() == null || req.getOptionC().isBlank()
+                    || req.getOptionD() == null || req.getOptionD().isBlank()) {
+                throw new BadRequestException("All 4 options are required and must not be blank for this question type");
             }
 
             if (req.getType() ==
@@ -107,20 +111,24 @@ public class QuestionService {
             }
         }
 
-        if (req.getType() ==
-                QuestionType.NUMERICAL) {
-            try {
-                Double.parseDouble(
-                        req.getCorrectAnswer());
-            } catch (NumberFormatException e) {
-                throw new BadRequestException(
-                        "Correct answer for numerical " +
-                                "question must be a number");
-            }
-            if (req.getTolerance() != null
-                    && req.getTolerance() < 0) {
-                throw new BadRequestException(
-                        "Tolerance cannot be negative");
+        else if (req.getType() == QuestionType.NUMERICAL || req.getType() == QuestionType.FILL_BLANK) {
+            req.setOptionA(null);
+            req.setOptionB(null);
+            req.setOptionC(null);
+            req.setOptionD(null);
+            
+            if (req.getType() == QuestionType.NUMERICAL) {
+                try {
+                    double val = Double.parseDouble(req.getCorrectAnswer());
+                    if (Double.isNaN(val) || Double.isInfinite(val)) {
+                        throw new BadRequestException("Correct answer for numerical question must be a valid finite number");
+                    }
+                } catch (NumberFormatException e) {
+                    throw new BadRequestException("Correct answer for numerical question must be a number");
+                }
+                if (req.getTolerance() != null && req.getTolerance() < 0) {
+                    throw new BadRequestException("Tolerance cannot be negative");
+                }
             }
         }
     }
@@ -231,8 +239,8 @@ public class QuestionService {
         List<QuestionResponse> added =
                 new ArrayList<>();
 
-        for (Long questionId :
-                req.getQuestionIds()) {
+        Set<Long> uniqueIds = new LinkedHashSet<>(req.getQuestionIds());
+        for (Long questionId : uniqueIds) {
 
             Question original =
                     questionRepository
@@ -333,13 +341,13 @@ public class QuestionService {
                         new com.assessmate.exception.BadRequestException(
                                 "Host not found"));
 
+        // Check capacity before saving image
+        checkDifficultyCapacity(exam, req.getDifficulty());
+
         String imageUrl = null;
         if (image != null && !image.isEmpty()) {
             imageUrl = saveImage(image);
         }
-
-        // Check capacity before saving
-        checkDifficultyCapacity(exam, req.getDifficulty());
 
         // Save to global bank only if opted in
         boolean saveToBank = Boolean.TRUE
@@ -502,8 +510,26 @@ public class QuestionService {
                             "while the exam is in DRAFT status");
         }
 
+        if (question.getExam() != null && question.getDifficulty() != req.getDifficulty()) {
+            checkDifficultyCapacity(question.getExam(), req.getDifficulty());
+        }
+
         if (image != null && !image.isEmpty()) {
+            if (question.getImageUrl() != null) {
+                try {
+                    Path oldPath = Paths.get(uploadDir, question.getImageUrl());
+                    Files.deleteIfExists(oldPath);
+                } catch (Exception ignored) {}
+            }
             question.setImageUrl(saveImage(image));
+        } else if (Boolean.TRUE.equals(req.getRemoveImage())) {
+            if (question.getImageUrl() != null) {
+                try {
+                    Path oldPath = Paths.get(uploadDir, question.getImageUrl());
+                    Files.deleteIfExists(oldPath);
+                } catch (Exception ignored) {}
+            }
+            question.setImageUrl(null);
         }
 
         question.setQuestionText(
@@ -519,9 +545,8 @@ public class QuestionService {
         question.setOptionD(req.getOptionD());
         question.setCorrectAnswer(
                 req.getCorrectAnswer());
-        question.setTolerance(req.getTolerance());
-        question.setStrictMarking(
-                req.getStrictMarking());
+        question.setTolerance(req.getTolerance() != null ? req.getTolerance() : 0.0);
+        question.setStrictMarking(req.getStrictMarking() != null ? req.getStrictMarking() : true);
         question.setIsVerified(false);
 
         if (question.getExam() != null) {

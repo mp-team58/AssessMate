@@ -10,31 +10,31 @@ import { useToast } from '../contexts/ToastContext';
 import { getMediaUrl } from '../services/apiClient';
 
 const schema = yup.object().shape({
-  questionText: yup.string().required('Question text is required'),
+  questionText: yup.string().trim().required('Question text is required'),
   type: yup.string().required('Question type is required'),
   difficulty: yup.string().required('Difficulty is required'),
-  topic: yup.string(),
-  optionA: yup.string().when('type', {
+  topic: yup.string().trim(),
+  optionA: yup.string().trim().when('type', {
     is: (val) => val === 'SINGLE_CHOICE' || val === 'MULTIPLE_SELECT',
     then: (schema) => schema.required('Option A is required'),
     otherwise: (schema) => schema.notRequired(),
   }),
-  optionB: yup.string().when('type', {
+  optionB: yup.string().trim().when('type', {
     is: (val) => val === 'SINGLE_CHOICE' || val === 'MULTIPLE_SELECT',
     then: (schema) => schema.required('Option B is required'),
     otherwise: (schema) => schema.notRequired(),
   }),
-  optionC: yup.string().when('type', {
+  optionC: yup.string().trim().when('type', {
     is: (val) => val === 'SINGLE_CHOICE' || val === 'MULTIPLE_SELECT',
     then: (schema) => schema.required('Option C is required'),
     otherwise: (schema) => schema.notRequired(),
   }),
-  optionD: yup.string().when('type', {
+  optionD: yup.string().trim().when('type', {
     is: (val) => val === 'SINGLE_CHOICE' || val === 'MULTIPLE_SELECT',
     then: (schema) => schema.required('Option D is required'),
     otherwise: (schema) => schema.notRequired(),
   }),
-  correctAnswerText: yup.string().when('type', {
+  correctAnswerText: yup.string().trim().when('type', {
     is: 'FILL_BLANK',
     then: (schema) => schema.required('Correct answer is required'),
     otherwise: (schema) => schema.notRequired(),
@@ -57,13 +57,25 @@ const schema = yup.object().shape({
       then: (schema) => schema.default(0),
       otherwise: (schema) => schema.notRequired(),
     }),
-  explanation: yup.string(),
+  explanation: yup.string().trim(),
 });
 
 const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContext = false, examId }) => {
   const { showToast } = useToast();
   const [imageFile, setImageFile] = useState(null);
   const [existingImageUrl, setExistingImageUrl] = useState(initialData?.imageUrl || null);
+  const [isImageRemoved, setIsImageRemoved] = useState(false);
+
+  const previewUrl = React.useMemo(() => {
+    if (!imageFile) return null;
+    return URL.createObjectURL(imageFile);
+  }, [imageFile]);
+
+  React.useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   // Custom states for answers that don't map cleanly to simple inputs
   const [singleChoiceAnswer, setSingleChoiceAnswer] = useState(initialData?.correctAnswer || 'A');
@@ -102,7 +114,7 @@ const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContex
         showToast("Please select at least one correct answer.", "error");
         return;
       }
-      correctAnswer = multipleChoiceAnswers.sort().join(',');
+      correctAnswer = [...multipleChoiceAnswers].sort().join(',');
     } else if (questionType === 'FILL_BLANK') {
       correctAnswer = data.correctAnswerText;
     } else if (questionType === 'NUMERICAL') {
@@ -135,6 +147,10 @@ const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContex
 
     if (isExamContext) {
       payload.saveToBank = saveToBank;
+    }
+
+    if (isImageRemoved) {
+      payload.removeImage = true;
     }
 
     const formData = new FormData();
@@ -303,7 +319,7 @@ const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContex
         {imageFile || existingImageUrl ? (
           <div className="relative inline-block w-full h-48 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 group">
             <img 
-              src={imageFile ? URL.createObjectURL(imageFile) : getMediaUrl(existingImageUrl)} 
+              src={imageFile ? previewUrl : getMediaUrl(existingImageUrl)} 
               alt="Preview" 
               className="w-full h-full object-contain p-2"
             />
@@ -312,6 +328,7 @@ const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContex
               onClick={() => {
                 setImageFile(null);
                 setExistingImageUrl(null);
+                setIsImageRemoved(true);
               }}
               className="absolute top-3 right-3 p-1.5 bg-white shadow-sm border border-gray-200 text-red-600 rounded-lg hover:bg-red-50 hover:text-red-700 transition-colors opacity-100 group-hover:opacity-100 z-10"
               title="Remove image"
@@ -333,7 +350,19 @@ const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContex
                 className="hidden"
                 accept="image/jpeg, image/png, image/webp"
                 onChange={(e) => {
-                  if (e.target.files?.[0]) setImageFile(e.target.files[0]);
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 5 * 1024 * 1024) {
+                      showToast("Image size must be less than 5MB", "error");
+                      return;
+                    }
+                    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+                      showToast("Only JPG and PNG images are allowed", "error");
+                      return;
+                    }
+                    setImageFile(file);
+                    setIsImageRemoved(false);
+                  }
                 }}
               />
             </label>

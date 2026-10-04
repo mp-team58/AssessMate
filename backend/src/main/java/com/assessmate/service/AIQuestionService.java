@@ -475,24 +475,23 @@ public class AIQuestionService {
         };
 
         int skippedCapacityCount = 0;
+        int skippedValidationCount = 0;
+        int skippedSaveCount = 0;
 
         for (GeneratedQuestion gq : generated) {
             try {
-                // Basic null checks
                 if (gq.getQuestionText() == null
                         || gq.getQuestionText()
                             .trim().isEmpty()) {
-                    log.warn(
-                        "Skipped: empty " +
-                        "question text");
+                    log.warn("Skipped: empty question text");
+                    skippedValidationCount++;
                     continue;
                 }
                 if (gq.getCorrectAnswer() == null
                         || gq.getCorrectAnswer()
                             .trim().isEmpty()) {
-                    log.warn(
-                        "Skipped: empty " +
-                        "correct answer");
+                    log.warn("Skipped: empty correct answer");
+                    skippedValidationCount++;
                     continue;
                 }
 
@@ -503,9 +502,8 @@ public class AIQuestionService {
                         gq.getType()
                             .toUpperCase().trim());
                 } catch (Exception e) {
-                    log.warn(
-                        "Skipped: invalid type {}",
-                        gq.getType());
+                    log.warn("Skipped: invalid type {}", gq.getType());
+                    skippedValidationCount++;
                     continue;
                 }
 
@@ -516,29 +514,19 @@ public class AIQuestionService {
                         gq.getDifficulty()
                             .toUpperCase().trim());
                 } catch (Exception e) {
-                    log.warn(
-                        "Skipped: invalid " +
-                        "difficulty {}",
-                        gq.getDifficulty());
+                    log.warn("Skipped: invalid difficulty {}", gq.getDifficulty());
+                    skippedValidationCount++;
                     continue;
                 }
 
-                // Validate and normalize
-                // based on question type
+                // Validate and normalize based on question type
                 String correctAnswer;
                 try {
-                    correctAnswer =
-                        validateAndNormalize(
-                            gq, type);
+                    correctAnswer = validateAndNormalize(gq, type);
                 } catch (Exception e) {
-                    log.warn(
-                        "Skipped: {} — {}",
-                        gq.getQuestionText()
-                            .substring(0,
-                                Math.min(40,
-                                gq.getQuestionText()
-                                    .length())),
-                        e.getMessage());
+                    log.warn("Skipped: {} — {}",
+                        gq.getQuestionText().substring(0, Math.min(40, gq.getQuestionText().length())), e.getMessage());
+                    skippedValidationCount++;
                     continue;
                 }
 
@@ -609,10 +597,14 @@ public class AIQuestionService {
                         .isVerified(isVerified)
                         .build();
 
-                QuestionResponse saved =
-                    questionService.mapToResponse(
-                        questionRepository
-                            .save(question));
+                QuestionResponse saved;
+                try {
+                    saved = questionService.mapToResponse(questionRepository.save(question));
+                } catch (Exception e) {
+                    log.warn("Failed to save question to DB: {}", e.getMessage());
+                    skippedSaveCount++;
+                    continue;
+                }
 
                 if (isVerified) {
                     verified.add(saved);
@@ -623,15 +615,32 @@ public class AIQuestionService {
                 savedPerDifficulty.merge(difficulty, 1, Integer::sum);
 
             } catch (Exception e) {
-                log.warn(
-                    "Skipped question: {}",
-                    e.getMessage());
+                log.warn("Skipped question: {}", e.getMessage());
+                skippedValidationCount++;
             }
         }
 
-        if (skippedCapacityCount > 0) {
-            String capWarning = skippedCapacityCount + " question(s) were skipped because the difficulty limits were reached.";
-            warning = warning == null ? capWarning : warning + " " + capWarning;
+        int generatedCount = verified.size() + unverified.size();
+        
+        List<String> skipReasons = new ArrayList<>();
+        if (skippedCapacityCount > 0) skipReasons.add(skippedCapacityCount + " due to difficulty limits full");
+        if (skippedValidationCount > 0) skipReasons.add(skippedValidationCount + " due to invalid format");
+        if (skippedSaveCount > 0) skipReasons.add(skippedSaveCount + " due to database error");
+        
+        if (!skipReasons.isEmpty()) {
+            String skipSummary = "Skipped " + (skippedCapacityCount + skippedValidationCount + skippedSaveCount) + " questions (" + String.join(", ", skipReasons) + ").";
+            warning = warning == null ? skipSummary : warning + " " + skipSummary;
+        }
+
+        if (generatedCount < requestedCount) {
+            String shortfallNote = "Requested " + requestedCount + ", saved " + generatedCount + ".";
+            warning = warning == null ? shortfallNote : warning + " " + shortfallNote;
+        }
+
+        if (generatedCount == 0) {
+            throw new com.assessmate.exception.BadRequestException(
+                "Could not generate any usable questions. " + (warning != null ? warning : "")
+            );
         }
 
         return AIGenerationResponse.builder()

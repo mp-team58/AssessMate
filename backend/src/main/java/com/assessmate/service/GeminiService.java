@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import jakarta.annotation.PostConstruct;
 
 @Service
 @Slf4j
@@ -29,17 +30,24 @@ public class GeminiService {
     @Value("${gemini.temperature:0.3}")
     private double temperature;
 
-    @Value("${gemini.max.output.tokens:8192}")
+    @Value("${gemini.max.output.tokens:16384}")
     private int maxOutputTokens;
 
-    private final OkHttpClient client =
-        new OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build();
+    @Value("${gemini.read.timeout.seconds:180}")
+    private int readTimeout;
+
+    private OkHttpClient client;
 
     private final Gson gson = new Gson();
+
+    @PostConstruct
+    public void init() {
+        client = new OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(readTimeout, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build();
+    }
 
     // ─────────────────────────────────────────
     // PUBLIC METHODS
@@ -73,23 +81,67 @@ public class GeminiService {
             generateFromImage(
                 byte[] imageBytes,
                 String topic,
-                int totalQuestions) {
+                int totalQuestions,
+                int easyCount,
+                int mediumCount,
+                int hardCount,
+                int singleChoiceCount,
+                int multipleSelectCount,
+                int fillBlankCount,
+                int numericalCount) {
 
-        String prompt =
-            "You are an expert exam question " +
-            "creator. Look at this image carefully.\n\n"
-            + (topic != null && !topic.isEmpty()
-                ? "Focus on the topic: "
-                    + topic + "\n\n"
-                : "")
-            + "Generate exactly " + totalQuestions
-            + " multiple choice questions "
-            + "(SINGLE_CHOICE) based ONLY on what "
-            + "you see in this image.\n\n"
-            + buildJsonFormatInstructions(
-                totalQuestions);
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are an expert exam question creator. Look at this image carefully.\n\n");
+        if (topic != null && !topic.isEmpty()) {
+            prompt.append("Focus on the topic: ").append(topic).append("\n\n");
+        }
+        
+        prompt.append("<instructions>\n");
+        prompt.append("Generate exactly ")
+            .append(totalQuestions)
+            .append(" questions based ONLY on what you see in this image:\n");
+        prompt.append("- EASY: ")
+            .append(easyCount).append("\n");
+        prompt.append("- MEDIUM: ")
+            .append(mediumCount).append("\n");
+        prompt.append("- HARD: ")
+            .append(hardCount).append("\n\n");
+        prompt.append(
+            "Question type distribution:\n");
+        if (singleChoiceCount > 0) {
+            prompt.append("- SINGLE_CHOICE: ")
+                .append(singleChoiceCount)
+                .append("\n");
+        }
+        if (multipleSelectCount > 0) {
+            prompt.append("- MULTIPLE_SELECT: ")
+                .append(multipleSelectCount)
+                .append("\n");
+        }
+        if (fillBlankCount > 0) {
+            prompt.append("- FILL_BLANK: ")
+                .append(fillBlankCount)
+                .append("\n");
+        }
+        if (numericalCount > 0) {
+            prompt.append("- NUMERICAL: ")
+                .append(numericalCount)
+                .append("\n");
+        }
+        prompt.append(
+            "Important rules:\n" +
+            "- Follow the exact difficulty distribution.\n" +
+            "- Follow the exact question-type distribution.\n" +
+            "- Do not generate duplicate questions.\n" +
+            "- For SINGLE_CHOICE and MULTIPLE_SELECT, provide optionA, optionB, optionC, and optionD.\n" +
+            "- For FILL_BLANK and NUMERICAL, set optionA, optionB, optionC, and optionD to null.\n" +
+            "- For NUMERICAL, tolerance must be zero or a positive number.\n"
+        );
+        prompt.append("</instructions>\n\n");
 
-        return callGemini(prompt, imageBytes);
+        prompt.append(buildJsonFormatInstructions(totalQuestions));
+
+        return callGemini(prompt.toString(), imageBytes);
     }
 
     public List<GeneratedQuestion>
@@ -442,6 +494,15 @@ public class GeminiService {
         return parseGeminiResponse(responseBody);
     }
 
+    private String getMimeType(byte[] bytes) {
+        if (bytes != null && bytes.length >= 2) {
+            if ((bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xD8) {
+                return "image/jpeg";
+            }
+        }
+        return "image/png";
+    }
+
     private String callGeminiRaw(
             String prompt,
             byte[] imageBytes) {
@@ -464,7 +525,7 @@ public class GeminiService {
                 JsonObject imagePart = new JsonObject();
                 imagePart.addProperty("type", "image");
                 imagePart.addProperty("data", base64);
-                imagePart.addProperty("mime_type", "image/png");
+                imagePart.addProperty("mime_type", getMimeType(imageBytes));
                 inputArray.add(imagePart);
 
                 requestBody.add("input", inputArray);
@@ -493,7 +554,7 @@ public class GeminiService {
                 String base64 = Base64.getEncoder().encodeToString(imageBytes);
                 JsonObject imagePart = new JsonObject();
                 JsonObject inlineData = new JsonObject();
-                inlineData.addProperty("mime_type", "image/png");
+                inlineData.addProperty("mime_type", getMimeType(imageBytes));
                 inlineData.addProperty("data", base64);
                 imagePart.add("inline_data", inlineData);
                 parts.add(imagePart);
@@ -541,6 +602,17 @@ public class GeminiService {
                             Thread.sleep(2000 * attempt); // Increased backoff
                             continue;
                         }
+                    } else {
+                        // Non-retryable 4xx
+                        log.error("Gemini API non-retryable error {}: {}", response.code(), responseBody);
+                        String reason = "Unknown error";
+                        try {
+                            JsonObject errorObj = gson.fromJson(responseBody, JsonObject.class);
+                            if (errorObj.has("error") && errorObj.getAsJsonObject("error").has("message")) {
+                                reason = errorObj.getAsJsonObject("error").get("message").getAsString();
+                            }
+                        } catch (Exception ignored) {}
+                        throw new BadRequestException("AI request failed (" + response.code() + "): " + reason);
                     }
                     log.error("Gemini API error {}: {}", response.code(), responseBody);
                     if (response.code() == 429) {
@@ -551,6 +623,9 @@ public class GeminiService {
 
                 return responseBody;
 
+            } catch (java.net.SocketTimeoutException e) {
+                log.error("Gemini connection timeout: {}", e.getMessage());
+                throw new BadRequestException("AI took too long to respond. Try fewer questions or try again.");
             } catch (IOException e) {
                 if (attempt < maxAttempts) {
                     log.warn("Gemini connection error: {}. Retrying attempt {}/{}", e.getMessage(), attempt + 1, maxAttempts);
@@ -576,77 +651,110 @@ public class GeminiService {
     // ─────────────────────────────────────────
 
     private List<GeneratedQuestion> parseGeminiResponse(String responseBody) {
+        JsonObject response = gson.fromJson(responseBody, JsonObject.class);
+
+        String text = extractGeneratedText(response);
+
+        if (text == null || text.trim().isEmpty()) {
+            log.error("No valid text output found in Gemini response: {}", responseBody);
+            throw new BadRequestException("AI returned no results. Please try again.");
+        }
+
+        // Clean markdown fences
+        text = text.trim();
+        if (text.startsWith("```json")) {
+            text = text.substring(7);
+        } else if (text.startsWith("```")) {
+            text = text.substring(3);
+        }
+        
+        int firstBracket = text.indexOf('[');
+        int lastBracket = text.lastIndexOf(']');
+        
+        if (firstBracket >= 0 && lastBracket >= firstBracket) {
+            text = text.substring(firstBracket, lastBracket + 1);
+        } else {
+            // Check if it's a JSON object with an array field
+            try {
+                int firstBrace = text.indexOf('{');
+                int lastBrace = text.lastIndexOf('}');
+                if (firstBrace >= 0 && lastBrace >= firstBrace) {
+                    String objText = text.substring(firstBrace, lastBrace + 1);
+                    JsonObject root = gson.fromJson(objText, JsonObject.class);
+                    for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
+                        if (entry.getValue().isJsonArray()) {
+                            text = entry.getValue().getAsJsonArray().toString();
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+
+        JsonArray questions = null;
         try {
-            JsonObject response = gson.fromJson(responseBody, JsonObject.class);
-
-            String text = extractGeneratedText(response);
-
-            if (text == null || text.trim().isEmpty()) {
-                log.error("No valid text output found in Gemini response: {}", responseBody);
-                throw new BadRequestException("AI returned no results. Please try again.");
+            questions = gson.fromJson(text, JsonArray.class);
+        } catch (Exception e) {
+            // Truncated JSON recovery
+            log.warn("Failed to parse JSON, attempting truncated recovery");
+            int lastCompleteBrace = text.lastIndexOf('}');
+            if (lastCompleteBrace >= 0) {
+                String salvaged = text.substring(0, lastCompleteBrace + 1) + "]";
+                try {
+                    questions = gson.fromJson(salvaged, JsonArray.class);
+                } catch (Exception e2) {
+                    throw new BadRequestException("AI returned unexpected format. Please try again.");
+                }
+            } else {
+                throw new BadRequestException("AI returned unexpected format. Please try again.");
             }
+        }
+        
+        if (questions == null) {
+            throw new BadRequestException("AI returned unexpected format. Please try again.");
+        }
 
-            // Clean markdown fences
-            text = text.trim();
-            if (text.startsWith("```json")) {
-                text = text.substring(7);
-            } else if (text.startsWith("```")) {
-                text = text.substring(3);
-            }
-            if (text.endsWith("```")) {
-                text = text.substring(
-                    0, text.length() - 3);
-            }
-            text = text.trim();
+        List<GeneratedQuestion> result = new ArrayList<>();
+        int malformedCount = 0;
 
-            JsonArray questions =
-                gson.fromJson(text,
-                    JsonArray.class);
+        for (JsonElement elem : questions) {
+            try {
+                JsonObject q = elem.getAsJsonObject();
+                
+                // Parse tolerance safely
+                double tolerance = 0.0;
+                if (q.has("tolerance") && !q.get("tolerance").isJsonNull()) {
+                    try {
+                        tolerance = q.get("tolerance").getAsDouble();
+                        if (tolerance < 0) tolerance = 0.0;
+                    } catch (Exception ignored) {}
+                }
 
-            List<GeneratedQuestion> result =
-                new ArrayList<>();
-
-            for (JsonElement elem : questions) {
-                JsonObject q =
-                    elem.getAsJsonObject();
                 result.add(
                     GeneratedQuestion.builder()
-                        .questionText(
-                            getStr(q, "questionText"))
+                        .questionText(getStr(q, "questionText"))
                         .type(getStr(q, "type"))
-                        .difficulty(
-                            getStr(q, "difficulty"))
+                        .difficulty(getStr(q, "difficulty"))
                         .optionA(getStr(q, "optionA"))
                         .optionB(getStr(q, "optionB"))
                         .optionC(getStr(q, "optionC"))
                         .optionD(getStr(q, "optionD"))
-                        .correctAnswer(
-                            getStr(q, "correctAnswer"))
-                        .explanation(
-                            getStr(q, "explanation"))
+                        .correctAnswer(getStr(q, "correctAnswer"))
+                        .explanation(getStr(q, "explanation"))
                         .topic(getStr(q, "topic"))
-                        .tolerance(
-                            q.has("tolerance")
-                            && !q.get("tolerance")
-                                .isJsonNull()
-                            ? q.get("tolerance")
-                                .getAsDouble()
-                            : 0.0)
+                        .tolerance(tolerance)
                         .build());
+            } catch (Exception e) {
+                log.warn("Skipping malformed question element: {}", elem);
+                malformedCount++;
             }
-
-            return result;
-
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error(
-                "Parse error: {}",
-                e.getMessage());
-            throw new BadRequestException(
-                "AI returned unexpected format. " +
-                "Please try again.");
         }
+        
+        if (result.isEmpty()) {
+            throw new BadRequestException("AI returned no usable questions. Please try again.");
+        }
+
+        return result;
     }
 
     private CodingProblemGenerated
@@ -779,30 +887,64 @@ public class GeminiService {
             }
         }
 
+        // Check for finishReason / blockReason
+        if (response.has("promptFeedback")) {
+            JsonObject promptFeedback = response.getAsJsonObject("promptFeedback");
+            if (promptFeedback.has("blockReason") && !promptFeedback.get("blockReason").isJsonNull()) {
+                throw new BadRequestException("AI prompt blocked: " + promptFeedback.get("blockReason").getAsString());
+            }
+        }
+
         // 3. Candidates (Classic generateContent API)
         if (response.has("candidates") && response.get("candidates").isJsonArray()) {
             JsonArray candidates = response.getAsJsonArray("candidates");
-            if (candidates.size() > 0) {
-                JsonObject first = candidates.get(0).getAsJsonObject();
-                if (first.has("content") && first.getAsJsonObject("content").has("parts")) {
-                    JsonArray parts = first.getAsJsonObject("content").getAsJsonArray("parts");
-                    if (parts.size() > 0 && parts.get(0).getAsJsonObject().has("text")) {
-                        return parts.get(0).getAsJsonObject().get("text").getAsString();
+            if (candidates.size() == 0) {
+                throw new BadRequestException("AI request returned no candidates. This may be due to safety filters.");
+            }
+            JsonObject first = candidates.get(0).getAsJsonObject();
+            
+            if (first.has("finishReason") && !first.get("finishReason").isJsonNull()) {
+                String finishReason = first.get("finishReason").getAsString();
+                if (finishReason.equals("SAFETY") || finishReason.equals("RECITATION") || finishReason.equals("OTHER")) {
+                    throw new BadRequestException("AI response blocked due to: " + finishReason);
+                }
+            }
+
+            if (first.has("content") && first.getAsJsonObject("content").has("parts")) {
+                JsonArray parts = first.getAsJsonObject("content").getAsJsonArray("parts");
+                StringBuilder sb = new StringBuilder();
+                for (JsonElement p : parts) {
+                    JsonObject pObj = p.getAsJsonObject();
+                    if (pObj.has("thought") && pObj.get("thought").getAsBoolean()) {
+                        continue;
+                    }
+                    if (pObj.has("text") && !pObj.get("text").isJsonNull()) {
+                        sb.append(pObj.get("text").getAsString());
                     }
                 }
+                if (sb.length() > 0) return sb.toString();
             }
         }
 
         return null;
     }
 
-    private String getStr(
-            JsonObject obj, String key) {
-        if (!obj.has(key)
-                || obj.get(key).isJsonNull()) {
+    private String getStr(JsonObject obj, String key) {
+        if (!obj.has(key) || obj.get(key).isJsonNull()) {
             return null;
         }
-        return obj.get(key).getAsString();
+        JsonElement el = obj.get(key);
+        if (el.isJsonArray()) {
+            List<String> list = new ArrayList<>();
+            for (JsonElement item : el.getAsJsonArray()) {
+                list.add(item.getAsString());
+            }
+            return String.join(",", list);
+        } else if (el.isJsonObject()) {
+            return el.toString();
+        } else {
+            return el.getAsString();
+        }
     }
 
     // ─────────────────────────────────────────

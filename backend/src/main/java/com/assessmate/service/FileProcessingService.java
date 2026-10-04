@@ -50,7 +50,7 @@ public class FileProcessingService {
 
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null) {
-            throw new IllegalArgumentException("File name cannot be null");
+            throw new BadRequestException("File name cannot be null");
         }
         String filename = originalFilename.toLowerCase();
 

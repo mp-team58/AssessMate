@@ -38,17 +38,22 @@ public class Question {
     @Column(nullable = false)
     private Difficulty difficulty;
 
+    @Column(length = 1000)
     private String topic;
 
     @Column(columnDefinition = "TEXT")
     private String explanation;
 
+    @Column(columnDefinition = "TEXT")
     private String optionA;
+    @Column(columnDefinition = "TEXT")
     private String optionB;
+    @Column(columnDefinition = "TEXT")
     private String optionC;
+    @Column(columnDefinition = "TEXT")
     private String optionD;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String correctAnswer;
 
     @Builder.Default

@@ -27,6 +27,7 @@ import {
   CheckCircle2, HelpCircle, Sparkles
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import AICodingProblemModal from '../components/AICodingProblemModal';
 import { scrollAppToTop } from '../utils/scroll';
 
@@ -39,6 +40,7 @@ const ExamQuestions = () => {
   const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // Section Tab: 'mcq' or 'coding'
   const [sectionTab, setSectionTab] = useState('mcq');
@@ -170,7 +172,7 @@ const ExamQuestions = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this question?")) {
+    if (await confirm("Are you sure you want to delete this question?")) {
       try {
         await deleteQuestion(id);
         fetchExamData();
@@ -262,7 +264,7 @@ const ExamQuestions = () => {
   };
 
   const handleDeleteCodingProblem = async (problemId) => {
-    if (window.confirm("Are you sure you want to remove this coding problem from the exam pool?")) {
+    if (await confirm("Are you sure you want to remove this coding problem from the exam pool?")) {
       try {
         await deleteCodingProblem(problemId);
         await fetchCodingData();
@@ -309,7 +311,7 @@ const ExamQuestions = () => {
       return;
     }
 
-    if (window.confirm("Are you sure you want to publish this exam? You won't be able to edit questions after publishing.")) {
+    if (await confirm("Are you sure you want to publish this exam? You won't be able to edit questions after publishing.")) {
       try {
         await publishExam(examId);
         showToast('Exam published successfully', 'success');

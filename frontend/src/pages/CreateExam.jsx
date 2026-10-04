@@ -480,10 +480,6 @@ const CreateExam = () => {
                   <span className="font-semibold text-secondary-800 text-sm">Require Microphone</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
-                  <input type="checkbox" {...register('requireScreenShare')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
-                  <span className="font-semibold text-secondary-800 text-sm">Require Screen Share</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
                   <input type="checkbox" {...register('enableFaceDetection')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
                   <span className="font-semibold text-secondary-800 text-sm">Face Detection (AI)</span>
                 </label>

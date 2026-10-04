@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getExamResults } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import Button from '../components/ui/Button';
 import { Users, CheckCircle, Target, TrendingUp, TrendingDown, ArrowLeft, AlertTriangle, Send } from 'lucide-react';
 import { publishExamResults } from '../services/examService';
@@ -10,6 +11,7 @@ const HostExamResults = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   
   const [results, setResults] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,6 +20,8 @@ const HostExamResults = () => {
   const intervalRef = useRef(null);
 
   const handlePublishResults = async () => {
+    if (!(await confirm("Are you sure you want to publish these results? All candidates will be able to view their scores and AI diagnostics immediately."))) return;
+
     setIsPublishing(true);
     try {
       await publishExamResults(id);

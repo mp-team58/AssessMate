@@ -14,15 +14,25 @@ import {
 } from 'lucide-react';
 import { logout } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 const CandidateLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { confirm } = useConfirm();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    const isConfirmed = await confirm({
+      title: "Confirm Logout",
+      message: "Are you sure you want to sign out?",
+      confirmText: "Logout",
+      cancelText: "Cancel"
+    });
+    if (isConfirmed) {
+      logout();
+      navigate('/login');
+    }
   };
 
   const navItems = [

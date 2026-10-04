@@ -30,6 +30,8 @@ import ExamResult from './pages/ExamResult';
 import { useLocation } from 'react-router-dom';
 import { scrollAppToTop } from './utils/scroll';
 
+import { ConfirmProvider } from './contexts/ConfirmContext';
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   React.useEffect(() => { scrollAppToTop(); }, [pathname]);
@@ -38,8 +40,9 @@ function ScrollToTop() {
 
 function App() {
   return (
-    <ToastProvider>
-      <ScrollToTop />
+    <ConfirmProvider>
+      <ToastProvider>
+        <ScrollToTop />
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
@@ -82,7 +85,8 @@ function App() {
         <Route path="/candidate/exam/:enrollmentId" element={<ActiveExam />} />
       </Route>
       </Routes>
-    </ToastProvider>
+      </ToastProvider>
+    </ConfirmProvider>
   );
 }
 

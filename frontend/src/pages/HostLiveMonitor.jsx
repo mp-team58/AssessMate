@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { getExamLiveMonitor } from '../services/hostService';
 import { endExam } from '../services/examService';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import Button from '../components/ui/Button';
 import {
   Activity,
@@ -24,7 +25,7 @@ const HostLiveMonitor = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
-  const [showEndModal, setShowEndModal] = useState(false);
+  const { confirm } = useConfirm();
   
   const intervalRef = useRef(null);
 
@@ -74,11 +75,12 @@ const HostLiveMonitor = () => {
   }, [id]);
 
   const handleEndExam = async () => {
+    if (!(await confirm({ title: "End Exam", message: "Are you sure you want to end this exam? Candidates will no longer be able to submit.", isDanger: true }))) return;
+    
     setIsEnding(true);
     try {
       await endExam(id);
       showToast('Exam ended successfully. System is processing remaining submissions.', 'success');
-      setShowEndModal(false);
       // Fetch one last time to get the final state
       await fetchLiveData(false);
     } catch (error) {
@@ -136,11 +138,12 @@ const HostLiveMonitor = () => {
         {isLive && (
           <Button 
             variant="danger" 
-            onClick={() => setShowEndModal(true)}
+            onClick={handleEndExam}
+            disabled={isEnding}
             className="flex items-center gap-2"
           >
             <Power className="w-4 h-4" />
-            End Exam Now
+            {isEnding ? 'Ending...' : 'End Exam Now'}
           </Button>
         )}
       </div>
@@ -291,41 +294,6 @@ const HostLiveMonitor = () => {
         </div>
       </div>
 
-      {/* End Exam Modal */}
-      {showEndModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 sm:p-8">
-              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-6">
-                <Power className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-extrabold text-secondary-900 mb-2">End Exam Now?</h3>
-              <p className="text-secondary-600 text-[15px] leading-relaxed mb-6">
-                This action will permanently close the exam. Candidates currently taking the test will be auto-submitted. This cannot be undone.
-              </p>
-              
-              <div className="flex gap-3 mt-8">
-                <Button 
-                  variant="cancel" 
-                  onClick={() => setShowEndModal(false)}
-                  className="flex-1"
-                  disabled={isEnding}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  variant="danger"
-                  onClick={handleEndExam}
-                  className="flex-1"
-                  disabled={isEnding}
-                >
-                  {isEnding ? 'Ending...' : 'End Exam'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

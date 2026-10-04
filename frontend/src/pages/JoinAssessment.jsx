@@ -14,6 +14,7 @@ import {
   FileText
 } from 'lucide-react';
 import Button from '../components/ui/Button';
+import { useToast } from '../contexts/ToastContext';
 import { joinExamByCode } from '../services/candidateService';
 
 const JoinAssessment = () => {
@@ -23,6 +24,7 @@ const JoinAssessment = () => {
   const [error, setError] = useState('');
   const [enrolledExam, setEnrolledExam] = useState(null);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   useEffect(() => {
     const codeParam = searchParams.get('code');
@@ -45,10 +47,11 @@ const JoinAssessment = () => {
         sessionStorage.setItem(`exam_config_${res.data.enrollmentId}`, JSON.stringify(res.data));
       }
     } catch (err) {
-      setError(
+      showToast(
         err.response?.data?.message ||
           err.message ||
-          'Invalid or expired access code. Please verify the code with your instructor.'
+          'Invalid or expired access code. Please verify the code with your instructor.',
+        'error'
       );
     } finally {
       setIsLoading(false);
@@ -80,13 +83,6 @@ const JoinAssessment = () => {
           Enter your unique access code to verify your credentials and begin your proctored assessment session.
         </p>
       </header>
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
-          <span className="text-sm font-medium">{error}</span>
-        </div>
-      )}
 
       {/* Access Code Input Card */}
       <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-6">

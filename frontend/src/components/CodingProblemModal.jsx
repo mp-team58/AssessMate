@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Code2, AlertCircle, Check, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Button from './ui/Button';
+import { useToast } from '../contexts/ToastContext';
 
 const AVAILABLE_LANGUAGES = [
   { id: 'PYTHON', label: 'Python 3' },
@@ -39,6 +40,7 @@ const CodingProblemModal = ({
 }) => {
   const [formData, setFormData] = useState(DEFAULT_PROBLEM);
   const [error, setError] = useState('');
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (initialData) {
@@ -130,26 +132,26 @@ const CodingProblemModal = ({
     setError('');
 
     if (!formData.title.trim()) {
-      setError('Please provide a problem title.');
+      showToast('Please provide a problem title.', 'error');
       return;
     }
     if (!formData.description.trim()) {
-      setError('Please provide a problem description.');
+      showToast('Please provide a problem description.', 'error');
       return;
     }
     if (!formData.allowedLanguages || formData.allowedLanguages.length === 0) {
-      setError('Please select at least one allowed programming language.');
+      showToast('Please select at least one allowed programming language.', 'error');
       return;
     }
     if (!formData.testCases || formData.testCases.length === 0) {
-      setError('At least one testcase is required.');
+      showToast('At least one testcase is required.', 'error');
       return;
     }
     const hasEmptyTc = formData.testCases.some(
       tc => !tc.input.trim() || !tc.expectedOutput.trim()
     );
     if (hasEmptyTc) {
-      setError('All test cases must have both Input and Expected Output defined.');
+      showToast('All test cases must have both Input and Expected Output defined.', 'error');
       return;
     }
 
@@ -197,13 +199,6 @@ const CodingProblemModal = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="p-6 md:p-8 overflow-y-auto space-y-6 custom-scrollbar">
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
             {/* Title & Basic Marks */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <div className="md:col-span-8">

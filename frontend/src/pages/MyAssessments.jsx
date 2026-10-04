@@ -33,7 +33,7 @@ const MyAssessments = () => {
       list.sort((a, b) => new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0));
       setAssessments(list);
     } catch (err) {
-      setError(err.message || 'Failed to fetch assessments.');
+      showToast(err.message || 'Failed to fetch assessments.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -105,21 +105,6 @@ const MyAssessments = () => {
           <span>Join Assessment</span>
         </Button>
       </header>
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
-            <span className="text-sm font-medium">{error}</span>
-          </div>
-          <button
-            onClick={fetchAssessments}
-            className="px-3 py-1 bg-white border border-red-200 text-xs font-bold rounded-lg text-red-700 hover:bg-red-50 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
 
       {/* Filter and Search Bar matching Host UI */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">

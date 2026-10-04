@@ -14,6 +14,7 @@ import {
   TrendingUp,
   FileText
 } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 
 const CandidateResults = () => {
   const [results, setResults] = useState([]);
@@ -21,6 +22,7 @@ const CandidateResults = () => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const fetchResults = async () => {
     setIsLoading(true);
@@ -35,7 +37,7 @@ const CandidateResults = () => {
       );
       setResults(completedOnly);
     } catch (err) {
-      setError(err.message || 'Failed to fetch assessment results.');
+      showToast(err.message || 'Failed to fetch assessment results.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -74,17 +76,7 @@ const CandidateResults = () => {
         </div>
       </header>
 
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center justify-between gap-3">
-          <span className="text-sm font-medium">{error}</span>
-          <button
-            onClick={fetchResults}
-            className="px-3 py-1 bg-white border border-red-200 text-xs font-bold rounded-lg text-red-700 hover:bg-red-50"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+
 
       {/* Metric Cards Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">

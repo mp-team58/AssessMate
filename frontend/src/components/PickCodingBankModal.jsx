@@ -3,6 +3,7 @@ import { X, Search, Library, Check, AlertCircle, Code2, Clock, HardDrive, Eye } 
 import { getCodingBank } from '../services/codingQuestionService';
 import MarkdownViewer from './MarkdownViewer';
 import Button from './ui/Button';
+import { useToast } from '../contexts/ToastContext';
 
 const PickCodingBankModal = ({
   isOpen,
@@ -13,22 +14,20 @@ const PickCodingBankModal = ({
 }) => {
   const [bankProblems, setBankProblems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
       fetchBank();
       setSelectedIds([]);
       setSearchQuery('');
-      setError('');
     }
   }, [isOpen]);
 
   const fetchBank = async () => {
     setIsLoading(true);
-    setError('');
     try {
       const res = await getCodingBank();
       const list = res.data || res || [];
@@ -45,7 +44,7 @@ const PickCodingBankModal = ({
       }) : []);
     } catch (err) {
       console.error('Failed to load coding bank', err);
-      setError('Failed to load problems from Global Coding Bank.');
+      showToast('Failed to load problems from Global Coding Bank.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -137,13 +136,6 @@ const PickCodingBankModal = ({
 
         {/* Problems List */}
         <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-secondary-400">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-500 border-t-transparent mb-3"></div>

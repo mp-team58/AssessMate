@@ -17,6 +17,7 @@ import com.assessmate.dto.ProctorEventRequest;
 import com.assessmate.dto.SubmitExamRequest;
 import com.assessmate.dto.ResultResponseDTO;
 import com.assessmate.dto.CandidateHistoryDTO;
+import com.assessmate.dto.CandidateAnswerReviewDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -662,6 +663,34 @@ public class CandidateService {
             generateAiFeedback(enrollment, result);
         }
 
+        List<CandidateAnswer> dbAnswers = candidateAnswerRepository.findByEnrollmentId(enrollmentId);
+        List<CandidateAnswerReviewDTO> answerDtos = dbAnswers.stream().map(a -> {
+            Question q = a.getQuestion();
+            List<CandidateAnswerReviewDTO.OptionDTO> options = new java.util.ArrayList<>();
+            if (q.getType() == QuestionType.SINGLE_CHOICE || q.getType() == QuestionType.MULTIPLE_SELECT) {
+                if (q.getOptionA() != null && !q.getOptionA().trim().isEmpty()) options.add(CandidateAnswerReviewDTO.OptionDTO.builder().key("A").value(q.getOptionA()).build());
+                if (q.getOptionB() != null && !q.getOptionB().trim().isEmpty()) options.add(CandidateAnswerReviewDTO.OptionDTO.builder().key("B").value(q.getOptionB()).build());
+                if (q.getOptionC() != null && !q.getOptionC().trim().isEmpty()) options.add(CandidateAnswerReviewDTO.OptionDTO.builder().key("C").value(q.getOptionC()).build());
+                if (q.getOptionD() != null && !q.getOptionD().trim().isEmpty()) options.add(CandidateAnswerReviewDTO.OptionDTO.builder().key("D").value(q.getOptionD()).build());
+            }
+
+            return CandidateAnswerReviewDTO.builder()
+                    .questionId(q.getId())
+                    .questionText(q.getQuestionText())
+                    .imageUrl(q.getImageUrl())
+                    .type(q.getType())
+                    .totalMarks(q.getMarks() != null ? q.getMarks() : 0.0)
+                    .marksAwarded(a.getMarksAwarded())
+                    .isCorrect(a.getIsCorrect())
+                    .candidateAnswer(a.getCandidateAnswer())
+                    .correctAnswer(q.getCorrectAnswer())
+                    .explanation(q.getExplanation())
+                    .topic(q.getTopic())
+                    .difficulty(q.getDifficulty() != null ? q.getDifficulty().name() : null)
+                    .options(options)
+                    .build();
+        }).toList();
+
         return ResultResponseDTO.builder()
                 .enrollmentId(enrollment.getId())
                 .examTitle(enrollment.getExam().getTitle())
@@ -680,6 +709,7 @@ public class CandidateService {
                 .honestyScore(result.getHonestyScore())
                 .totalViolations(result.getTotalViolations())
                 .resultsPublished(true)
+                .answers(answerDtos)
                 .build();
     }
 

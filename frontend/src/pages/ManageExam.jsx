@@ -8,6 +8,7 @@ import QuestionCard from '../components/QuestionCard';
 import ShareExamModal from '../components/ShareExamModal';
 import MarkdownViewer from '../components/MarkdownViewer';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import { Share2 } from 'lucide-react';
 
 const ManageExam = () => {
@@ -22,6 +23,7 @@ const ManageExam = () => {
   const [error, setError] = useState('');
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const fetchExam = async () => {
     setIsLoading(true);
@@ -75,6 +77,7 @@ const ManageExam = () => {
       }
     }
     
+    if (!(await confirm("Are you sure you want to publish this exam? You won't be able to edit questions after publishing."))) return;
     try {
       const response = await publishExam(id);
       setExam({ ...exam, status: 'LIVE', startedAt: response.data.startedAt || new Date().toISOString() });
@@ -85,6 +88,7 @@ const ManageExam = () => {
   };
 
   const handleEnd = async () => {
+    if (!(await confirm({ title: "End Exam", message: "Are you sure you want to end this exam? Candidates will no longer be able to submit.", isDanger: true }))) return;
     try {
       const response = await endExam(id);
       setExam({ ...exam, status: 'ENDED', endedAt: response.data.endedAt || new Date().toISOString() });
@@ -95,6 +99,7 @@ const ManageExam = () => {
   };
 
   const handleDuplicate = async () => {
+    if (!(await confirm({ title: "Duplicate Exam", message: "Are you sure you want to create a copy of this exam?", confirmText: "Duplicate", isDanger: false }))) return;
     try {
       const response = await duplicateExam(id);
       showToast('Exam duplicated successfully! You can now edit the new copy.', 'success');

@@ -2,6 +2,7 @@ package com.assessmate.dto;
 
 import lombok.Builder;
 import lombok.Data;
+import java.util.List;
 
 @Data
 @Builder
@@ -23,4 +24,6 @@ public class ResultResponseDTO {
     private Double honestyScore;
     private Integer totalViolations;
     private Boolean resultsPublished;
+    private List<CandidateAnswerReviewDTO> answers;
+    private List<CodeSubmissionResponse> codeSubmissions;
 }

@@ -7,6 +7,7 @@ import * as cocoSsd from '@tensorflow-models/coco-ssd';
 // Global cache to prevent re-downloading models on every render
 let globalBlazefaceModel = null;
 let globalCocoSsdModel = null;
+import MarkdownViewer from '../components/MarkdownViewer';
 import { useToast } from '../contexts/ToastContext';
 import {
   Clock,
@@ -54,6 +55,7 @@ import {
   getExamState
 } from '../services/candidateService';
 import { getMediaUrl } from '../services/apiClient';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 const STARTER_CODE = {
   PYTHON: '# Write your Python 3 solution here\ndef solution():\n    pass\n\nif __name__ == "__main__":\n    solution()\n',
@@ -68,6 +70,7 @@ const ActiveExam = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // Load Exam Configuration
   const [examConfig] = useState(() => {
@@ -1417,7 +1420,7 @@ const ActiveExam = () => {
       )}
 
       {/* Fullscreen Violation Overlay */}
-      {!isFullscreen && !backendTerminated && permissionState === 'GRANTED' && (
+      {!isFullscreen && !backendTerminated && !isSubmitting && !hasSubmittedRef.current && permissionState === 'GRANTED' && (
         <div className="fixed inset-0 z-[110] bg-red-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center">
           <div className="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl border-4 border-red-500 animate-in zoom-in duration-300">
             <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1602,14 +1605,14 @@ const ActiveExam = () => {
             </div>
 
             {/* Question Statement */}
-            <div className="mb-6">
-              <h2 className="text-lg md:text-xl font-bold text-secondary-900 leading-relaxed">
-                {currentQuestion.questionText}
-              </h2>
+            <div className={`mb-6 ${currentQuestion.type === 'CODING' ? 'max-h-[35vh] overflow-y-auto pr-3 scrollbar-thin scrollbar-thumb-secondary-300' : ''}`}>
+              <div className="text-lg md:text-xl font-bold text-secondary-900 leading-relaxed">
+                <MarkdownViewer content={currentQuestion.questionText} />
+              </div>
 
               {currentQuestion.description && currentQuestion.type === 'CODING' && (
-                <div className="mt-3 text-secondary-700 text-sm leading-relaxed whitespace-pre-line bg-secondary-50/70 p-4 rounded-2xl border border-secondary-200">
-                  {currentQuestion.description}
+                <div className="mt-3 bg-secondary-50/70 p-4 rounded-2xl border border-secondary-200">
+                  <MarkdownViewer content={currentQuestion.description} />
                 </div>
               )}
 
@@ -1796,8 +1799,8 @@ const ActiveExam = () => {
                       {/* Coding Editor "Reset to Template" Button */}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm('Reset code for this question back to the initial starter template? Your current edits will be replaced.')) {
+                        onClick={async () => {
+                          if (await confirm('Reset code for this question back to the initial starter template? Your current edits will be replaced.')) {
                             const template = STARTER_CODE[codeLanguage] || '';
                             handleTextAnswerChange(currentQuestion.id, template);
                           }

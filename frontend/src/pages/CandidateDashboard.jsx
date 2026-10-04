@@ -13,8 +13,9 @@ import {
   ShieldCheck,
   AlertCircle,
   Library,
-  RotateCw
+  RotateCw,
 } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
 import { getCandidateHistory, getCandidateDashboard } from '../services/candidateService';
@@ -22,6 +23,7 @@ import { getCandidateHistory, getCandidateDashboard } from '../services/candidat
 const CandidateDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   const [assessments, setAssessments] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -48,7 +50,7 @@ const CandidateDashboard = () => {
         setDashboardStats(statsRes.value.data || null);
       }
     } catch (err) {
-      setError(err.message || 'Failed to load dashboard data.');
+      showToast(err.message || 'Failed to load dashboard data.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -145,21 +147,6 @@ const CandidateDashboard = () => {
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-brand-500 blur-3xl opacity-30 animate-pulse pointer-events-none" />
         <div className="absolute bottom-0 right-40 -mb-20 w-72 h-72 rounded-full bg-brand-400 blur-3xl opacity-20 pointer-events-none" />
       </div>
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
-            <span className="text-sm font-medium">{error}</span>
-          </div>
-          <button
-            onClick={fetchData}
-            className="px-3 py-1 bg-white border border-red-200 text-xs font-bold rounded-lg text-red-700 hover:bg-red-50 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
 
       {/* Quick Statistics Overview Grid matching Host UI */}
       <div>

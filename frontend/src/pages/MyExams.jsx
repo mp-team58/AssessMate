@@ -4,6 +4,7 @@ import { getMyExams, deleteExam } from '../services/examService';
 import Button from '../components/ui/Button';
 import ShareExamModal from '../components/ShareExamModal';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import { Share2 } from 'lucide-react';
 
 const MyExams = () => {
@@ -12,6 +13,7 @@ const MyExams = () => {
   const [shareExamId, setShareExamId] = useState(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const fetchExams = async () => {
     setIsLoading(true);
@@ -32,7 +34,7 @@ const MyExams = () => {
   }, []);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this exam?')) return;
+    if (!(await confirm('Are you sure you want to delete this exam?'))) return;
     try {
       await deleteExam(id);
       setExams(exams.filter(exam => exam.id !== id));

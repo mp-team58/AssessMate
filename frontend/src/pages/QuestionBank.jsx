@@ -17,6 +17,7 @@ import {
   Code2, HelpCircle, Clock, HardDrive, Eye, EyeOff, CheckCircle2
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 const BankQuestionRow = ({ question, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -283,6 +284,7 @@ const QuestionBank = () => {
   // Active Bank Tab: 'mcq' or 'coding'
   const [activeBankTab, setActiveBankTab] = useState('mcq');
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // MCQ State
   const [questions, setQuestions] = useState([]);
@@ -401,7 +403,7 @@ const QuestionBank = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this question from the bank?')) {
+    if (await confirm('Are you sure you want to delete this question from the bank?')) {
       try {
         await deleteQuestion(id);
         fetchQuestions();
@@ -435,7 +437,7 @@ const QuestionBank = () => {
   };
 
   const handleDeleteCoding = async (id) => {
-    if (window.confirm('Are you sure you want to delete this coding problem from the global bank?')) {
+    if (await confirm('Are you sure you want to delete this coding problem from the global bank?')) {
       try {
         await deleteCodingProblem(id);
         fetchCodingProblems();

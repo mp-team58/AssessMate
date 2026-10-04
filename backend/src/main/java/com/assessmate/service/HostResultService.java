@@ -93,6 +93,7 @@ public class HostResultService {
                 .lowestPercentage(round1(lowest))
                 .candidates(candidateRows)
                 .questionAccuracy(buildQuestionAccuracy(examId, enrollmentIds))
+                .resultsPublished(exam.getResultsPublished())
                 .build();
     }
 

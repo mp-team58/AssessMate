@@ -16,4 +16,5 @@ public class ExamResultsSummary {
     private Double lowestPercentage;
     private List<CandidateResultRow> candidates;
     private List<QuestionAccuracy> questionAccuracy;
+    private Boolean resultsPublished;
 }

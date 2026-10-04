@@ -118,27 +118,6 @@ public class CandidateService {
                 .status(EnrollmentStatus.ONGOING)
                 .build();
 
-        if (exam.getTimerType() == TimerType.WHOLE_EXAM && exam.getDurationMinutes() != null) {
-            newEnrollment.setPersonalEndTime(now.plusMinutes(exam.getDurationMinutes()));
-        } else if (exam.getTimerType() == TimerType.PER_QUESTION) {
-            int totalSeconds = 0;
-            List<Question> questions = questionRepository.findByExamId(exam.getId());
-            for (Question q : questions) {
-                if (q.getTimeSeconds() != null) {
-                    totalSeconds += q.getTimeSeconds();
-                } else {
-                    if (com.assessmate.entity.Difficulty.EASY == q.getDifficulty()) totalSeconds += exam.getEasySeconds();
-                    else if (com.assessmate.entity.Difficulty.HARD == q.getDifficulty()) totalSeconds += exam.getHardSeconds();
-                    else totalSeconds += exam.getMediumSeconds();
-                }
-            }
-            if (exam.getHasCodingSection() != null && exam.getHasCodingSection() && exam.getCodingDurationMinutes() != null) {
-                totalSeconds += exam.getCodingDurationMinutes() * 60;
-            }
-            totalSeconds += 60; // 60s buffer
-            newEnrollment.setPersonalEndTime(now.plusSeconds(totalSeconds));
-        }
-
         ExamEnrollment enrollment = enrollmentRepository.save(newEnrollment);
         return buildJoinResponse(enrollment, exam);
     }
@@ -179,6 +158,34 @@ public class CandidateService {
 
         if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
             throw new BadRequestException("You can only get questions for an ongoing exam.");
+        }
+
+        if (enrollment.getPersonalEndTime() == null) {
+            LocalDateTime now = LocalDateTime.now();
+            Exam exam = enrollment.getExam();
+            enrollment.setJoinedAt(now);
+            
+            if (exam.getTimerType() == TimerType.WHOLE_EXAM && exam.getDurationMinutes() != null) {
+                enrollment.setPersonalEndTime(now.plusMinutes(exam.getDurationMinutes()));
+            } else if (exam.getTimerType() == TimerType.PER_QUESTION) {
+                int totalSeconds = 0;
+                List<Question> questions = questionRepository.findByExamId(exam.getId());
+                for (Question q : questions) {
+                    if (q.getTimeSeconds() != null) {
+                        totalSeconds += q.getTimeSeconds();
+                    } else {
+                        if (com.assessmate.entity.Difficulty.EASY == q.getDifficulty()) totalSeconds += exam.getEasySeconds();
+                        else if (com.assessmate.entity.Difficulty.HARD == q.getDifficulty()) totalSeconds += exam.getHardSeconds();
+                        else totalSeconds += exam.getMediumSeconds();
+                    }
+                }
+                if (exam.getHasCodingSection() != null && exam.getHasCodingSection() && exam.getCodingDurationMinutes() != null) {
+                    totalSeconds += exam.getCodingDurationMinutes() * 60;
+                }
+                totalSeconds += 60; // 60s buffer
+                enrollment.setPersonalEndTime(now.plusSeconds(totalSeconds));
+            }
+            enrollmentRepository.save(enrollment);
         }
 
         List<Question> examQuestions = questionRepository.findByExamId(enrollment.getExam().getId());
@@ -640,6 +647,16 @@ public class CandidateService {
         Result result = resultRepository.findByEnrollmentId(enrollmentId)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Result not found."));
 
+        Boolean isPublished = enrollment.getExam().getResultsPublished();
+
+        if (!Boolean.TRUE.equals(isPublished)) {
+            return ResultResponseDTO.builder()
+                    .enrollmentId(enrollment.getId())
+                    .examTitle(enrollment.getExam().getTitle())
+                    .resultsPublished(false)
+                    .build();
+        }
+
         if (result.getAiFeedback() == null || result.getAiFeedback().isEmpty()) {
             // Lazy generation fallback (A18)
             generateAiFeedback(enrollment, result);
@@ -662,6 +679,7 @@ public class CandidateService {
                 .feedbackStatus(result.getFeedbackStatus())
                 .honestyScore(result.getHonestyScore())
                 .totalViolations(result.getTotalViolations())
+                .resultsPublished(true)
                 .build();
     }
 
@@ -688,7 +706,7 @@ public class CandidateService {
             Double totalScore = null;
             Double percentage = null;
             
-            if (e.getStatus() == EnrollmentStatus.SUBMITTED || e.getStatus() == EnrollmentStatus.EXPIRED) {
+            if ((e.getStatus() == EnrollmentStatus.SUBMITTED || e.getStatus() == EnrollmentStatus.EXPIRED) && Boolean.TRUE.equals(e.getExam().getResultsPublished())) {
                 Result r = resultMap.get(e.getId());
                 if (r != null) {
                     totalScore = r.getTotalScore();

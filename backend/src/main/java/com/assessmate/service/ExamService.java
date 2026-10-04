@@ -646,4 +646,11 @@ public class ExamService {
                 .shareMessage(message)
                 .build();
     }
+
+    @Transactional
+    public void publishResults(Long examId, String hostEmail) {
+        Exam exam = findExamForHost(examId, hostEmail);
+        exam.setResultsPublished(true);
+        examRepository.save(exam);
+    }
 }

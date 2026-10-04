@@ -22,4 +22,5 @@ public class ResultResponseDTO {
     private String feedbackStatus;
     private Double honestyScore;
     private Integer totalViolations;
+    private Boolean resultsPublished;
 }

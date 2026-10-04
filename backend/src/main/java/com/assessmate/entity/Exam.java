@@ -131,6 +131,9 @@ public class Exam {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Builder.Default
+    private Boolean resultsPublished = false;
+
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
 }

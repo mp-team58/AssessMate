@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getExamResults } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
 import Button from '../components/ui/Button';
-import { Users, CheckCircle, Target, TrendingUp, TrendingDown, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Users, CheckCircle, Target, TrendingUp, TrendingDown, ArrowLeft, AlertTriangle, Send } from 'lucide-react';
+import { publishExamResults } from '../services/examService';
 
 const HostExamResults = () => {
   const { id } = useParams();
@@ -12,8 +13,22 @@ const HostExamResults = () => {
   
   const [results, setResults] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const intervalRef = useRef(null);
+
+  const handlePublishResults = async () => {
+    setIsPublishing(true);
+    try {
+      await publishExamResults(id);
+      showToast('Results published successfully to candidates!', 'success');
+      fetchResults();
+    } catch (error) {
+      showToast('Failed to publish results.', 'error');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   const fetchResults = async (isBackground = false) => {
     try {
@@ -86,9 +101,22 @@ const HostExamResults = () => {
           <ArrowLeft className="w-4 h-4" />
           Back to Exam Details
         </button>
-        <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-secondary-900 tracking-tight">{results.examTitle}</h1>
-          <p className="text-secondary-500 mt-2 text-lg">Exam Results & Candidate Performance</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-secondary-900 tracking-tight">{results.examTitle}</h1>
+            <p className="text-secondary-500 mt-2 text-lg">Exam Results & Candidate Performance</p>
+          </div>
+          {results.resultsPublished ? (
+            <div className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" />
+              Results Published
+            </div>
+          ) : (
+            <Button onClick={handlePublishResults} disabled={isPublishing} className="flex items-center gap-2">
+              <Send className="w-4 h-4" />
+              {isPublishing ? 'Publishing...' : 'Publish Results'}
+            </Button>
+          )}
         </div>
       </header>
 

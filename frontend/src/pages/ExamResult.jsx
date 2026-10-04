@@ -131,6 +131,23 @@ const ExamResult = () => {
     );
   }
 
+  if (result.resultsPublished === false) {
+    return (
+      <div className="max-w-md mx-auto bg-white p-8 rounded-3xl border border-secondary-200 shadow-xl text-center space-y-4 my-12 animate-in fade-in duration-200">
+        <Clock className="w-12 h-12 text-brand-500 mx-auto" />
+        <h2 className="text-xl font-bold text-secondary-900">Results Not Yet Published</h2>
+        <p className="text-secondary-600 text-sm">
+          You have successfully submitted your assessment. Please wait for the host to publish the results.
+        </p>
+        <div className="pt-2">
+          <Button onClick={() => navigate('/candidate/dashboard')} className="w-full">
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const weakTopics = parseWeakTopics(result.weakTopicsJson);
   const percentage = result.percentage !== undefined && result.percentage !== null ? Number(result.percentage).toFixed(1) : 0;
   const isPassed = !!result.passed || Number(percentage) >= 50;

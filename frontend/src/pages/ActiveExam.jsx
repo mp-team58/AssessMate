@@ -416,6 +416,7 @@ const ActiveExam = () => {
         track.addEventListener('ended', () => {
           setWebcamActive(false);
           sendProctorLog('NO_CAMERA', 'Camera track was lost or disconnected.');
+          setPermissionState('DENIED');
           setProctorWarnings((prev) => [
             ...prev,
             {
@@ -431,6 +432,7 @@ const ActiveExam = () => {
         track.addEventListener('ended', () => {
           setMicActive(false);
           sendProctorLog('NO_MIC', 'Microphone track was lost or disconnected.');
+          setPermissionState('DENIED');
           setProctorWarnings((prev) => [
             ...prev,
             {

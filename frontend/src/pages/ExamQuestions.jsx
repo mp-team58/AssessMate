@@ -19,6 +19,7 @@ import ExcelUpload from '../components/ExcelUpload';
 import AIGeneration from '../components/AIGeneration';
 import CodingProblemModal from '../components/CodingProblemModal';
 import PickCodingBankModal from '../components/PickCodingBankModal';
+import MarkdownViewer from '../components/MarkdownViewer';
 import Button from '../components/ui/Button';
 import {
   Edit2, Trash2, Plus, Cpu, Library, Search, Filter, Rocket,
@@ -184,8 +185,13 @@ const ExamQuestions = () => {
   const handleVerify = async (id) => {
     try {
       await verifyQuestion(id);
-      fetchExamData();
+      setQuestions(prev => prev.map(q => q.id === id ? { ...q, isVerified: true } : q));
+      setStats(prev => prev ? {
+        ...prev,
+        unverifiedCount: Math.max(0, (prev.unverifiedCount || 0) - 1)
+      } : prev);
       showToast('Question verified', 'success');
+      fetchExamData();
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to verify question', 'error');
@@ -587,9 +593,9 @@ const ExamQuestions = () => {
                           )}
                         </div>
 
-                        <p className="text-xs text-secondary-600 line-clamp-2 leading-relaxed">
-                          {problem.description}
-                        </p>
+                        <div className="bg-secondary-50/50 p-3 rounded-lg mt-2 border border-secondary-100/50">
+                          <MarkdownViewer content={problem.description} className="text-xs" />
+                        </div>
 
                         <div className="flex flex-wrap items-center gap-3 mt-3 text-[11px] text-secondary-500">
                           {problem.allowedLanguages && problem.allowedLanguages.length > 0 && (
@@ -845,6 +851,7 @@ const ExamQuestions = () => {
             <AIGeneration
               examId={examId}
               stats={stats}
+              questions={questions}
               onGenerationSuccess={fetchExamData}
               onEdit={(q) => { setEditingQuestion(q); setActiveTab(null); scrollAppToTop(); }}
               onDelete={handleDelete}
@@ -913,8 +920,8 @@ const ExamQuestions = () => {
                             Mem: {cq.memoryLimitMb}MB
                           </span>
                         </div>
-                        <div className="text-secondary-600 text-sm bg-secondary-50 p-3 rounded-xl border border-secondary-100 overflow-hidden line-clamp-2">
-                          {cq.description}
+                        <div className="bg-secondary-50 p-4 rounded-xl border border-secondary-100">
+                          <MarkdownViewer content={cq.description} />
                         </div>
                       </div>
                     </div>

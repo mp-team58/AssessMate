@@ -1,6 +1,5 @@
 package com.assessmate.service;
 
-import com.assessmate.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

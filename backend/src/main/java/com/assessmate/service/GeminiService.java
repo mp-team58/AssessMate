@@ -1,8 +1,6 @@
 package com.assessmate.service;
 
 import com.assessmate.exception.BadRequestException;
-import com.assessmate.exception.ForbiddenException;
-import com.assessmate.exception.ResourceNotFoundException;
 
 import com.google.gson.*;
 import lombok.extern.slf4j.Slf4j;

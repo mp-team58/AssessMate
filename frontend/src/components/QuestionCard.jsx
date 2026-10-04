@@ -68,14 +68,14 @@ const QuestionCard = ({
                 {question.topic}
               </span>
             )}
-            {showSource && question.source && (
-              <span className={`px-2.5 py-0.5 rounded-md ${getSourceColor(question.source)}`}>
-                {question.source}
+            {showSource && question.addedBy && (
+              <span className={`px-2.5 py-0.5 rounded-md ${getSourceColor(question.addedBy)}`}>
+                {question.addedBy}
               </span>
             )}
 
             <div className="ml-auto flex items-center gap-1">
-              {question.isVerified && question.source === 'AI' && (
+              {question.isVerified && question.addedBy === 'AI' && (
                 <span className="flex items-center text-green-700 bg-green-50 px-2.5 py-0.5 rounded-md border border-green-200">
                   <CheckCircle className="w-3 h-3 mr-1" /> Verified
                 </span>
@@ -152,7 +152,7 @@ const QuestionCard = ({
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
                 <p className="text-[13px] text-amber-800 font-medium">
-                  {question.source === 'AI'
+                  {question.addedBy === 'AI'
                     ? 'This question was AI generated and needs your review.'
                     : 'This question needs review before publishing.'}
                 </p>

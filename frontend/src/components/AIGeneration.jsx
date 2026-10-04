@@ -47,7 +47,7 @@ const getInputTypeLabel = (inputType) => {
   return labels[inputType] || inputType;
 };
 
-const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, onClose }) => {
+const AIGeneration = ({ examId, stats, questions = [], onGenerationSuccess, onEdit, onDelete, onClose }) => {
   const [aiMode, setAiMode] = useState("TOPIC");
   const [aiForm, setAiForm] = useState({
     topic: "",
@@ -200,14 +200,27 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
     const {
       requestedCount,
       generatedCount,
-      verifiedCount,
-      unverifiedCount,
       inputType,
       stage,
       warning,
-      verifiedQuestions = [],
-      unverifiedQuestions = []
+      verifiedQuestions: apiVerified = [],
+      unverifiedQuestions: apiUnverified = []
     } = generationResult;
+
+    const latestQuestionsMap = (questions || []).reduce((acc, q) => {
+      acc[q.id] = q;
+      return acc;
+    }, {});
+
+    const allGeneratedIds = [...apiVerified, ...apiUnverified].map(q => q.id);
+    const currentGeneratedQuestions = allGeneratedIds
+      .map(id => latestQuestionsMap[id] || [...apiVerified, ...apiUnverified].find(q => q.id === id))
+      .filter(q => latestQuestionsMap[q.id] !== undefined); // Only keep if still exists in main list
+
+    const verifiedQuestions = currentGeneratedQuestions.filter(q => q.isVerified);
+    const unverifiedQuestions = currentGeneratedQuestions.filter(q => !q.isVerified);
+    const verifiedCount = verifiedQuestions.length;
+    const unverifiedCount = unverifiedQuestions.length;
 
     const allGenerated = [...verifiedQuestions, ...unverifiedQuestions];
     const generatedEasy = allGenerated.filter(q => q.difficulty === 'EASY').length;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Library, Check, AlertCircle, Code2, Clock, HardDrive, Eye } from 'lucide-react';
 import { getCodingBank } from '../services/codingQuestionService';
+import MarkdownViewer from './MarkdownViewer';
 import Button from './ui/Button';
 
 const PickCodingBankModal = ({
@@ -200,9 +201,9 @@ const PickCodingBankModal = ({
                       </div>
                     </div>
 
-                    <p className="text-xs text-secondary-600 line-clamp-2 mt-1 leading-relaxed">
-                      {problem.description}
-                    </p>
+                    <div className="text-xs text-secondary-600 mt-1 leading-relaxed bg-secondary-50/50 p-3 rounded-lg border border-secondary-100/50">
+                      <MarkdownViewer content={problem.description} className="text-xs" />
+                    </div>
 
                     <div className="flex flex-wrap items-center gap-3 mt-3 text-[11px] text-secondary-500">
                       {problem.allowedLanguages && problem.allowedLanguages.length > 0 && (

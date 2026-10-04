@@ -6,6 +6,7 @@ import { getExamCodingProblems } from '../services/codingQuestionService';
 import Button from '../components/ui/Button';
 import QuestionCard from '../components/QuestionCard';
 import ShareExamModal from '../components/ShareExamModal';
+import MarkdownViewer from '../components/MarkdownViewer';
 import { useToast } from '../contexts/ToastContext';
 import { Share2 } from 'lucide-react';
 
@@ -377,8 +378,8 @@ const ManageExam = () => {
                             Mem: {cq.memoryLimitMb}MB
                           </span>
                         </div>
-                        <div className="text-secondary-600 text-sm bg-secondary-50 p-3 rounded-xl border border-secondary-100 overflow-hidden line-clamp-2">
-                          {cq.description}
+                        <div className="bg-secondary-50 p-4 rounded-xl border border-secondary-100">
+                          <MarkdownViewer content={cq.description} />
                         </div>
                       </div>
                     </div>

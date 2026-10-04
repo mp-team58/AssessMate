@@ -9,6 +9,7 @@ import {
 import QuestionCard from '../components/QuestionCard';
 import QuestionForm from '../components/QuestionForm';
 import CodingProblemModal from '../components/CodingProblemModal';
+import MarkdownViewer from '../components/MarkdownViewer';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import {
@@ -197,9 +198,9 @@ const CodingBankProblemRow = ({ problem, onEdit, onDelete }) => {
             <span className="text-xs font-bold text-secondary-700 uppercase tracking-wider block mb-1">
               Description
             </span>
-            <p className="text-xs text-secondary-800 whitespace-pre-line leading-relaxed bg-white p-3.5 rounded-xl border border-secondary-200">
-              {problem.description}
-            </p>
+            <div className="bg-white p-3.5 rounded-xl border border-secondary-200">
+              <MarkdownViewer content={problem.description} />
+            </div>
           </div>
 
           {problem.constraints && (

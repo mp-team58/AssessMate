@@ -299,7 +299,14 @@ public class AIQuestionService {
                 geminiService.generateFromImage(
                     firstImage,
                     req.getTopic(),
-                    req.getTotalQuestions());
+                    req.getTotalQuestions(),
+                    counts[0],
+                    counts[1],
+                    counts[2],
+                    counts[3],
+                    counts[4],
+                    counts[5],
+                    counts[6]);
 
             return saveGeneratedQuestions(
                 generated,

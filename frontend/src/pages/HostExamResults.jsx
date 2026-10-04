@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getExamResults } from '../services/hostService';
+import { getExamResults, toggleCandidateResult } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import Button from '../components/ui/Button';
-import { Users, CheckCircle, Target, TrendingUp, TrendingDown, ArrowLeft, AlertTriangle, Send } from 'lucide-react';
-import { publishExamResults } from '../services/examService';
+import { Users, CheckCircle, Target, TrendingUp, TrendingDown, ArrowLeft, AlertTriangle, Send, RefreshCw } from 'lucide-react';
+import { publishExamResults, unpublishExamResults } from '../services/examService';
 
 const HostExamResults = () => {
   const { id } = useParams();
@@ -34,6 +34,21 @@ const HostExamResults = () => {
     }
   };
 
+  const handleUnpublishResults = async () => {
+    if (!(await confirm("Are you sure you want to hide results? Candidates will no longer be able to see their scores."))) return;
+
+    setIsPublishing(true);
+    try {
+      await unpublishExamResults(id);
+      showToast('Results hidden successfully.', 'success');
+      fetchResults();
+    } catch (error) {
+      showToast('Failed to hide results.', 'error');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   const fetchResults = async (isBackground = false) => {
     try {
       if (!isBackground && !results) setIsLoading(true);
@@ -43,6 +58,16 @@ const HostExamResults = () => {
       if (!isBackground) showToast('Unable to load exam results. Please try again.', 'error');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleToggleResult = async (enrollmentId) => {
+    try {
+      await toggleCandidateResult(id, enrollmentId);
+      showToast('Candidate result toggled successfully.', 'success');
+      fetchResults(true);
+    } catch (error) {
+      showToast('Failed to toggle result.', 'error');
     }
   };
 
@@ -111,9 +136,14 @@ const HostExamResults = () => {
             <p className="text-secondary-500 mt-2 text-lg">Exam Results & Candidate Performance</p>
           </div>
           {results.resultsPublished ? (
-            <div className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold flex items-center gap-2">
-              <CheckCircle className="w-5 h-5" />
-              Results Published
+            <div className="flex items-center gap-3">
+              <div className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold flex items-center gap-2 shadow-sm">
+                <CheckCircle className="w-5 h-5" />
+                Results Published
+              </div>
+              <Button onClick={handleUnpublishResults} disabled={isPublishing} variant="outline" className="border-secondary-300 text-secondary-600 hover:bg-secondary-50">
+                {isPublishing ? 'Hiding...' : 'Hide Results'}
+              </Button>
             </div>
           ) : (
             <Button onClick={handlePublishResults} disabled={isPublishing} className="flex items-center gap-2">
@@ -245,15 +275,29 @@ const HostExamResults = () => {
                     </td>
                     <td className="p-4">
                       {candidate.enrollmentStatus === 'SUBMITTED' ? (
-                        candidate.passed ? (
-                          <span className="flex items-center gap-1 text-emerald-600 font-bold text-sm">
-                            <CheckCircle className="w-4 h-4" /> Passed
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-red-600 font-bold text-sm">
-                            <X className="w-4 h-4" /> Failed
-                          </span>
-                        )
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center">
+                            {candidate.passed ? (
+                              <span className="flex items-center gap-1 text-emerald-600 font-bold text-sm bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                                <CheckCircle className="w-4 h-4" /> Passed
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-red-600 font-bold text-sm bg-red-50 px-2 py-0.5 rounded-md border border-red-200">
+                                <X className="w-4 h-4" /> Failed
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleToggleResult(candidate.enrollmentId)}
+                            className={`text-[10px] font-bold px-2 py-1 rounded w-fit transition-colors ${
+                              candidate.passed 
+                                ? 'bg-white border border-red-200 text-red-600 hover:bg-red-50' 
+                                : 'bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                            }`}
+                          >
+                            {candidate.passed ? 'MARK FAIL' : 'MARK PASS'}
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-secondary-400">-</span>
                       )}

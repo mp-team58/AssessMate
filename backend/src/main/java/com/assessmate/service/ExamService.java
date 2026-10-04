@@ -653,4 +653,11 @@ public class ExamService {
         exam.setResultsPublished(true);
         examRepository.save(exam);
     }
+
+    @Transactional
+    public void unpublishResults(Long examId, String hostEmail) {
+        Exam exam = findExamForHost(examId, hostEmail);
+        exam.setResultsPublished(false);
+        examRepository.save(exam);
+    }
 }

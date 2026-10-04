@@ -285,6 +285,23 @@ public class HostResultService {
                 .build();
     }
 
+    public void toggleCandidateResult(Long examId, Long enrollmentId, String hostEmail) {
+        getOwnedExam(examId, hostEmail);
+
+        ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found"));
+
+        if (!enrollment.getExam().getId().equals(examId)) {
+            throw new ForbiddenException("This candidate did not take this exam");
+        }
+
+        Result result = resultRepository.findByEnrollmentId(enrollmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Result not found for this candidate"));
+
+        result.setPassed(!result.getPassed());
+        resultRepository.save(result);
+    }
+
     private double round1(double value) {
         return Math.round(value * 10.0) / 10.0;
     }

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCandidateReport } from '../services/hostService';
+import { getCandidateReport, toggleCandidateResult } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
-import { ArrowLeft, User, Mail, CheckCircle, XCircle, HelpCircle, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, User, Mail, CheckCircle, XCircle, HelpCircle, Clock, AlertTriangle, ShieldAlert, RefreshCw } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { getMediaUrl } from '../services/apiClient';
 
@@ -13,20 +13,35 @@ const HostCandidateReport = () => {
   
   const [report, setReport] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isToggling, setIsToggling] = useState(false);
+
+  const fetchReport = async () => {
+    try {
+      const response = await getCandidateReport(examId, enrollmentId);
+      setReport(response.data);
+    } catch (error) {
+      showToast('Unable to load candidate report.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchReport = async () => {
-      try {
-        const response = await getCandidateReport(examId, enrollmentId);
-        setReport(response.data);
-      } catch (error) {
-        showToast('Unable to load candidate report.', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchReport();
   }, [examId, enrollmentId, showToast]);
+
+  const handleToggleResult = async () => {
+    setIsToggling(true);
+    try {
+      await toggleCandidateResult(examId, enrollmentId);
+      showToast('Candidate result toggled successfully.', 'success');
+      await fetchReport();
+    } catch (error) {
+      showToast('Failed to toggle result.', 'error');
+    } finally {
+      setIsToggling(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -95,13 +110,24 @@ const HostCandidateReport = () => {
             <p className="text-xs text-secondary-500 font-bold uppercase mb-1">Score</p>
             <p className="text-2xl font-extrabold text-secondary-900">{result.totalScore} <span className="text-sm text-secondary-500 font-normal">/ {result.maxScore}</span></p>
           </div>
-          <div className="text-center bg-secondary-50 p-4 rounded-xl border border-secondary-200 min-w-[120px]">
+          <div className="text-center bg-secondary-50 p-4 rounded-xl border border-secondary-200 min-w-[120px] flex flex-col items-center justify-center">
             <p className="text-xs text-secondary-500 font-bold uppercase mb-1">Result</p>
             {result.passed ? (
-              <p className="text-2xl font-extrabold text-emerald-600">PASSED</p>
+              <p className="text-2xl font-extrabold text-emerald-600 mb-2">PASSED</p>
             ) : (
-              <p className="text-2xl font-extrabold text-red-600">FAILED</p>
+              <p className="text-2xl font-extrabold text-red-600 mb-2">FAILED</p>
             )}
+            <button 
+              onClick={handleToggleResult}
+              disabled={isToggling}
+              className={`text-[10px] font-bold px-3 py-1.5 rounded transition-all ${
+                result.passed 
+                  ? 'bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:shadow-sm' 
+                  : 'bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:shadow-sm'
+              } ${isToggling ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isToggling ? 'UPDATING...' : (result.passed ? 'MARK AS FAILED' : 'MARK AS PASSED')}
+            </button>
           </div>
         </div>
       </div>

@@ -60,6 +60,12 @@ public class ExamController {
         return ResponseEntity.ok(Map.of("message", "Results published successfully"));
     }
 
+    @PostMapping("/{id}/unpublish-results")
+    public ResponseEntity<Map<String, String>> unpublishResults(@PathVariable Long id, Principal principal) {
+        examService.unpublishResults(id, principal.getName());
+        return ResponseEntity.ok(Map.of("message", "Results unpublished successfully"));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> deleteExam(@PathVariable Long id, Principal principal) {
         examService.deleteExam(id, principal.getName());

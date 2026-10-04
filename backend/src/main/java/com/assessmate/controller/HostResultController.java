@@ -33,4 +33,11 @@ public class HostResultController {
             @PathVariable Long examId, Principal principal) {
         return ResponseEntity.ok(hostResultService.getLiveMonitor(examId, principal.getName()));
     }
+
+    @PutMapping("/exam/{examId}/candidate/{enrollmentId}/toggle-result")
+    public ResponseEntity<Void> toggleCandidateResult(
+            @PathVariable Long examId, @PathVariable Long enrollmentId, Principal principal) {
+        hostResultService.toggleCandidateResult(examId, enrollmentId, principal.getName());
+        return ResponseEntity.ok().build();
+    }
 }

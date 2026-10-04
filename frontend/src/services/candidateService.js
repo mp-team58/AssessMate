@@ -31,7 +31,10 @@ export const getExamQuestions = async (enrollmentId) => {
  */
 export const uploadProctorEvidence = async (fileBlob, type) => {
   const formData = new FormData();
-  const filename = type === 'audio' ? 'evidence_audio.webm' : 'evidence_snapshot.jpg';
+  let filename = 'evidence_snapshot.jpg';
+  if (type === 'audio') {
+    filename = fileBlob.type.includes('mp4') ? 'evidence_audio.mp4' : 'evidence_audio.webm';
+  }
   formData.append('file', fileBlob, filename);
   formData.append('type', type);
   return candidateApiClient.post('/candidate/proctor/evidence', formData);

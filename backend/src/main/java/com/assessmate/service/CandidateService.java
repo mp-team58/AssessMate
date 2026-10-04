@@ -295,13 +295,13 @@ public class CandidateService {
 
     private boolean isDetectionEnabled(Exam exam, ProctoringEventType type) {
         return switch (type) {
-            case NO_FACE, MULTIPLE_FACES, GAZE_AWAY -> Boolean.TRUE.equals(exam.getEnableFaceDetection());
-            case OBJECT_DETECTED -> Boolean.TRUE.equals(exam.getEnableObjectDetection());
-            case TAB_SWITCH, FULL_SCREEN_EXIT -> Boolean.TRUE.equals(exam.getEnableTabSwitchDetection());
-            case AUDIO_DETECTED -> Boolean.TRUE.equals(exam.getEnableAudioDetection());
-            case NO_CAMERA -> Boolean.TRUE.equals(exam.getRequireCamera());
-            case NO_MIC -> Boolean.TRUE.equals(exam.getRequireMic());
-            case SCREEN_SHARE_STOPPED -> Boolean.TRUE.equals(exam.getRequireScreenShare());
+            case NO_FACE, MULTIPLE_FACES, GAZE_AWAY -> exam.getEnableFaceDetection() == null || exam.getEnableFaceDetection();
+            case OBJECT_DETECTED -> exam.getEnableObjectDetection() == null || exam.getEnableObjectDetection();
+            case TAB_SWITCH, FULL_SCREEN_EXIT -> exam.getEnableTabSwitchDetection() == null || exam.getEnableTabSwitchDetection();
+            case AUDIO_DETECTED -> exam.getEnableAudioDetection() == null || exam.getEnableAudioDetection();
+            case NO_CAMERA -> exam.getRequireCamera() == null || exam.getRequireCamera();
+            case NO_MIC -> exam.getRequireMic() == null || exam.getRequireMic();
+            case SCREEN_SHARE_STOPPED -> exam.getRequireScreenShare() == null || exam.getRequireScreenShare();
         };
     }
 

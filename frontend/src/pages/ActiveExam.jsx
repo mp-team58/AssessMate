@@ -161,6 +161,9 @@ const ActiveExam = () => {
   const tabHiddenTimeRef = useRef(null);
   const hasSubmittedRef = useRef(false);
 
+  const proctoringWarmedUpRef = useRef(false);
+  const hasSeenFaceOnceRef = useRef(false);
+
   // Max Tab Switches Allowed
   const maxAllowedTabSwitches = examConfig?.maxTabSwitches ?? 3;
 
@@ -312,7 +315,7 @@ const ActiveExam = () => {
       // Anti-spam cooldown check (8 seconds per eventType)
       const now = Date.now();
       const lastTime = lastCooldownRef.current[eventType] || 0;
-      if (now - lastTime < 8000 && !['TAB_SWITCH', 'FULL_SCREEN_EXIT', 'NO_CAMERA', 'NO_MIC'].includes(eventType)) {
+      if (now - lastTime < 8000 && !['TAB_SWITCH', 'FULL_SCREEN_EXIT', 'NO_CAMERA', 'NO_MIC', 'AUDIO_DETECTED'].includes(eventType)) {
         return;
       }
       lastCooldownRef.current[eventType] = now;
@@ -451,6 +454,17 @@ const ActiveExam = () => {
     requestMediaPermissions();
   }, [requestMediaPermissions]);
 
+  // Auto-retry permissions if denied
+  useEffect(() => {
+    let retryInterval;
+    if (permissionState === 'DENIED') {
+      retryInterval = setInterval(() => {
+        requestMediaPermissions();
+      }, 3000);
+    }
+    return () => clearInterval(retryInterval);
+  }, [permissionState, requestMediaPermissions]);
+
   // Ensure stream is attached to video elements once they render
   useEffect(() => {
     if (mediaStreamRef.current) {
@@ -522,6 +536,7 @@ const ActiveExam = () => {
 
   // 1. Fetch Exam, MCQ Questions, and Coding Problems (Runs ONCE per enrollmentId)
   useEffect(() => {
+    if (permissionState !== 'GRANTED' || modelsLoading) return;
     let isMounted = true;
 
     const fetchExamAndQuestions = async () => {
@@ -652,7 +667,7 @@ const ActiveExam = () => {
     return () => {
       isMounted = false;
     };
-  }, [enrollmentId]);
+  }, [enrollmentId, permissionState, modelsLoading, handleAutoTermination]);
 
   // 2. Overall Countdown Timer Interval
   useEffect(() => {
@@ -769,7 +784,7 @@ const ActiveExam = () => {
         const stream = mediaStreamRef.current;
         const audioTracks = stream.getAudioTracks();
 
-        if (audioTracks.length > 0) {
+        if (audioTracks.length > 0 && examConfig?.enableAudioDetection !== false) {
           const AudioContextClass = window.AudioContext || window.webkitAudioContext;
           if (AudioContextClass) {
             const audioCtx = new AudioContextClass();
@@ -787,6 +802,9 @@ const ActiveExam = () => {
 
             audioIntervalRef.current = setInterval(async () => {
               if (!audioAnalyserRef.current || hasSubmittedRef.current) return;
+              if (audioCtx.state === 'suspended') {
+                try { await audioCtx.resume(); } catch (e) {}
+              }
               audioAnalyserRef.current.getByteTimeDomainData(timeDomainData);
 
               let sumSquares = 0;
@@ -797,8 +815,8 @@ const ActiveExam = () => {
               const rms = Math.sqrt(sumSquares / bufferLength);
               setAudioLevel(Math.min(100, Math.round(rms * 250)));
 
-              // RMS Threshold for Noise / Voice Activity (lowered to 0.05 to ensure normal speech is caught)
-              if (rms > 0.05 && !isRecordingAudioRef.current) {
+              // RMS Threshold for Noise / Voice Activity (lowered to 0.02 to ensure normal speech is caught)
+              if (rms > 0.02 && !isRecordingAudioRef.current) {
                 const now = Date.now();
                 const lastTime = lastCooldownRef.current['AUDIO_DETECTED'] || 0;
                 if (now - lastTime >= 8000) {
@@ -806,8 +824,12 @@ const ActiveExam = () => {
                   lastCooldownRef.current['AUDIO_DETECTED'] = now;
 
                   try {
+                    let options = { mimeType: 'audio/webm' };
+                    if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                      options = {}; // Let browser choose default format (e.g. Safari mp4)
+                    }
                     const audioStream = new MediaStream(audioTracks);
-                    const recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+                    const recorder = new MediaRecorder(audioStream, options);
                     const audioChunks = [];
 
                     recorder.ondataavailable = (e) => {
@@ -818,7 +840,7 @@ const ActiveExam = () => {
 
                     recorder.onstop = async () => {
                       isRecordingAudioRef.current = false;
-                      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                      const audioBlob = new Blob(audioChunks, { type: recorder.mimeType || 'audio/webm' });
                       try {
                         const uploadRes = await uploadProctorEvidence(audioBlob, 'audio');
                         const audioUrl = uploadRes?.data?.url || null;
@@ -835,6 +857,7 @@ const ActiveExam = () => {
                         ]);
                       } catch (err) {
                         console.warn('[Audio Evidence Upload Error]:', err);
+                        sendProctorLog('AUDIO_DETECTED', 'Speech or elevated ambient noise detected', null, null);
                       }
                     };
 
@@ -859,6 +882,12 @@ const ActiveExam = () => {
     }
 
     // 5.2 4-Second Camera Pipeline (Face + Object Detection)
+    proctoringWarmedUpRef.current = false;
+    hasSeenFaceOnceRef.current = false;
+    const warmupTimer = setTimeout(() => {
+      proctoringWarmedUpRef.current = true;
+    }, 6000);
+
     detectionIntervalRef.current = setInterval(async () => {
       if (isDetectingRef.current || hasSubmittedRef.current) return;
 
@@ -884,18 +913,21 @@ const ActiveExam = () => {
         if (examConfig?.enableFaceDetection !== false) {
           if (faces.length === 0) {
             setFaceStatus('STANDBY');
-            const evidenceUrl = await captureAndUploadEvidence();
-            sendProctorLog('NO_FACE', 'No face detected in camera viewport', evidenceUrl, null);
+            if (proctoringWarmedUpRef.current && hasSeenFaceOnceRef.current) {
+              const evidenceUrl = await captureAndUploadEvidence();
+              sendProctorLog('NO_FACE', 'No face detected in camera viewport', evidenceUrl, null);
 
-            setProctorWarnings((prev) => [
-              ...prev,
-              {
-                type: 'NO_FACE',
-                message: 'No face detected in camera view. Ensure your face is centered and clearly visible.',
-                timestamp: new Date()
-              }
-            ]);
+              setProctorWarnings((prev) => [
+                ...prev,
+                {
+                  type: 'NO_FACE',
+                  message: 'No face detected in camera view. Ensure your face is centered and clearly visible.',
+                  timestamp: new Date()
+                }
+              ]);
+            }
           } else if (faces.length > 1) {
+            hasSeenFaceOnceRef.current = true;
             setFaceStatus('VERIFIED');
             const evidenceUrl = await captureAndUploadEvidence();
             sendProctorLog('MULTIPLE_FACES', `Multiple faces detected in camera frame (${faces.length})`, evidenceUrl, null);
@@ -909,6 +941,7 @@ const ActiveExam = () => {
               }
             ]);
           } else {
+            hasSeenFaceOnceRef.current = true;
             setFaceStatus('VERIFIED');
           }
         }
@@ -1068,16 +1101,22 @@ const ActiveExam = () => {
         clearInterval(detectionIntervalRef.current);
         detectionIntervalRef.current = null;
       }
+      clearTimeout(warmupTimer);
     };
   }, [permissionState, modelsLoading, backendTerminated, sendProctorLog, captureAndUploadEvidence, examConfig]);
 
   // Request Fullscreen Button Handler
   const requestFullscreenAgain = async () => {
     try {
-      if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
-        setIsFullscreen(true);
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        await elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen) {
+        await elem.webkitRequestFullscreen();
+      } else if (elem.msRequestFullscreen) {
+        await elem.msRequestFullscreen();
       }
+      setIsFullscreen(true);
     } catch (err) {
       console.error('Fullscreen request failed:', err);
     }
@@ -1390,12 +1429,7 @@ const ActiveExam = () => {
               Multiple violations will result in automatic submission of your exam!
             </p>
             <button
-              onClick={() => {
-                const elem = document.documentElement;
-                if (elem.requestFullscreen) elem.requestFullscreen();
-                else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-                else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
-              }}
+              onClick={requestFullscreenAgain}
               className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white text-lg font-black rounded-xl transition-all shadow-xl hover:shadow-2xl active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <Maximize className="w-5 h-5" />

@@ -198,8 +198,8 @@ public class ProctoringService {
         }
 
         String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("audio/webm") && !contentType.equals("audio/ogg") && !contentType.equals("audio/wav") && !contentType.equals("application/octet-stream") && !contentType.equals("video/webm"))) {
-            throw new BadRequestException("Only WebM, OGG, and WAV audio are allowed.");
+        if (contentType == null || (!contentType.startsWith("audio/") && !contentType.startsWith("video/") && !contentType.equals("application/octet-stream"))) {
+            throw new BadRequestException("Invalid audio file format.");
         }
 
         Path uploadPath = Paths.get(audioUploadDir);
@@ -207,12 +207,10 @@ public class ProctoringService {
             Files.createDirectories(uploadPath);
         }
 
-        String extension = switch (contentType) {
-            case "audio/webm" -> ".webm";
-            case "audio/ogg" -> ".ogg";
-            case "audio/wav" -> ".wav";
-            default -> ".webm";
-        };
+        String extension = ".webm";
+        if (contentType.startsWith("audio/ogg")) extension = ".ogg";
+        else if (contentType.startsWith("audio/wav")) extension = ".wav";
+        else if (contentType.startsWith("audio/mp4")) extension = ".mp4";
 
         String filename = UUID.randomUUID().toString() + extension;
         Files.copy(file.getInputStream(), uploadPath.resolve(filename), StandardCopyOption.REPLACE_EXISTING);

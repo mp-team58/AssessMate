@@ -8,6 +8,7 @@ import com.assessmate.exception.ForbiddenException;
 import com.assessmate.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,8 +18,25 @@ import java.math.BigDecimal;
 import org.apache.poi.ss.usermodel.DateUtil;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 @RequiredArgsConstructor
 public class ExcelService {
+
+    public static final long MAX_EXCEL_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    public static final int MAX_QUESTIONS = 500;
+    public static final int MAX_ROW_LIMIT = 600;
+    public static final int MAX_COLUMNS = 20;
+    public static final int MAX_CELL_STRING_LENGTH = 10000;
+
+    private static final byte[] XLSX_MAGIC = new byte[]{0x50, 0x4B, 0x03, 0x04};
+    private static final byte[] XLS_MAGIC = new byte[]{(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, (byte) 0x1A, (byte) 0xE1};
+
+    static {
+        // P5: Apache POI Decompression Bomb Protection
+        ZipSecureFile.setMinInflateRatio(0.01); // 1% minimum ratio prevents zip bombs
+        ZipSecureFile.setMaxEntrySize(20 * 1024 * 1024L); // 20MB max uncompressed size per entry
+        ZipSecureFile.setMaxTextSize(10 * 1024 * 1024L); // 10MB max text size
+    }
 
     private final QuestionRepository questionRepository;
     private final ExamRepository examRepository;
@@ -122,14 +140,20 @@ public class ExcelService {
             MultipartFile file,
             String hostEmail) throws IOException {
 
-        if (file.isEmpty()) {
-            throw new BadRequestException("File is empty");
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("File is empty.");
+        }
+
+        if (file.getSize() > MAX_EXCEL_FILE_SIZE) {
+            throw new BadRequestException("Excel file size exceeds maximum allowed limit of 5MB.");
         }
 
         String filename = file.getOriginalFilename();
-        if (filename == null || (!filename.endsWith(".xlsx") && !filename.endsWith(".xls"))) {
-            throw new BadRequestException("Only .xlsx and .xls files are supported");
+        if (filename == null || filename.trim().isEmpty()) {
+            throw new BadRequestException("File name cannot be empty.");
         }
+
+        validateFileSignature(file, filename);
 
         Exam exam = examRepository.findById(examId)
             .orElseThrow(() -> new ResourceNotFoundException("Exam not found."));
@@ -145,19 +169,40 @@ public class ExcelService {
         User host = userRepository.findByEmail(hostEmail)
             .orElseThrow(() -> new ResourceNotFoundException("Host not found."));
 
-        try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = WorkbookFactory.create(is)) {
+
+            if (workbook.getNumberOfSheets() == 0) {
+                throw new BadRequestException("Spreadsheet contains no worksheets.");
+            }
+
             Sheet sheet = workbook.getSheetAt(0);
+            if (sheet == null) {
+                throw new BadRequestException("Spreadsheet contains no worksheets.");
+            }
+
+            int lastRowNum = sheet.getLastRowNum();
+            if (lastRowNum > MAX_ROW_LIMIT) {
+                throw new BadRequestException("Spreadsheet contains too many rows (" + lastRowNum + "). Maximum allowed is " + MAX_QUESTIONS + " questions.");
+            }
 
             int actualDataRows = 0;
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            for (int i = 1; i <= lastRowNum; i++) {
                 Row row = sheet.getRow(i);
                 if (row != null && !isRowEmpty(row)) {
+                    if (row.getLastCellNum() > MAX_COLUMNS) {
+                        throw new BadRequestException("Row " + (i + 1) + " contains excessive columns (" + row.getLastCellNum() + "). Expected at most 12 columns.");
+                    }
                     actualDataRows++;
                 }
             }
 
-            if (actualDataRows > 500) {
-                throw new BadRequestException("Maximum 500 questions per upload. Your file has " + actualDataRows + " rows.");
+            if (actualDataRows > MAX_QUESTIONS) {
+                throw new BadRequestException("Maximum " + MAX_QUESTIONS + " questions per upload. Your file has " + actualDataRows + " rows.");
+            }
+
+            if (actualDataRows == 0) {
+                throw new BadRequestException("Spreadsheet contains no question data rows.");
             }
 
             int[] remaining = calculateRemainingCapacity(exam);
@@ -167,7 +212,7 @@ public class ExcelService {
             int savedCount = 0;
             int skippedCount = 0;
 
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            for (int i = 1; i <= lastRowNum; i++) {
                 Row row = sheet.getRow(i);
                 if (row == null || isRowEmpty(row)) {
                     continue;
@@ -189,6 +234,12 @@ public class ExcelService {
 
                     decrementSlot(remaining, diff);
 
+                } catch (BadRequestException e) {
+                    if (e.getMessage() != null && e.getMessage().contains("exceeds maximum allowed length")) {
+                        throw e;
+                    }
+                    errors.add("Row " + (i + 1) + ": " + e.getMessage());
+                    skippedCount++;
                 } catch (Exception e) {
                     errors.add("Row " + (i + 1) + ": " + e.getMessage());
                     skippedCount++;
@@ -202,6 +253,55 @@ public class ExcelService {
                 .errors(errors)
                 .savedQuestions(savedQuestions)
                 .build();
+        } catch (BadRequestException | ForbiddenException | ResourceNotFoundException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Failed to parse Excel workbook: {}", e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+            if (msg.contains("zip bomb") || msg.contains("inflate ratio") || msg.contains("ratio")) {
+                throw new BadRequestException("The uploaded file violates decompression limits (possible zip bomb).");
+            }
+            throw new BadRequestException("The uploaded file is not a valid Excel spreadsheet or is corrupted.");
+        }
+    }
+
+    private void validateFileSignature(MultipartFile file, String filename) throws IOException {
+        byte[] header = new byte[8];
+        int bytesRead;
+        try (InputStream is = file.getInputStream()) {
+            bytesRead = is.readNBytes(header, 0, 8);
+        }
+
+        if (bytesRead < 4) {
+            throw new BadRequestException("File is too small to be a valid spreadsheet.");
+        }
+
+        String lowerName = filename.toLowerCase();
+        boolean isZip = header[0] == XLSX_MAGIC[0] && header[1] == XLSX_MAGIC[1]
+                && header[2] == XLSX_MAGIC[2] && header[3] == XLSX_MAGIC[3];
+
+        boolean isOle2 = bytesRead >= 8
+                && header[0] == XLS_MAGIC[0] && header[1] == XLS_MAGIC[1]
+                && header[2] == XLS_MAGIC[2] && header[3] == XLS_MAGIC[3]
+                && header[4] == XLS_MAGIC[4] && header[5] == XLS_MAGIC[5]
+                && header[6] == XLS_MAGIC[6] && header[7] == XLS_MAGIC[7];
+
+        if (lowerName.endsWith(".xlsx")) {
+            if (!isZip) {
+                if (isOle2) {
+                    throw new BadRequestException("File content is in legacy .xls format but has a .xlsx extension.");
+                }
+                throw new BadRequestException("Invalid file signature. File is not a valid .xlsx spreadsheet.");
+            }
+        } else if (lowerName.endsWith(".xls")) {
+            if (!isOle2) {
+                if (isZip) {
+                    throw new BadRequestException("File content is in .xlsx format but has a .xls extension.");
+                }
+                throw new BadRequestException("Invalid file signature. File is not a valid .xls spreadsheet.");
+            }
+        } else {
+            throw new BadRequestException("Only .xlsx and .xls files are supported.");
         }
     }
 
@@ -342,17 +442,17 @@ public class ExcelService {
         Cell cell = row.getCell(colIndex);
         if (cell == null) return "";
 
-        return switch (cell.getCellType()) {
+        String val = switch (cell.getCellType()) {
             case STRING -> cell.getStringCellValue().trim();
             case NUMERIC -> {
                 if (DateUtil.isCellDateFormatted(cell)) {
                     yield cell.getDateCellValue().toString();
                 }
-                double val = cell.getNumericCellValue();
-                if (val == Math.rint(val) && !Double.isInfinite(val)) {
-                    yield String.valueOf((long) val);
+                double valNum = cell.getNumericCellValue();
+                if (valNum == Math.rint(valNum) && !Double.isInfinite(valNum)) {
+                    yield String.valueOf((long) valNum);
                 } else {
-                    yield BigDecimal.valueOf(val).stripTrailingZeros().toPlainString();
+                    yield BigDecimal.valueOf(valNum).stripTrailingZeros().toPlainString();
                 }
             }
             case BOOLEAN -> String.valueOf(cell.getBooleanCellValue()).toUpperCase();
@@ -360,16 +460,23 @@ public class ExcelService {
                 try {
                     yield cell.getStringCellValue().trim();
                 } catch (Exception e) {
-                    double val = cell.getNumericCellValue();
-                    if (val == Math.rint(val)) {
-                        yield String.valueOf((long) val);
+                    double valNum = cell.getNumericCellValue();
+                    if (valNum == Math.rint(valNum)) {
+                        yield String.valueOf((long) valNum);
                     } else {
-                        yield BigDecimal.valueOf(val).stripTrailingZeros().toPlainString();
+                        yield BigDecimal.valueOf(valNum).stripTrailingZeros().toPlainString();
                     }
                 }
             }
             default -> "";
         };
+
+        if (val != null && val.length() > MAX_CELL_STRING_LENGTH) {
+            throw new BadRequestException("Cell at row " + (row.getRowNum() + 1) + ", column " + (colIndex + 1)
+                    + " exceeds maximum allowed length of " + MAX_CELL_STRING_LENGTH + " characters.");
+        }
+
+        return val;
     }
 
     private boolean isRowEmpty(Row row) {

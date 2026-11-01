@@ -23,6 +23,7 @@ import java.util.Optional;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final com.assessmate.security.LoginRateLimiterService loginRateLimiterService;
     private final OtpVerificationRepository otpRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
@@ -94,7 +95,8 @@ public class AuthService {
         userRepository.save(user);
         otpRepository.delete(otpVerification);
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        Long tokenVer = user.getTokenVersion() != null ? user.getTokenVersion() : 1L;
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), tokenVer);
         user.setActiveToken(token);
         userRepository.save(user);
 
@@ -151,25 +153,63 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest req) {
-        String email = req.getEmail().trim().toLowerCase(Locale.ROOT);
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+        return login(req, "127.0.0.1");
+    }
 
-        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
-            throw new BadRequestException("Invalid email or password");
-        }
+    public AuthResponse login(LoginRequest req, String clientIp) {
+        String email = req.getEmail() != null ? req.getEmail().trim().toLowerCase(Locale.ROOT) : "";
 
-        if (req.getRole() != null && !req.getRole().isEmpty()) {
-            if (!user.getRole().name().equalsIgnoreCase(req.getRole())) {
-                throw new BadRequestException("This account is registered as " + user.getRole().name() + ". Please select the correct role.");
+        // Rate limit check before attempting DB query or password comparison
+        loginRateLimiterService.checkRateLimit(clientIp, email);
+
+        try {
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new BadRequestException("Invalid email or password"));
+
+            if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+                throw new BadRequestException("Invalid email or password");
             }
+
+            if (req.getRole() != null && !req.getRole().isEmpty()) {
+                if (!user.getRole().name().equalsIgnoreCase(req.getRole())) {
+                    throw new BadRequestException("This account is registered as " + user.getRole().name() + ". Please select the correct role.");
+                }
+            }
+
+            // Successful login resets failed attempt counters
+            loginRateLimiterService.onLoginSuccess(clientIp, email);
+
+            Long tokenVer = user.getTokenVersion() != null ? user.getTokenVersion() : 1L;
+            user.setTokenVersion(tokenVer);
+            String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), tokenVer);
+            user.setActiveToken(token);
+            userRepository.save(user);
+
+            return new AuthResponse(token, user.getRole().name(), user.getName(), user.getId());
+
+        } catch (BadRequestException ex) {
+            // Record failed attempt for client IP and normalized email
+            loginRateLimiterService.onLoginFailure(clientIp, email);
+            throw ex;
+        }
+    }
+
+    
+    @Transactional
+    public void changePassword(String email, com.assessmate.dto.ChangePasswordRequest request) {
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BadRequestException("Current password does not match");
         }
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
-        user.setActiveToken(token);
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        Long currentVersion = user.getTokenVersion() != null ? user.getTokenVersion() : 1L;
+        user.setTokenVersion(currentVersion + 1);
+        user.setActiveToken(null);
         userRepository.save(user);
-
-        return new AuthResponse(token, user.getRole().name(), user.getName(), user.getId());
     }
 
     public void logout(String email) {

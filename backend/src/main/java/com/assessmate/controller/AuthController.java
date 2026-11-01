@@ -19,6 +19,8 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.assessmate.security.ClientIpResolver clientIpResolver;
 
     @PostMapping("/register/request-otp")
     public ResponseEntity<Map<String, String>> requestRegisterOtp(
@@ -58,8 +60,37 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    public ResponseEntity<AuthResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            jakarta.servlet.http.HttpServletRequest httpRequest
+    ) {
+        String clientIp = clientIpResolver != null ? clientIpResolver.resolveClientIp(httpRequest) : extractClientIp(httpRequest);
+        return ResponseEntity.ok(authService.login(request, clientIp));
+    }
+
+    private String extractClientIp(jakarta.servlet.http.HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.trim().isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.trim().isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
+            return xRealIp.trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @Valid @RequestBody com.assessmate.dto.ChangePasswordRequest request,
+            Principal principal
+    ) {
+        if (principal == null) {
+            throw new BadRequestException("No active session found.");
+        }
+        authService.changePassword(principal.getName(), request);
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully. Please log in with your new password."));
     }
 
     @PostMapping("/logout")

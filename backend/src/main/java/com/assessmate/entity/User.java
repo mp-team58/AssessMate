@@ -40,6 +40,14 @@ public class User {
 
     @Column(length = 512)
     private String activeToken;
+
+    @Column(nullable = false, columnDefinition = "BIGINT DEFAULT 1")
+    @Builder.Default
+    private Long tokenVersion = 1L;
+
+    public Long getTokenVersion() {
+        return tokenVersion != null ? tokenVersion : 1L;
+    }
 // stores current valid JWT token
 // replaced on every new login
 // null = user is logged out

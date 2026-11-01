@@ -83,7 +83,11 @@ const DashboardLayout = () => {
 
         {/* Sidebar Footer with Host Profile & Sign Out */}
         <div className="p-4 border-t border-secondary-700/50 space-y-2">
-          <div className="px-4 py-3 bg-secondary-900/50 rounded-xl border border-secondary-700/50 flex items-center gap-3">
+          <NavLink 
+            to="/profile"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="px-4 py-3 bg-secondary-900/50 rounded-xl border border-secondary-700/50 flex items-center gap-3 w-full text-left cursor-pointer hover:bg-secondary-800 transition-colors"
+          >
             <div className="w-9 h-9 rounded-lg bg-brand-500/25 border border-brand-400/40 text-brand-300 font-bold flex items-center justify-center text-sm">
               {user?.name ? user.name[0].toUpperCase() : 'H'}
             </div>
@@ -91,7 +95,7 @@ const DashboardLayout = () => {
               <p className="text-sm font-bold text-[#F3EDE0] truncate">{user?.name || 'Host'}</p>
               <p className="text-xs text-secondary-400 font-medium">Host</p>
             </div>
-          </div>
+          </NavLink>
 
           <button 
             onClick={handleLogout}

@@ -181,6 +181,20 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    public ProfileResponse getMyProfile(java.security.Principal principal) {
+        String email = principal.getName().trim().toLowerCase(Locale.ROOT);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        return new ProfileResponse(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getRole().name(),
+                user.getCreatedAt()
+        );
+    }
+
     private void checkCooldown(String email, OtpPurpose purpose) {
         Optional<OtpVerification> existing = otpRepository.findByEmailAndPurpose(email, purpose);
         if (existing.isPresent()) {

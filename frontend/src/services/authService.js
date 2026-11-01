@@ -140,3 +140,11 @@ export const logout = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('currentExamId');
 };
+
+/**
+ * Fetch the currently logged-in user's profile
+ * @returns {Promise<any>}
+ */
+export const getMyProfile = async () => {
+  return apiClient.get('/auth/me');
+};

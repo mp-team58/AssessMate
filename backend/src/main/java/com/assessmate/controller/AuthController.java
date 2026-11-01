@@ -70,4 +70,12 @@ public class AuthController {
         authService.logout(principal.getName());
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
+
+    @GetMapping("/me")
+    public ResponseEntity<com.assessmate.dto.ProfileResponse> getMyProfile(Principal principal) {
+        if (principal == null) {
+            throw new BadRequestException("No active session found.");
+        }
+        return ResponseEntity.ok(authService.getMyProfile(principal));
+    }
 }

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
+import LandingPage from './pages/LandingPage';
 import HostDashboard from './pages/HostDashboard';
 import HostExamResults from './pages/HostExamResults';
 import HostCandidateReport from './pages/HostCandidateReport';
@@ -23,7 +24,8 @@ import CandidateLayout from './layouts/CandidateLayout';
 import MyAssessments from './pages/MyAssessments';
 import CandidateResults from './pages/CandidateResults';
 import CandidatePerformance from './pages/CandidatePerformance';
-import CandidateProfile from './pages/CandidateProfile';
+import UserProfile from './pages/UserProfile';
+import DynamicLayout from './layouts/DynamicLayout';
 import JoinAssessment from './pages/JoinAssessment';
 import ActiveExam from './pages/ActiveExam';
 import ExamResult from './pages/ExamResult';
@@ -44,7 +46,7 @@ function App() {
       <ToastProvider>
         <ScrollToTop />
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -74,7 +76,6 @@ function App() {
         <Route path="/candidate/my-assessments" element={<MyAssessments />} />
         <Route path="/candidate/results" element={<CandidateResults />} />
         <Route path="/candidate/performance" element={<CandidatePerformance />} />
-        <Route path="/candidate/profile" element={<CandidateProfile />} />
         <Route path="/candidate/join" element={<JoinAssessment />} />
         <Route path="/candidate/result/:enrollmentId" element={<ExamResult />} />
         </Route>
@@ -83,6 +84,13 @@ function App() {
       {/* Active Exam is full-screen dedicated examination room */}
       <Route element={<ProtectedRoute allowedRole="CANDIDATE" />}>
         <Route path="/candidate/exam/:enrollmentId" element={<ActiveExam />} />
+      </Route>
+
+      {/* Shared Profile Route */}
+      <Route element={<ProtectedRoute allowedRole={['HOST', 'CANDIDATE']} />}>
+        <Route element={<DynamicLayout />}>
+          <Route path="/profile" element={<UserProfile />} />
+        </Route>
       </Route>
       </Routes>
       </ToastProvider>

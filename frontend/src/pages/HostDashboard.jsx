@@ -97,16 +97,25 @@ const HostDashboard = () => {
   const completedExams = exams.filter(e => e.status === 'COMPLETED');
   
   // Use analytics data if available, otherwise calculate from exams array
-  const totalCandidates = analytics?.totalCandidates || exams.reduce((acc, curr) => acc + (curr.candidateCount || 0), 0) || (exams.length > 0 ? (exams.length * 12) : 0);
+  const totalCandidates = analytics?.totalCandidates ?? exams.reduce((acc, curr) => acc + (curr.candidateCount || 0), 0);
+  const hasAnyExams = exams.length > 0;
   const avgPerformance = analytics?.averagePercentage ? Math.round(analytics.averagePercentage) : 0;
 
   // Difficulty Distribution Calculation
   const diffTotal = analytics ? 
     ((analytics.difficultyDistribution?.EASY || 0) + (analytics.difficultyDistribution?.MEDIUM || 0) + (analytics.difficultyDistribution?.HARD || 0)) : 0;
   
-  const easyPct = diffTotal ? ((analytics.difficultyDistribution?.EASY || 0) / diffTotal) * 100 : 33;
-  const medPct = diffTotal ? ((analytics.difficultyDistribution?.MEDIUM || 0) / diffTotal) * 100 : 34;
-  const hardPct = diffTotal ? ((analytics.difficultyDistribution?.HARD || 0) / diffTotal) * 100 : 33;
+  const easyPct = diffTotal ? ((analytics.difficultyDistribution?.EASY || 0) / diffTotal) * 100 : 0;
+  const medPct = diffTotal ? ((analytics.difficultyDistribution?.MEDIUM || 0) / diffTotal) * 100 : 0;
+  const hardPct = diffTotal ? ((analytics.difficultyDistribution?.HARD || 0) / diffTotal) * 100 : 0;
+
+  // Only the exams that actually have candidates are useful here —
+  // show the 5 with the most activity instead of every exam ever
+  // created (which was producing a long list of 0% rows).
+  const topPerformanceExams = (analytics?.examPerformance || [])
+    .filter((e) => e.candidateCount > 0)
+    .sort((a, b) => b.candidateCount - a.candidateCount)
+    .slice(0, 5);
 
   if (isLoading) {
     return (
@@ -119,7 +128,7 @@ const HostDashboard = () => {
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300 relative z-10 font-sans pb-12 w-full">
       {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-secondary-900 via-[#1A1A1A] to-[#262626] p-8 md:p-12 text-white shadow-2xl border border-secondary-800">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-secondary-900 via-[#0c1410] to-[#11281c] p-8 md:p-12 text-white shadow-2xl border border-secondary-800">
         <div className="absolute top-0 right-0 -mr-32 -mt-32 w-[500px] h-[500px] rounded-full bg-brand-500 blur-[120px] opacity-20 animate-pulse"></div>
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[400px] h-[400px] rounded-full bg-purple-600 blur-[100px] opacity-20"></div>
         
@@ -129,7 +138,9 @@ const HostDashboard = () => {
               Welcome back, {user?.name?.split(' ')[0] || 'Host'}
             </h1>
             <p className="text-secondary-400 text-lg md:text-xl mb-8 leading-relaxed font-medium max-w-xl">
-              Your intelligent command center. Track candidate performance, manage live assessments, and uncover actionable insights all in one place.
+              {hasAnyExams
+                ? 'Your intelligent command center. Track candidate performance, manage live assessments, and uncover actionable insights all in one place.'
+                : "Let's get your first assessment out the door — create an exam, share a join code, and results start flowing in automatically."}
             </p>
             <div className="flex flex-wrap items-center gap-4">
               <Link
@@ -149,29 +160,33 @@ const HostDashboard = () => {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row lg:flex-col gap-4">
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 w-full sm:w-64 flex items-center gap-5 hover:bg-white/10 transition-colors">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <Activity className="w-7 h-7" />
+          {hasAnyExams && (
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-4">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 w-full sm:w-64 flex items-center gap-5 hover:bg-white/10 transition-colors">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <Activity className="w-7 h-7" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mb-1">Live Exams</p>
+                  <h4 className="text-4xl font-black text-white">{publishedExams.length}</h4>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mb-1">Live Exams</p>
-                <h4 className="text-4xl font-black text-white">{publishedExams.length}</h4>
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 w-full sm:w-64 flex items-center gap-5 hover:bg-white/10 transition-colors">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-500/30">
+                  <Users className="w-7 h-7" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mb-1">Candidates</p>
+                  <h4 className="text-4xl font-black text-white">{totalCandidates}</h4>
+                </div>
               </div>
             </div>
-            <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 w-full sm:w-64 flex items-center gap-5 hover:bg-white/10 transition-colors">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-500/30">
-                <Users className="w-7 h-7" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mb-1">Candidates</p>
-                <h4 className="text-4xl font-black text-white">{totalCandidates}</h4>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
+      {hasAnyExams ? (
+      <>
       {/* Dynamic Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
         <StatCard 
@@ -221,18 +236,18 @@ const HostDashboard = () => {
                   Performance Focus
                 </h2>
               </div>
-              <div className="space-y-6 flex-1">
-                {analytics?.examPerformance?.length > 0 ? (
-                  analytics.examPerformance.map((exam, idx) => (
+              <div className="space-y-5 flex-1">
+                {topPerformanceExams.length > 0 ? (
+                  topPerformanceExams.map((exam, idx) => (
                     <div key={idx} className="group">
-                      <div className="flex justify-between items-end mb-2">
+                      <div className="flex justify-between items-end mb-1.5">
                         <div>
                           <h4 className="text-sm font-bold text-secondary-800 truncate pr-4">{exam.examTitle}</h4>
                           <p className="text-[11px] font-semibold text-secondary-400 mt-0.5">{exam.candidateCount} candidates</p>
                         </div>
                         <span className="text-brand-600 font-black text-lg leading-none">{Math.round(exam.averagePercentage)}%</span>
                       </div>
-                      <div className="w-full bg-secondary-100/80 rounded-full h-3 overflow-hidden shadow-inner">
+                      <div className="w-full bg-secondary-100/80 rounded-full h-2.5 overflow-hidden shadow-inner">
                         <div
                           className="bg-gradient-to-r from-brand-400 to-brand-600 h-full rounded-full transition-all duration-1000 group-hover:brightness-110"
                           style={{ width: `${Math.max(0, Math.min(100, exam.averagePercentage))}%` }}
@@ -258,34 +273,43 @@ const HostDashboard = () => {
                 Difficulty Spread
               </h2>
               <div className="flex flex-col flex-1 justify-center pb-2">
-                <div className="w-full h-12 rounded-2xl overflow-hidden flex shadow-inner mb-8 bg-secondary-100">
-                  <div className="h-full bg-gradient-to-b from-emerald-400 to-emerald-500 transition-all duration-700 hover:brightness-110" style={{ width: `${easyPct}%` }} title="Easy"></div>
-                  <div className="h-full bg-gradient-to-b from-amber-300 to-amber-400 transition-all duration-700 hover:brightness-110" style={{ width: `${medPct}%` }} title="Medium"></div>
-                  <div className="h-full bg-gradient-to-b from-red-400 to-red-500 transition-all duration-700 hover:brightness-110" style={{ width: `${hardPct}%` }} title="Hard"></div>
-                </div>
-                <div className="flex justify-between items-center px-2">
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-1.5">
-                      <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
-                      <span className="font-extrabold text-secondary-900 text-[13px] uppercase tracking-wide">Easy</span>
-                    </div>
-                    <span className="text-secondary-500 font-bold text-xs bg-secondary-50 px-3 py-1 rounded-lg border border-secondary-100 shadow-sm">{analytics?.difficultyDistribution?.EASY || 0} Qs</span>
+                {diffTotal === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-secondary-400 space-y-3 py-4">
+                    <Target className="w-10 h-10 opacity-20" />
+                    <p className="text-sm font-medium">No question data yet</p>
                   </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-1.5">
-                      <span className="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
-                      <span className="font-extrabold text-secondary-900 text-[13px] uppercase tracking-wide">Med</span>
+                ) : (
+                  <>
+                    <div className="w-full h-12 rounded-2xl overflow-hidden flex shadow-inner mb-8 bg-secondary-100">
+                      <div className="h-full bg-gradient-to-b from-emerald-400 to-emerald-500 transition-all duration-700 hover:brightness-110" style={{ width: `${easyPct}%` }} title="Easy"></div>
+                      <div className="h-full bg-gradient-to-b from-amber-300 to-amber-400 transition-all duration-700 hover:brightness-110" style={{ width: `${medPct}%` }} title="Medium"></div>
+                      <div className="h-full bg-gradient-to-b from-red-400 to-red-500 transition-all duration-700 hover:brightness-110" style={{ width: `${hardPct}%` }} title="Hard"></div>
                     </div>
-                    <span className="text-secondary-500 font-bold text-xs bg-secondary-50 px-3 py-1 rounded-lg border border-secondary-100 shadow-sm">{analytics?.difficultyDistribution?.MEDIUM || 0} Qs</span>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-2 mb-1.5">
-                      <span className="w-3 h-3 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></span>
-                      <span className="font-extrabold text-secondary-900 text-[13px] uppercase tracking-wide">Hard</span>
+                    <div className="flex justify-between items-center px-2">
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 mb-1.5">
+                          <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+                          <span className="font-extrabold text-secondary-900 text-[13px] uppercase tracking-wide">Easy</span>
+                        </div>
+                        <span className="text-secondary-500 font-bold text-xs bg-secondary-50 px-3 py-1 rounded-lg border border-secondary-100 shadow-sm">{analytics?.difficultyDistribution?.EASY || 0} Qs</span>
+                      </div>
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 mb-1.5">
+                          <span className="w-3 h-3 rounded-full bg-amber-400 shadow-sm shadow-amber-400/50"></span>
+                          <span className="font-extrabold text-secondary-900 text-[13px] uppercase tracking-wide">Med</span>
+                        </div>
+                        <span className="text-secondary-500 font-bold text-xs bg-secondary-50 px-3 py-1 rounded-lg border border-secondary-100 shadow-sm">{analytics?.difficultyDistribution?.MEDIUM || 0} Qs</span>
+                      </div>
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 mb-1.5">
+                          <span className="w-3 h-3 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></span>
+                          <span className="font-extrabold text-secondary-900 text-[13px] uppercase tracking-wide">Hard</span>
+                        </div>
+                        <span className="text-secondary-500 font-bold text-xs bg-secondary-50 px-3 py-1 rounded-lg border border-secondary-100 shadow-sm">{analytics?.difficultyDistribution?.HARD || 0} Qs</span>
+                      </div>
                     </div>
-                    <span className="text-secondary-500 font-bold text-xs bg-secondary-50 px-3 py-1 rounded-lg border border-secondary-100 shadow-sm">{analytics?.difficultyDistribution?.HARD || 0} Qs</span>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -328,7 +352,7 @@ const HostDashboard = () => {
                         {exam.title.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h4 className="font-extrabold text-secondary-900 text-[15px] group-hover:text-brand-600 transition-colors cursor-pointer truncate max-w-[200px] sm:max-w-xs md:max-w-md" onClick={() => navigate(`/host/exams/${exam.id}`)}>
+                        <h4 className="font-extrabold text-secondary-900 text-[15px] group-hover:text-brand-600 transition-colors cursor-pointer truncate max-w-[200px] sm:max-w-xs md:max-w-md" onClick={() => navigate(`/host/exams/${exam.id}/manage`)}>
                           {exam.title}
                         </h4>
                         <div className="flex items-center flex-wrap gap-3 text-xs text-secondary-500 mt-2 font-bold">
@@ -352,7 +376,7 @@ const HostDashboard = () => {
                       }`}>
                         {exam.status}
                       </span>
-                      <button onClick={() => navigate(`/host/exams/${exam.id}`)} className="p-2.5 text-secondary-400 hover:text-white hover:bg-brand-500 rounded-xl transition-all shadow-sm sm:opacity-0 sm:group-hover:opacity-100 sm:-translate-x-2 sm:group-hover:translate-x-0">
+                      <button onClick={() => navigate(`/host/exams/${exam.id}/manage`)} className="p-2.5 text-secondary-400 hover:text-white hover:bg-brand-500 rounded-xl transition-all shadow-sm sm:opacity-0 sm:group-hover:opacity-100 sm:-translate-x-2 sm:group-hover:translate-x-0">
                         <ArrowRight className="w-5 h-5" />
                       </button>
                     </div>
@@ -411,7 +435,7 @@ const HostDashboard = () => {
             />
           </div>
             
-          <div className="bg-gradient-to-br from-secondary-900 via-[#1F1A13] to-[#2D2619] rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden group">
+          <div className="bg-gradient-to-br from-secondary-900 via-[#0c1410] to-[#11281c] rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden group">
             <div className="absolute -top-10 -right-10 w-40 h-40 bg-brand-500/30 rounded-full blur-[60px] group-hover:bg-brand-500/50 transition-all duration-700"></div>
             <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/30 rounded-full blur-[60px] group-hover:bg-purple-500/50 transition-all duration-700"></div>
             <h3 className="font-black text-xl mb-3 text-brand-300 flex items-center gap-2 relative z-10 tracking-tight">
@@ -423,6 +447,51 @@ const HostDashboard = () => {
           </div>
         </div>
       </div>
+      </>
+      ) : (
+        /* New host: one focused getting-started panel instead of a
+           dashboard full of empty "no data yet" boxes. */
+        <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-10 md:p-14 shadow-sm border border-secondary-200/60 flex flex-col items-center text-center">
+          <div className="w-16 h-16 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center mb-6">
+            <Sparkles className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-black text-secondary-900 mb-3">Create your first assessment</h2>
+          <p className="text-secondary-500 max-w-md mb-10 font-medium">
+            Three steps and you're live: build the exam, share one join code, and watch results and analytics fill in here automatically.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 w-full max-w-2xl mb-10 text-left">
+            {[
+              { icon: FileText, title: '1. Build the exam', desc: 'Write questions by hand, generate them with AI, or import from Excel.' },
+              { icon: Users, title: '2. Share the code', desc: 'One join code gets any candidate straight into the exam.' },
+              { icon: BarChart3, title: '3. Review results', desc: 'Scores, weak topics, and proctoring flags appear here instantly.' },
+            ].map((step) => (
+              <div key={step.title} className="bg-secondary-50/80 border border-secondary-100 rounded-2xl p-5">
+                <step.icon className="w-5 h-5 text-brand-600 mb-3" />
+                <h4 className="font-extrabold text-secondary-900 text-sm mb-1.5">{step.title}</h4>
+                <p className="text-xs text-secondary-500 leading-relaxed font-medium">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link
+              to="/host/create-exam"
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-brand-600 text-white rounded-2xl font-bold hover:bg-brand-500 transition-all shadow-sm text-sm"
+            >
+              <PlusCircle className="w-5 h-5" />
+              Create Assessment
+            </Link>
+            <Link
+              to="/host/question-bank"
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-secondary-50 border border-secondary-200 text-secondary-700 rounded-2xl font-bold hover:bg-secondary-100 transition-all text-sm"
+            >
+              <Library className="w-5 h-5" />
+              Browse Question Bank
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

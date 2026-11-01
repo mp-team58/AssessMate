@@ -79,6 +79,44 @@ const ExamResult = () => {
     }
   };
 
+  const formatAnswerText = (ans, val) => {
+    if (val === null || val === undefined) return 'Not answered';
+    
+    try {
+      const strVal = String(val).trim().toUpperCase();
+      const isSingleLetter = /^[A-Z]$/.test(strVal);
+      
+      if (isSingleLetter) {
+        // Check for direct optionA, optionB properties
+        if (ans[`option${strVal}`] !== undefined) {
+          return String(ans[`option${strVal}`]);
+        }
+        
+        // Check options array
+        if (Array.isArray(ans.options)) {
+          const index = strVal.charCodeAt(0) - 65;
+          if (index >= 0 && index < ans.options.length && ans.options[index] !== undefined) {
+            const mappedVal = ans.options[index];
+            if (typeof mappedVal === 'object' && mappedVal !== null) {
+              return String(mappedVal.value || mappedVal.text || mappedVal.label || JSON.stringify(mappedVal));
+            }
+            return String(mappedVal);
+          }
+        }
+      }
+      
+      // Handle multiple selection (e.g. "A,B")
+      if (/^[A-Z](,[A-Z])+$/.test(strVal)) {
+        const parts = strVal.split(',');
+        return parts.map(p => formatAnswerText(ans, p)).join(', ');
+      }
+    } catch (e) {
+      console.error("formatAnswerText error:", e);
+    }
+
+    return typeof val === 'object' ? JSON.stringify(val) : String(val);
+  };
+
   if (isLoading) {
     const loadingMessages = [
       'Grading and compiling assessment submissions...',
@@ -389,11 +427,11 @@ const ExamResult = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                   <div className="p-3 bg-white rounded-xl border border-secondary-200">
                     <p className="text-[10px] font-bold text-secondary-500 uppercase tracking-wider mb-1">Your Answer</p>
-                    <p className="text-sm font-medium text-secondary-800">{ans.candidateAnswer || 'Not answered'}</p>
+                    <p className="text-sm font-medium text-secondary-800">{formatAnswerText(ans, ans.candidateAnswer)}</p>
                   </div>
                   <div className="p-3 bg-brand-50 rounded-xl border border-brand-200">
                     <p className="text-[10px] font-bold text-brand-600 uppercase tracking-wider mb-1">Correct Answer</p>
-                    <p className="text-sm font-bold text-brand-900">{ans.correctAnswer}</p>
+                    <p className="text-sm font-bold text-brand-900">{formatAnswerText(ans, ans.correctAnswer)}</p>
                   </div>
                 </div>
 

@@ -120,7 +120,7 @@ const CandidateLayout = () => {
         {/* Sidebar Footer with Candidate Profile & Sign Out */}
         <div className="p-4 border-t border-secondary-700/50 space-y-2">
           <NavLink
-            to="/candidate/profile"
+            to="/profile"
             onClick={() => setIsMobileMenuOpen(false)}
             className={({ isActive }) => `
               px-4 py-3 rounded-xl border flex items-center gap-3 transition-all
@@ -136,10 +136,7 @@ const CandidateLayout = () => {
             </div>
             <div className="overflow-hidden flex-1">
               <p className="text-sm font-bold text-[#F3EDE0] truncate">{user?.name || 'Candidate'}</p>
-              <p className="text-xs text-secondary-400 font-medium flex items-center gap-1">
-                <User className="w-3 h-3 text-brand-400" />
-                Profile
-              </p>
+              <p className="text-xs text-secondary-400 font-medium">Candidate</p>
             </div>
           </NavLink>
 

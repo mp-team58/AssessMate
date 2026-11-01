@@ -274,8 +274,17 @@ const HostCandidateReport = () => {
                     {ans.type === 'MCQ' && ans.options ? (
                       <div className="space-y-2 mb-4">
                         {ans.options.map((opt, oIdx) => {
-                          const isCandidate = ans.candidateAnswer === opt;
-                          const isCorrect = ans.correctAnswer === opt;
+                          const isAnswerMatch = (val) => {
+                            if (!val) return false;
+                            const strVal = val.toString().trim().toUpperCase();
+                            if (/^[A-Z]$/.test(strVal)) {
+                              return (strVal.charCodeAt(0) - 65) === oIdx;
+                            }
+                            return val === opt;
+                          };
+                          
+                          const isCandidate = isAnswerMatch(ans.candidateAnswer);
+                          const isCorrect = isAnswerMatch(ans.correctAnswer);
                           
                           let optClass = "p-3 rounded-lg border text-sm font-medium bg-white border-secondary-200 text-secondary-700";
                           if (isCorrect) optClass = "p-3 rounded-lg border-2 border-emerald-500 bg-emerald-50 text-emerald-900 font-bold";

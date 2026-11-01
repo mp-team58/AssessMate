@@ -23,6 +23,20 @@ import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleRateLimitExceeded(RateLimitExceededException ex, HttpServletRequest req) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.TOO_MANY_REQUESTS.value());
+        body.put("error", HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase());
+        body.put("message", ex.getMessage());
+        body.put("path", req.getRequestURI());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(ex.getRetryAfterSeconds()))
+                .body(body);
+    }
+
+
     @Value("${spring.servlet.multipart.max-file-size:50MB}")
     private String maxFileSize;
 

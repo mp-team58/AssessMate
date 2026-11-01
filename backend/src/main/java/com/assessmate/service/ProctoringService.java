@@ -111,25 +111,41 @@ public class ProctoringService {
                 .toList();
     }
 
-    public org.springframework.core.io.Resource loadEvidenceFile(String type, String filename, String hostEmail) throws IOException {
-        String relativeUrl = "/uploads/proctoring/" + type + "/" + filename;
+    public org.springframework.core.io.Resource loadEvidenceFile(String type, String filename, String userEmail) throws IOException {
+        if (filename == null || filename.contains("..") || filename.contains("/") || filename.contains("\\")) {
+            throw new com.assessmate.exception.BadRequestException("Invalid evidence filename");
+        }
 
-        ProctoringLog log = ("images".equals(type)
+        String normalizedType = type;
+        if ("image".equalsIgnoreCase(type)) normalizedType = "images";
+        if (!"images".equals(normalizedType) && !"audio".equals(normalizedType)) {
+            throw new com.assessmate.exception.BadRequestException("Invalid evidence type: " + type);
+        }
+
+        String relativeUrl = "/uploads/proctoring/" + normalizedType + "/" + filename;
+
+        ProctoringLog log = ("images".equals(normalizedType)
                 ? proctoringLogRepository.findByImageUrl(relativeUrl)
                 : proctoringLogRepository.findByAudioUrl(relativeUrl))
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Evidence file not found"));
 
-        if (!log.getEnrollment().getExam().getHost().getEmail().equals(hostEmail)) {
+        boolean isHost = log.getEnrollment().getExam().getHost().getEmail().equalsIgnoreCase(userEmail);
+        boolean isCandidate = log.getEnrollment().getCandidate().getEmail().equalsIgnoreCase(userEmail);
+
+        if (!isHost && !isCandidate) {
             throw new com.assessmate.exception.ForbiddenException("You do not have access to this evidence file");
         }
 
-        String dir = "images".equals(type) ? imagesUploadDir : audioUploadDir;
-        Path filePath = Paths.get(dir, filename);
-        if (!Files.exists(filePath)) {
+        String dir = "images".equals(normalizedType) ? imagesUploadDir : audioUploadDir;
+        Path baseDir = Paths.get(dir).toAbsolutePath().normalize();
+        Path filePath = baseDir.resolve(filename).normalize();
+
+        if (!filePath.startsWith(baseDir) || !Files.exists(filePath)) {
             throw new com.assessmate.exception.ResourceNotFoundException("Evidence file not found on disk");
         }
         return new org.springframework.core.io.UrlResource(filePath.toUri());
     }
+
 
     @Value("${app.upload.dir.proctoring.images:uploads/proctoring/images/}")
     private String imagesUploadDir;

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getProctoringDashboard, getCandidateProctoringTimeline } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
-import { ShieldAlert, ArrowLeft, EyeOff, Users, Monitor, Maximize, AlertTriangle, Activity, Mic } from 'lucide-react';
+import { ShieldAlert, ArrowLeft, EyeOff, Users, Monitor, Maximize, AlertTriangle, Activity } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { getMediaUrl } from '../services/apiClient';
+import { SecureImage, SecureAudio } from '../components/SecureMedia';
 
 const ProctoringRow = ({ candidate, examId }) => {
   const [timeline, setTimeline] = useState(null);
@@ -46,7 +47,6 @@ const ProctoringRow = ({ candidate, examId }) => {
         <td className="p-4 font-medium text-secondary-700">{candidate.noFaceCount || 0}</td>
         <td className="p-4 font-medium text-secondary-700">{candidate.multipleFacesCount || 0}</td>
         <td className="p-4 font-medium text-secondary-700">{candidate.gazeAwayCount || 0}</td>
-        <td className="p-4 font-medium text-secondary-700">{candidate.audioDetectedCount || 0}</td>
         <td className="p-4 font-medium text-secondary-700">{candidate.tabSwitchCount || 0}</td>
         <td className="p-4">
           {hasFlags ? (
@@ -65,7 +65,7 @@ const ProctoringRow = ({ candidate, examId }) => {
       </tr>
       {isExpanded && (
         <tr>
-          <td colSpan="8" className="p-0 border-b border-secondary-200">
+          <td colSpan="7" className="p-0 border-b border-secondary-200">
             <div className="bg-secondary-50/80 p-6 border-l-4 border-brand-500 shadow-inner">
               <h4 className="font-bold text-secondary-800 mb-4 flex items-center gap-2">
                 <Activity className="w-4 h-4 text-brand-600"/> Proctoring Timeline for {candidate.candidateName}
@@ -110,12 +110,12 @@ const ProctoringRow = ({ candidate, examId }) => {
                       <div className="flex gap-2 shrink-0 mt-3 sm:mt-0">
                         {evt.imageUrl && (
                           <div className="rounded-lg overflow-hidden border border-secondary-200 shadow-sm w-32 h-24 bg-secondary-100">
-                            <img src={getMediaUrl(evt.imageUrl)} alt="Proctoring Evidence" className="w-full h-full object-cover" />
+                            <SecureImage src={evt.imageUrl} alt="Proctoring Evidence" className="w-full h-full object-cover" />
                           </div>
                         )}
                         {evt.audioUrl && (
                           <div className="flex items-center h-24">
-                            <audio controls src={getMediaUrl(evt.audioUrl)} className="w-48 h-8 rounded-full" />
+                            <SecureAudio src={evt.audioUrl} className="w-48 h-8 rounded-full" />
                           </div>
                         )}
                       </div>
@@ -180,7 +180,6 @@ const HostProctoring = () => {
   let totalNoFace = 0;
   let totalMultiFace = 0;
   let totalGaze = 0;
-  let totalMic = 0;
 
   cands.forEach(c => {
     totalFlags += c.totalFlags || 0;
@@ -189,7 +188,6 @@ const HostProctoring = () => {
     totalNoFace += c.noFaceCount || 0;
     totalMultiFace += c.multipleFacesCount || 0;
     totalGaze += c.gazeAwayCount || 0;
-    totalMic += c.audioDetectedCount || 0;
   });
 
   return (
@@ -209,7 +207,7 @@ const HostProctoring = () => {
       </header>
 
       {/* Totals Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-secondary-200">
           <p className="text-xs text-secondary-500 font-bold uppercase tracking-wider mb-1">Candidates</p>
           <span className="text-2xl font-extrabold text-secondary-900">{totalCandidates}</span>
@@ -246,12 +244,6 @@ const HostProctoring = () => {
           </div>
           <span className="text-2xl font-extrabold text-secondary-900">{totalGaze}</span>
         </div>
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-secondary-200 flex flex-col justify-between">
-          <div className="flex items-center gap-2 text-secondary-500 mb-1">
-            <Mic className="w-4 h-4" /> <p className="text-xs font-bold uppercase tracking-wider">Mic Detect</p>
-          </div>
-          <span className="text-2xl font-extrabold text-secondary-900">{totalMic}</span>
-        </div>
       </div>
 
       {/* Table */}
@@ -273,7 +265,6 @@ const HostProctoring = () => {
                   <th className="p-4 font-bold">No Face</th>
                   <th className="p-4 font-bold">Multiple Faces</th>
                   <th className="p-4 font-bold">Gaze Away</th>
-                  <th className="p-4 font-bold">Mic Detect</th>
                   <th className="p-4 font-bold">Tab Switch</th>
                   <th className="p-4 font-bold">Total Flags</th>
                   <th className="p-4 font-bold text-right">Action</th>

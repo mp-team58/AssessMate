@@ -1,5 +1,64 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
+export const API_BASE_URL = BASE_URL;
+
+const NETWORK_ERROR_MESSAGE = "Can't reach the server. Please check your internet connection and try again.";
+const SERVER_BUSY_MESSAGE = 'The server is starting up or temporarily unavailable. Please wait a few seconds and try again.';
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const makeNetworkError = (cause) => {
+  const err = new Error(NETWORK_ERROR_MESSAGE);
+  err.isNetworkError = true;
+  err.cause = cause;
+  return err;
+};
+
+let isRedirecting = false;
+
+// Lightweight memory cache & in-flight request deduplication for safe GET requests
+const responseCache = new Map();
+const inFlightRequests = new Map();
+const DEFAULT_CACHE_TTL = 30000; // 30 seconds
+
+export const clearApiCache = () => {
+  responseCache.clear();
+  inFlightRequests.clear();
+};
+
+// Session ended -> go to login and show why once the login page has loaded.
+// (Dispatching a toast right before a full page redirect would be lost.)
+const redirectToLogin = (message) => {
+  if (isRedirecting) return;
+  isRedirecting = true;
+  clearApiCache();
+  localStorage.clear();
+  try {
+    sessionStorage.setItem('pendingToast', JSON.stringify({ message, type: 'warning' }));
+  } catch (_) { /* storage unavailable */ }
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+};
+
+// Turn a failed HTTP response into a message a normal user can understand.
+const buildErrorMessage = (status, data) => {
+  if (status === 502 || status === 503 || status === 504) return SERVER_BUSY_MESSAGE;
+  if (status === 429) return 'Too many requests. Please slow down and try again in a moment.';
+  if (typeof data === 'string' && data.length > 0) {
+    console.error('API Error Response:', data.substring(0, 500));
+    return `Something went wrong on the server (error ${status}). Please try again.`;
+  }
+  if (data && data.message) return data.message;
+  if (data && data.error) return `${data.error} (Status ${status})`;
+  if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+    return `Request failed (Status ${status}): ${JSON.stringify(data).substring(0, 100)}`;
+  }
+  if (status === 403) return 'You do not have permission to do that, or your login session is invalid. Try logging out and logging in again.';
+  if (status === 401) return 'Your session has expired or is invalid. Please log in again.';
+  return `Request failed (Status ${status}). Please try again.`;
+};
+
 /**
  * Factory creating an API client instance with interceptors for a given base URL.
  */
@@ -22,7 +81,7 @@ const createApiClient = (baseUrl) => {
 
     // Request Interceptor Logic: Add Auth Token
     const token = localStorage.getItem('token');
-    const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') || endpoint.includes('/auth/forgot-password');
+    const isAuthEndpoint = endpoint.includes('/auth/login') || endpoint.includes('/auth/register') || endpoint.includes('/auth/forgot-password') || endpoint.includes('/auth/logout');
     const isTemplateEndpoint = endpoint.includes('/questions/excel/template');
 
     if (token && token !== 'null' && token !== 'undefined' && !getHeader('authorization') && !isAuthEndpoint && !isTemplateEndpoint) {
@@ -34,67 +93,112 @@ const createApiClient = (baseUrl) => {
       headers,
     };
 
-    if (endpoint.includes('/questions/manual') || endpoint.includes('/questions/bank/add')) {
-      console.log(`[apiClient DEBUG] Sending request to ${url}`);
-      console.log('[apiClient DEBUG] Headers being passed to fetch:', config.headers);
-      console.log('[apiClient DEBUG] Body type:', config.body instanceof FormData ? 'FormData' : typeof config.body);
+    const method = (config.method || 'GET').toUpperCase();
+
+    // Mutations invalidate cached GET responses to ensure fresh state
+    if (method !== 'GET') {
+      responseCache.clear();
     }
 
-    try {
-      let response = await fetch(url, config);
+    // Determine if request is safe to cache (read-only GET, not realtime proctor/active exam/live monitoring)
+    const isCacheable = method === 'GET' &&
+      !config.skipCache &&
+      !endpoint.includes('/proctor') &&
+      !endpoint.includes('/exam/') &&
+      !endpoint.includes('/live') &&
+      !endpoint.includes('/active') &&
+      !endpoint.includes('/coding/candidate');
 
-      // Parse JSON or Blob response
-      let data;
-      if (config.responseType === 'blob') {
-        data = await response.blob();
-      } else {
-        const isJson = response.headers.get('content-type')?.includes('application/json');
-        data = isJson ? await response.json() : await response.text();
-      }
+    const cacheKey = `${token || 'anon'}:${method}:${url}`;
 
-      // Response Interceptor Logic: Handle 401
-      if (response.status === 401) {
-        const msg = (data && data.message) ? data.message : "";
-        if (msg.includes("Session expired") || msg.includes("another device")) {
-          localStorage.clear();
-          window.location.href = "/login";
-          window.dispatchEvent(new CustomEvent('SHOW_TOAST', { detail: { message: "Your session was ended because you logged in from another device.", type: 'warning' } }));
+    if (isCacheable) {
+      const cached = responseCache.get(cacheKey);
+      if (cached) {
+        if (Date.now() - cached.timestamp < (config.cacheTtl || DEFAULT_CACHE_TTL)) {
+          return { data: cached.data, status: cached.status, headers: cached.headers };
         }
+        responseCache.delete(cacheKey);
       }
+      if (inFlightRequests.has(cacheKey)) {
+        return inFlightRequests.get(cacheKey);
+      }
+    }
 
-      if (!response.ok) {
-        // Improve error message if backend returns HTML (like dev tunnels warning) or string
-        let errorMessage = 'API Error';
-        if (typeof data === 'string' && data.length > 0) {
-          errorMessage = `API Error (Status ${response.status}). The server returned an invalid format. Check if the Dev Tunnel is active or requires confirmation.`;
-          console.error('API Error Response:', data.substring(0, 500));
-        } else if (data && data.message) {
-          errorMessage = data.message;
-        } else if (data && data.error) {
-          errorMessage = `${data.error} (Status ${response.status})`;
-        } else if (data && typeof data === 'object' && Object.keys(data).length > 0) {
-          errorMessage = `API Error (Status ${response.status}): ${JSON.stringify(data).substring(0, 100)}`;
-        } else {
-          if (response.status === 403) {
-            errorMessage = '403 Forbidden: You do not have permission, or your login session is invalid. Try logging out and logging in again.';
-          } else if (response.status === 401) {
-            errorMessage = '401 Unauthorized: Your session has expired or is invalid. Please log in again.';
-          } else {
-            errorMessage = `API Error (Status ${response.status}): The backend returned an empty error response.`;
+    const executeRequest = async () => {
+      try {
+        let response;
+        try {
+          response = await fetch(url, config);
+        } catch (networkErr) {
+          if (networkErr?.name === 'AbortError') throw networkErr;
+          if (method !== 'GET') throw makeNetworkError(networkErr);
+          // A dropped first GET (cold connection, brief network hiccup) is safe to retry once.
+          await wait(600);
+          try {
+            response = await fetch(url, config);
+          } catch (retryErr) {
+            if (retryErr?.name === 'AbortError') throw retryErr;
+            throw makeNetworkError(retryErr);
           }
         }
 
-        // Simulate Axios error structure
-        const error = new Error(errorMessage);
-        error.response = { status: response.status, data };
+        // Parse JSON or Blob response
+        let data;
+        if (config.responseType === 'blob') {
+          data = await response.blob();
+        } else {
+          const isJson = response.headers.get('content-type')?.includes('application/json');
+          data = isJson ? await response.json().catch(() => null) : await response.text();
+        }
+
+        // Response Interceptor Logic: Handle 401 & 403 (Token expired / Session invalid / Unauthorized)
+        if (!isAuthEndpoint && (response.status === 401 || response.status === 403)) {
+          const msg = (data && typeof data === 'object' && data.message) ? data.message : (typeof data === 'string' ? data : '');
+          let redirectMessage = 'Your session has expired or is invalid. Please log in again.';
+          if (msg.includes('another device')) {
+            redirectMessage = 'Your session was ended because you logged in from another device.';
+          } else if (response.status === 401) {
+            redirectMessage = 'Your session has expired. Please log in again.';
+          } else if (response.status === 403) {
+            redirectMessage = 'You do not have permission to do that, or your login session is invalid. Please log in again.';
+          }
+          redirectToLogin(redirectMessage);
+        }
+
+        if (!response.ok) {
+          const errorMessage = buildErrorMessage(response.status, data);
+
+          // Simulate Axios error structure
+          const error = new Error(errorMessage);
+          error.response = { status: response.status, data };
+          throw error;
+        }
+
+        if (isCacheable) {
+          responseCache.set(cacheKey, {
+            data,
+            status: response.status,
+            headers: response.headers,
+            timestamp: Date.now()
+          });
+        }
+
+        // Simulate Axios response structure
+        return { data, status: response.status, headers: response.headers };
+      } catch (error) {
         throw error;
       }
+    };
 
-      // Simulate Axios response structure
-      return { data, status: response.status, headers: response.headers };
-    } catch (error) {
-      throw error;
+    if (isCacheable) {
+      const promise = executeRequest().finally(() => {
+        inFlightRequests.delete(cacheKey);
+      });
+      inFlightRequests.set(cacheKey, promise);
+      return promise;
     }
+
+    return executeRequest();
   };
 
   // Convenience methods similar to Axios
@@ -116,9 +220,31 @@ export const candidateApiClient = apiClient;
 // Utility to resolve media URLs (images/audio) to the correct backend host
 export const getMediaUrl = (path) => {
   if (!path) return '';
-  if (path.startsWith('http')) return path;
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
   const baseUrlHost = BASE_URL.replace(/\/api\/?$/, '');
   return `${baseUrlHost}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
+// Authenticated media fetcher: loads image/audio data using Authorization header and creates local Blob URL
+export const fetchMediaBlobUrl = async (path) => {
+  if (!path) return '';
+  const token = localStorage.getItem('token');
+  const baseUrlHost = BASE_URL.replace(/\/api\/?$/, '');
+  const url = path.startsWith('http://') || path.startsWith('https://')
+    ? path
+    : `${baseUrlHost}${path.startsWith('/') ? '' : '/'}${path}`;
+
+  const headers = {};
+  if (token && token !== 'null' && token !== 'undefined') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    throw new Error(`Failed to load media: ${response.status}`);
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
 };
 
 export default apiClient;

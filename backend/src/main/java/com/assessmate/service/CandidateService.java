@@ -42,6 +42,12 @@ public class CandidateService {
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
     private final com.assessmate.repository.CodingQuestionRepository codingQuestionRepository;
     private final com.assessmate.repository.CodeSubmissionRepository codeSubmissionRepository;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.assessmate.security.JoinCodeRateLimiterService joinCodeRateLimiterService;
+
+    public void setJoinCodeRateLimiterService(com.assessmate.security.JoinCodeRateLimiterService joinCodeRateLimiterService) {
+        this.joinCodeRateLimiterService = joinCodeRateLimiterService;
+    }
 
     private void forceSubmit(Long enrollmentId, String candidateEmail) {
         SubmitExamRequest emptyRequest = new SubmitExamRequest();
@@ -50,14 +56,23 @@ public class CandidateService {
                 .executeWithoutResult(status -> submitExam(enrollmentId, emptyRequest, candidateEmail));
     }
     public JoinExamResponse joinExam(String joinCode, String candidateEmail, String userAgent) {
+        return joinExam(joinCode, candidateEmail, userAgent, null);
+    }
+
+    public JoinExamResponse joinExam(String joinCode, String candidateEmail, String userAgent, String clientIp) {
+        if (joinCodeRateLimiterService != null) {
+            joinCodeRateLimiterService.checkRateLimit(clientIp, candidateEmail);
+        }
+
         User candidate = userRepository.findByEmail(candidateEmail)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Candidate not found"));
 
-        Exam exam = examRepository.findByJoinCode(joinCode)
-                .orElseThrow(() -> new com.assessmate.exception.BadRequestException("Invalid join code"));
-
-        if (exam.getStatus() != ExamStatus.LIVE) {
-            throw new BadRequestException("This exam is not currently LIVE");
+        Exam exam = examRepository.findByJoinCode(joinCode).orElse(null);
+        if (exam == null || exam.getStatus() != ExamStatus.LIVE) {
+            if (joinCodeRateLimiterService != null) {
+                joinCodeRateLimiterService.onJoinFailure(clientIp, candidateEmail);
+            }
+            throw new BadRequestException("Invalid or inactive exam join code.");
         }
 
         // A3: Device Access Check
@@ -120,6 +135,10 @@ public class CandidateService {
                 .build();
 
         ExamEnrollment enrollment = enrollmentRepository.save(newEnrollment);
+
+        if (joinCodeRateLimiterService != null) {
+            joinCodeRateLimiterService.onJoinSuccess(clientIp, candidateEmail);
+        }
         return buildJoinResponse(enrollment, exam);
     }
 
@@ -785,6 +804,12 @@ public class CandidateService {
             throw new BadRequestException("This exam is no longer open for submission.");
         }
 
+        // P4: Server-Side Autosave Deadline Enforcement
+        LocalDateTime now = LocalDateTime.now();
+        if (enrollment.getPersonalEndTime() != null && now.isAfter(enrollment.getPersonalEndTime().plusSeconds(30))) {
+            throw new BadRequestException("Exam time has expired. Answers can no longer be saved.");
+        }
+
         Exam exam = enrollment.getExam();
         List<Question> questions = questionRepository.findByExamId(exam.getId());
         List<CandidateAnswer> existingAnswers = candidateAnswerRepository.findByEnrollmentId(enrollmentId);
@@ -811,6 +836,11 @@ public class CandidateService {
             }
         }
         candidateAnswerRepository.saveAll(answersToSave);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void autosaveExamAnswers(Long enrollmentId, com.assessmate.dto.SubmitExamRequest request, String candidateEmail) {
+        saveProgress(enrollmentId, request, candidateEmail);
     }
 
     public java.util.Map<String, Object> getExamState(Long enrollmentId, String candidateEmail) {

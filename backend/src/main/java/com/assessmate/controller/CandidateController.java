@@ -21,6 +21,8 @@ public class CandidateController {
 
     private final CandidateService candidateService;
     private final com.assessmate.service.ProctoringService proctoringService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.assessmate.security.ClientIpResolver clientIpResolver;
 
     @PostMapping("/join/{code}")
     public ResponseEntity<JoinExamResponse> joinExam(

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCandidateReport, toggleCandidateResult } from '../services/hostService';
+import { getCandidateReport } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
-import { ArrowLeft, User, Mail, CheckCircle, XCircle, HelpCircle, Clock, AlertTriangle, ShieldAlert, RefreshCw } from 'lucide-react';
+import { ArrowLeft, User, Mail, CheckCircle, XCircle, HelpCircle, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { getMediaUrl } from '../services/apiClient';
+import { SecureImage, SecureAudio } from '../components/SecureMedia';
 
 const HostCandidateReport = () => {
   const { id: examId, enrollmentId } = useParams();
@@ -13,35 +14,20 @@ const HostCandidateReport = () => {
   
   const [report, setReport] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isToggling, setIsToggling] = useState(false);
-
-  const fetchReport = async () => {
-    try {
-      const response = await getCandidateReport(examId, enrollmentId);
-      setReport(response.data);
-    } catch (error) {
-      showToast('Unable to load candidate report.', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
+    const fetchReport = async () => {
+      try {
+        const response = await getCandidateReport(examId, enrollmentId);
+        setReport(response.data);
+      } catch (error) {
+        showToast('Unable to load candidate report.', 'error');
+      } finally {
+        setIsLoading(false);
+      }
+    };
     fetchReport();
   }, [examId, enrollmentId, showToast]);
-
-  const handleToggleResult = async () => {
-    setIsToggling(true);
-    try {
-      await toggleCandidateResult(examId, enrollmentId);
-      showToast('Candidate result toggled successfully.', 'success');
-      await fetchReport();
-    } catch (error) {
-      showToast('Failed to toggle result.', 'error');
-    } finally {
-      setIsToggling(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -110,24 +96,13 @@ const HostCandidateReport = () => {
             <p className="text-xs text-secondary-500 font-bold uppercase mb-1">Score</p>
             <p className="text-2xl font-extrabold text-secondary-900">{result.totalScore} <span className="text-sm text-secondary-500 font-normal">/ {result.maxScore}</span></p>
           </div>
-          <div className="text-center bg-secondary-50 p-4 rounded-xl border border-secondary-200 min-w-[120px] flex flex-col items-center justify-center">
+          <div className="text-center bg-secondary-50 p-4 rounded-xl border border-secondary-200 min-w-[120px]">
             <p className="text-xs text-secondary-500 font-bold uppercase mb-1">Result</p>
             {result.passed ? (
-              <p className="text-2xl font-extrabold text-emerald-600 mb-2">PASSED</p>
+              <p className="text-2xl font-extrabold text-emerald-600">PASSED</p>
             ) : (
-              <p className="text-2xl font-extrabold text-red-600 mb-2">FAILED</p>
+              <p className="text-2xl font-extrabold text-red-600">FAILED</p>
             )}
-            <button 
-              onClick={handleToggleResult}
-              disabled={isToggling}
-              className={`text-[10px] font-bold px-3 py-1.5 rounded transition-all ${
-                result.passed 
-                  ? 'bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:shadow-sm' 
-                  : 'bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:shadow-sm'
-              } ${isToggling ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {isToggling ? 'UPDATING...' : (result.passed ? 'MARK AS FAILED' : 'MARK AS PASSED')}
-            </button>
           </div>
         </div>
       </div>
@@ -226,12 +201,12 @@ const HostCandidateReport = () => {
                       )}
                       {evt.imageUrl && (
                         <div className="mt-1 mb-2 rounded-lg overflow-hidden border border-secondary-200 shadow-sm w-32 h-24 bg-secondary-100">
-                          <img src={getMediaUrl(evt.imageUrl)} alt="Proctoring Evidence" className="w-full h-full object-cover" />
+                          <SecureImage src={evt.imageUrl} alt="Proctoring Evidence" className="w-full h-full object-cover" />
                         </div>
                       )}
                       {evt.audioUrl && (
                         <div className="mt-1 mb-2 flex items-center h-12">
-                          <audio controls src={getMediaUrl(evt.audioUrl)} className="w-48 h-8 rounded-full" />
+                          <SecureAudio src={evt.audioUrl} className="w-48 h-8 rounded-full" />
                         </div>
                       )}
                     </div>
@@ -274,17 +249,8 @@ const HostCandidateReport = () => {
                     {ans.type === 'MCQ' && ans.options ? (
                       <div className="space-y-2 mb-4">
                         {ans.options.map((opt, oIdx) => {
-                          const isAnswerMatch = (val) => {
-                            if (!val) return false;
-                            const strVal = val.toString().trim().toUpperCase();
-                            if (/^[A-Z]$/.test(strVal)) {
-                              return (strVal.charCodeAt(0) - 65) === oIdx;
-                            }
-                            return val === opt;
-                          };
-                          
-                          const isCandidate = isAnswerMatch(ans.candidateAnswer);
-                          const isCorrect = isAnswerMatch(ans.correctAnswer);
+                          const isCandidate = ans.candidateAnswer === opt;
+                          const isCorrect = ans.correctAnswer === opt;
                           
                           let optClass = "p-3 rounded-lg border text-sm font-medium bg-white border-secondary-200 text-secondary-700";
                           if (isCorrect) optClass = "p-3 rounded-lg border-2 border-emerald-500 bg-emerald-50 text-emerald-900 font-bold";

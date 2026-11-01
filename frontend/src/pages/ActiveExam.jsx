@@ -7,7 +7,6 @@ import * as cocoSsd from '@tensorflow-models/coco-ssd';
 // Global cache to prevent re-downloading models on every render
 let globalBlazefaceModel = null;
 let globalCocoSsdModel = null;
-import MarkdownViewer from '../components/MarkdownViewer';
 import { useToast } from '../contexts/ToastContext';
 import {
   Clock,
@@ -55,7 +54,6 @@ import {
   getExamState
 } from '../services/candidateService';
 import { getMediaUrl } from '../services/apiClient';
-import { useConfirm } from '../contexts/ConfirmContext';
 
 const STARTER_CODE = {
   PYTHON: '# Write your Python 3 solution here\ndef solution():\n    pass\n\nif __name__ == "__main__":\n    solution()\n',
@@ -65,12 +63,36 @@ const STARTER_CODE = {
   JAVASCRIPT: '// Write your JavaScript solution here\nconst fs = require("fs");\n\nfunction main() {\n    // Read input and compute solution\n}\n\nmain();\n'
 };
 
+// Webcams often deliver black (or flat) frames for the first moments after
+// starting. Sample a tiny 16x16 copy of the frame and treat "almost black or a
+// single flat colour" as blank so we never upload an empty evidence photo.
+const isBlankFrame = (canvas) => {
+  const probe = document.createElement('canvas');
+  probe.width = 16;
+  probe.height = 16;
+  const pctx = probe.getContext('2d');
+  pctx.drawImage(canvas, 0, 0, 16, 16);
+  const { data } = pctx.getImageData(0, 0, 16, 16);
+  let sum = 0;
+  let min = 255;
+  let max = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    sum += lum;
+    if (lum < min) min = lum;
+    if (lum > max) max = lum;
+  }
+  return sum / 256 < 8 || max - min < 6;
+};
+
+const EVIDENCE_MAX_WIDTH = 640; // plenty to identify a person, ~10x smaller than full HD
+const EVIDENCE_JPEG_QUALITY = 0.7;
+
 const ActiveExam = () => {
   const { enrollmentId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { confirm } = useConfirm();
 
   // Load Exam Configuration
   const [examConfig] = useState(() => {
@@ -163,9 +185,6 @@ const ActiveExam = () => {
 
   const tabHiddenTimeRef = useRef(null);
   const hasSubmittedRef = useRef(false);
-
-  const proctoringWarmedUpRef = useRef(false);
-  const hasSeenFaceOnceRef = useRef(false);
 
   // Max Tab Switches Allowed
   const maxAllowedTabSwitches = examConfig?.maxTabSwitches ?? 3;
@@ -318,7 +337,7 @@ const ActiveExam = () => {
       // Anti-spam cooldown check (8 seconds per eventType)
       const now = Date.now();
       const lastTime = lastCooldownRef.current[eventType] || 0;
-      if (now - lastTime < 8000 && !['TAB_SWITCH', 'FULL_SCREEN_EXIT', 'NO_CAMERA', 'NO_MIC', 'AUDIO_DETECTED'].includes(eventType)) {
+      if (now - lastTime < 8000 && !['TAB_SWITCH', 'FULL_SCREEN_EXIT', 'NO_CAMERA', 'NO_MIC'].includes(eventType)) {
         return;
       }
       lastCooldownRef.current[eventType] = now;
@@ -347,20 +366,29 @@ const ActiveExam = () => {
 
   // Helper to Capture Current Frame from hidden video and upload as evidence
   const captureAndUploadEvidence = useCallback(async () => {
-    if (!hiddenVideoRef.current || hiddenVideoRef.current.readyState < 2) return null;
+    const video = hiddenVideoRef.current;
+    if (!video) return null;
     try {
-      const video = hiddenVideoRef.current;
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Try a few times (up to ~0.75s) so we skip black start-up frames.
+      for (let attempt = 0; attempt < 4; attempt++) {
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+          const scale = Math.min(1, EVIDENCE_MAX_WIDTH / video.videoWidth);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(video.videoWidth * scale);
+          canvas.height = Math.round(video.videoHeight * scale);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
-      if (!blob) return null;
-
-      const uploadRes = await uploadProctorEvidence(blob, 'image');
-      return uploadRes?.data?.url || null;
+          if (!isBlankFrame(canvas)) {
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', EVIDENCE_JPEG_QUALITY));
+            if (!blob) return null;
+            const uploadRes = await uploadProctorEvidence(blob, 'image');
+            return uploadRes?.data?.url || null;
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      return null;
     } catch (err) {
       console.warn('[Proctor Evidence Upload Error]:', err);
       return null;
@@ -419,7 +447,6 @@ const ActiveExam = () => {
         track.addEventListener('ended', () => {
           setWebcamActive(false);
           sendProctorLog('NO_CAMERA', 'Camera track was lost or disconnected.');
-          setPermissionState('DENIED');
           setProctorWarnings((prev) => [
             ...prev,
             {
@@ -435,7 +462,6 @@ const ActiveExam = () => {
         track.addEventListener('ended', () => {
           setMicActive(false);
           sendProctorLog('NO_MIC', 'Microphone track was lost or disconnected.');
-          setPermissionState('DENIED');
           setProctorWarnings((prev) => [
             ...prev,
             {
@@ -458,17 +484,6 @@ const ActiveExam = () => {
   useEffect(() => {
     requestMediaPermissions();
   }, [requestMediaPermissions]);
-
-  // Auto-retry permissions if denied
-  useEffect(() => {
-    let retryInterval;
-    if (permissionState === 'DENIED') {
-      retryInterval = setInterval(() => {
-        requestMediaPermissions();
-      }, 3000);
-    }
-    return () => clearInterval(retryInterval);
-  }, [permissionState, requestMediaPermissions]);
 
   // Ensure stream is attached to video elements once they render
   useEffect(() => {
@@ -541,7 +556,6 @@ const ActiveExam = () => {
 
   // 1. Fetch Exam, MCQ Questions, and Coding Problems (Runs ONCE per enrollmentId)
   useEffect(() => {
-    if (permissionState !== 'GRANTED' || modelsLoading) return;
     let isMounted = true;
 
     const fetchExamAndQuestions = async () => {
@@ -672,7 +686,7 @@ const ActiveExam = () => {
     return () => {
       isMounted = false;
     };
-  }, [enrollmentId, permissionState, modelsLoading, handleAutoTermination]);
+  }, [enrollmentId]);
 
   // 2. Overall Countdown Timer Interval
   useEffect(() => {
@@ -789,7 +803,7 @@ const ActiveExam = () => {
         const stream = mediaStreamRef.current;
         const audioTracks = stream.getAudioTracks();
 
-        if (audioTracks.length > 0 && examConfig?.enableAudioDetection !== false) {
+        if (audioTracks.length > 0) {
           const AudioContextClass = window.AudioContext || window.webkitAudioContext;
           if (AudioContextClass) {
             const audioCtx = new AudioContextClass();
@@ -807,9 +821,6 @@ const ActiveExam = () => {
 
             audioIntervalRef.current = setInterval(async () => {
               if (!audioAnalyserRef.current || hasSubmittedRef.current) return;
-              if (audioCtx.state === 'suspended') {
-                try { await audioCtx.resume(); } catch (e) {}
-              }
               audioAnalyserRef.current.getByteTimeDomainData(timeDomainData);
 
               let sumSquares = 0;
@@ -820,8 +831,8 @@ const ActiveExam = () => {
               const rms = Math.sqrt(sumSquares / bufferLength);
               setAudioLevel(Math.min(100, Math.round(rms * 250)));
 
-              // RMS Threshold for Noise / Voice Activity (lowered to 0.02 to ensure normal speech is caught)
-              if (rms > 0.02 && !isRecordingAudioRef.current) {
+              // RMS Threshold for Noise / Voice Activity (lowered to 0.05 to ensure normal speech is caught)
+              if (rms > 0.05 && !isRecordingAudioRef.current) {
                 const now = Date.now();
                 const lastTime = lastCooldownRef.current['AUDIO_DETECTED'] || 0;
                 if (now - lastTime >= 8000) {
@@ -829,12 +840,8 @@ const ActiveExam = () => {
                   lastCooldownRef.current['AUDIO_DETECTED'] = now;
 
                   try {
-                    let options = { mimeType: 'audio/webm' };
-                    if (!MediaRecorder.isTypeSupported('audio/webm')) {
-                      options = {}; // Let browser choose default format (e.g. Safari mp4)
-                    }
                     const audioStream = new MediaStream(audioTracks);
-                    const recorder = new MediaRecorder(audioStream, options);
+                    const recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
                     const audioChunks = [];
 
                     recorder.ondataavailable = (e) => {
@@ -845,7 +852,7 @@ const ActiveExam = () => {
 
                     recorder.onstop = async () => {
                       isRecordingAudioRef.current = false;
-                      const audioBlob = new Blob(audioChunks, { type: recorder.mimeType || 'audio/webm' });
+                      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
                       try {
                         const uploadRes = await uploadProctorEvidence(audioBlob, 'audio');
                         const audioUrl = uploadRes?.data?.url || null;
@@ -862,7 +869,6 @@ const ActiveExam = () => {
                         ]);
                       } catch (err) {
                         console.warn('[Audio Evidence Upload Error]:', err);
-                        sendProctorLog('AUDIO_DETECTED', 'Speech or elevated ambient noise detected', null, null);
                       }
                     };
 
@@ -887,12 +893,6 @@ const ActiveExam = () => {
     }
 
     // 5.2 4-Second Camera Pipeline (Face + Object Detection)
-    proctoringWarmedUpRef.current = false;
-    hasSeenFaceOnceRef.current = false;
-    const warmupTimer = setTimeout(() => {
-      proctoringWarmedUpRef.current = true;
-    }, 6000);
-
     detectionIntervalRef.current = setInterval(async () => {
       if (isDetectingRef.current || hasSubmittedRef.current) return;
 
@@ -918,21 +918,18 @@ const ActiveExam = () => {
         if (examConfig?.enableFaceDetection !== false) {
           if (faces.length === 0) {
             setFaceStatus('STANDBY');
-            if (proctoringWarmedUpRef.current && hasSeenFaceOnceRef.current) {
-              const evidenceUrl = await captureAndUploadEvidence();
-              sendProctorLog('NO_FACE', 'No face detected in camera viewport', evidenceUrl, null);
+            const evidenceUrl = await captureAndUploadEvidence();
+            sendProctorLog('NO_FACE', 'No face detected in camera viewport', evidenceUrl, null);
 
-              setProctorWarnings((prev) => [
-                ...prev,
-                {
-                  type: 'NO_FACE',
-                  message: 'No face detected in camera view. Ensure your face is centered and clearly visible.',
-                  timestamp: new Date()
-                }
-              ]);
-            }
+            setProctorWarnings((prev) => [
+              ...prev,
+              {
+                type: 'NO_FACE',
+                message: 'No face detected in camera view. Ensure your face is centered and clearly visible.',
+                timestamp: new Date()
+              }
+            ]);
           } else if (faces.length > 1) {
-            hasSeenFaceOnceRef.current = true;
             setFaceStatus('VERIFIED');
             const evidenceUrl = await captureAndUploadEvidence();
             sendProctorLog('MULTIPLE_FACES', `Multiple faces detected in camera frame (${faces.length})`, evidenceUrl, null);
@@ -946,7 +943,6 @@ const ActiveExam = () => {
               }
             ]);
           } else {
-            hasSeenFaceOnceRef.current = true;
             setFaceStatus('VERIFIED');
           }
         }
@@ -1106,22 +1102,16 @@ const ActiveExam = () => {
         clearInterval(detectionIntervalRef.current);
         detectionIntervalRef.current = null;
       }
-      clearTimeout(warmupTimer);
     };
   }, [permissionState, modelsLoading, backendTerminated, sendProctorLog, captureAndUploadEvidence, examConfig]);
 
   // Request Fullscreen Button Handler
   const requestFullscreenAgain = async () => {
     try {
-      const elem = document.documentElement;
-      if (elem.requestFullscreen) {
-        await elem.requestFullscreen();
-      } else if (elem.webkitRequestFullscreen) {
-        await elem.webkitRequestFullscreen();
-      } else if (elem.msRequestFullscreen) {
-        await elem.msRequestFullscreen();
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+        setIsFullscreen(true);
       }
-      setIsFullscreen(true);
     } catch (err) {
       console.error('Fullscreen request failed:', err);
     }
@@ -1257,7 +1247,7 @@ const ActiveExam = () => {
   // STEP A: Permission Gate Screen (Blocking if Denied)
   if (permissionState === 'DENIED') {
     return (
-      <div className="min-h-screen bg-[#F3EDE0] flex items-center justify-center p-6 text-center select-none font-sans">
+      <div className="min-h-screen bg-[#F1F4F2] flex items-center justify-center p-6 text-center select-none font-sans">
         <div className="max-w-lg w-full bg-white p-8 md:p-10 rounded-3xl border border-secondary-200 shadow-2xl space-y-6">
           <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-200">
             <Camera className="w-8 h-8" />
@@ -1307,7 +1297,7 @@ const ActiveExam = () => {
   // STEP B: AI Models Loading Screen
   if (permissionState === 'GRANTED' && modelsLoading) {
     return (
-      <div className="min-h-screen bg-[#F3EDE0] flex flex-col items-center justify-center p-6 text-center select-none font-sans">
+      <div className="min-h-screen bg-[#F1F4F2] flex flex-col items-center justify-center p-6 text-center select-none font-sans">
         {/* Hidden video element keeping stream active for model warmup */}
         <video
           ref={hiddenVideoRef}
@@ -1343,7 +1333,7 @@ const ActiveExam = () => {
   // Data Loading Screen
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F3EDE0] flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-[#F1F4F2] flex flex-col items-center justify-center p-6 text-center">
         <div className="w-12 h-12 border-4 border-brand-500/20 border-t-brand-600 rounded-full animate-spin mb-4" />
         <h2 className="text-xl font-bold text-secondary-900">Preparing Your Assessment Environment</h2>
         <p className="text-secondary-600 text-sm mt-1">Configuring examination questions...</p>
@@ -1355,7 +1345,7 @@ const ActiveExam = () => {
   if (error || !examData || questionsList.length === 0) {
     if (!backendTerminated) {
       return (
-        <div className="min-h-screen bg-[#F3EDE0] flex items-center justify-center p-6">
+        <div className="min-h-screen bg-[#F1F4F2] flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-secondary-200 shadow-xl text-center space-y-4">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
             <h2 className="text-xl font-bold text-secondary-900">Unable to Start Assessment</h2>
@@ -1384,7 +1374,7 @@ const ActiveExam = () => {
   const isTimeUrgent = timeLeftSeconds !== null && timeLeftSeconds < 300;
 
   return (
-    <div className="min-h-screen bg-[#F3EDE0] text-secondary-900 font-sans flex flex-col select-none relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#F1F4F2] text-secondary-900 font-sans flex flex-col select-none relative overflow-x-hidden">
       {/* Hidden continuous video element for AI detection pipeline */}
       <video
         ref={hiddenVideoRef}
@@ -1395,7 +1385,7 @@ const ActiveExam = () => {
       />
 
       {/* Background Glowing Ambient Orbs */}
-      <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-[#DEC430] rounded-full blur-[140px] opacity-10 pointer-events-none" />
+      <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-[#C0562C] rounded-full blur-[140px] opacity-10 pointer-events-none" />
       <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-500 rounded-full blur-[140px] opacity-10 pointer-events-none" />
 
       {/* Network Disconnection Toast Banner */}
@@ -1420,7 +1410,7 @@ const ActiveExam = () => {
       )}
 
       {/* Fullscreen Violation Overlay */}
-      {!isFullscreen && !backendTerminated && !isSubmitting && !hasSubmittedRef.current && permissionState === 'GRANTED' && (
+      {!isFullscreen && !backendTerminated && permissionState === 'GRANTED' && (
         <div className="fixed inset-0 z-[110] bg-red-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center">
           <div className="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl border-4 border-red-500 animate-in zoom-in duration-300">
             <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1434,7 +1424,12 @@ const ActiveExam = () => {
               Multiple violations will result in automatic submission of your exam!
             </p>
             <button
-              onClick={requestFullscreenAgain}
+              onClick={() => {
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) elem.requestFullscreen();
+                else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+                else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+              }}
               className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white text-lg font-black rounded-xl transition-all shadow-xl hover:shadow-2xl active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <Maximize className="w-5 h-5" />
@@ -1506,7 +1501,7 @@ const ActiveExam = () => {
       )}
 
       {/* Top Header Bar */}
-      <header className="bg-[#362E20] text-[#F3EDE0] px-6 py-4 shadow-md flex items-center justify-between sticky top-0 z-40 border-b border-secondary-700/50">
+      <header className="bg-[#16241F] text-[#F1F4F2] px-6 py-4 shadow-md flex items-center justify-between sticky top-0 z-40 border-b border-secondary-700/50">
         <div className="flex items-center gap-3">
           <div className="bg-brand-500/20 p-2 rounded-xl">
             <BookOpenCheck className="w-6 h-6 text-brand-400" />
@@ -1605,14 +1600,14 @@ const ActiveExam = () => {
             </div>
 
             {/* Question Statement */}
-            <div className={`mb-6 ${currentQuestion.type === 'CODING' ? 'max-h-[35vh] overflow-y-auto pr-3 scrollbar-thin scrollbar-thumb-secondary-300' : ''}`}>
-              <div className="text-lg md:text-xl font-bold text-secondary-900 leading-relaxed">
-                <MarkdownViewer content={currentQuestion.questionText} />
-              </div>
+            <div className="mb-6">
+              <h2 className="text-lg md:text-xl font-bold text-secondary-900 leading-relaxed">
+                {currentQuestion.questionText}
+              </h2>
 
               {currentQuestion.description && currentQuestion.type === 'CODING' && (
-                <div className="mt-3 bg-secondary-50/70 p-4 rounded-2xl border border-secondary-200">
-                  <MarkdownViewer content={currentQuestion.description} />
+                <div className="mt-3 text-secondary-700 text-sm leading-relaxed whitespace-pre-line bg-secondary-50/70 p-4 rounded-2xl border border-secondary-200">
+                  {currentQuestion.description}
                 </div>
               )}
 
@@ -1799,8 +1794,8 @@ const ActiveExam = () => {
                       {/* Coding Editor "Reset to Template" Button */}
                       <button
                         type="button"
-                        onClick={async () => {
-                          if (await confirm('Reset code for this question back to the initial starter template? Your current edits will be replaced.')) {
+                        onClick={() => {
+                          if (window.confirm('Reset code for this question back to the initial starter template? Your current edits will be replaced.')) {
                             const template = STARTER_CODE[codeLanguage] || '';
                             handleTextAnswerChange(currentQuestion.id, template);
                           }
@@ -1967,7 +1962,7 @@ const ActiveExam = () => {
                   <button
                     type="button"
                     onClick={() => setCurrentIndex((prev) => Math.min(questionsList.length - 1, prev + 1))}
-                    className="px-6 py-2.5 bg-secondary-900 hover:bg-secondary-800 text-[#F3EDE0] font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center gap-1.5"
+                    className="px-6 py-2.5 bg-secondary-900 hover:bg-secondary-800 text-[#F1F4F2] font-bold text-xs sm:text-sm rounded-xl transition-all shadow-md flex items-center gap-1.5"
                   >
                     <span>Next</span>
                     <ChevronRight className="w-4 h-4" />

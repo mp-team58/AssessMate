@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate } from "react-router-dom";
 import {
   Sparkles,
   Code2,
@@ -9,27 +9,46 @@ import {
   Clock,
   CheckCircle2,
   FileSpreadsheet,
+  Menu,
+  X,
+  Mail,
+  Phone,
 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
+import { SITE, toTelHref } from "../config/site";
+
+const NAV_LINKS = [
+  { label: "For hosts", href: "#hosts" },
+  { label: "For candidates", href: "#candidates" },
+  { label: "How it works", href: "#how-it-works" },
+];
+
+const checkAnimStyles = `
+  @keyframes draw-check {
+    to { stroke-dashoffset: 0; }
+  }
+  .check-path {
+    stroke-dasharray: 40;
+    stroke-dashoffset: 40;
+    animation: draw-check 0.6s 0.8s ease-out forwards;
+  }
+`;
 
 function RoleFeatureRow({ icon: Icon, title, description, accent, reverse }) {
-  const accentBg = accent === "brand" ? "bg-brand-50" : "bg-purple-50";
-  const accentText = accent === "brand" ? "text-brand-600" : "text-purple-600";
+  const accentBg = accent === "green" ? "bg-brand-500" : "bg-accent-500";
 
   return (
     <div
-      className={`flex flex-col md:flex-row ${
-        reverse ? "md:flex-row-reverse" : ""
-      } items-start md:items-center gap-6 md:gap-12 py-10`}
+      className={`flex flex-col md:flex-row ${reverse ? "md:flex-row-reverse" : ""
+        } items-start md:items-center gap-6 md:gap-12 py-8`}
     >
       <div
-        className={`shrink-0 w-16 h-16 rounded-2xl ${accentBg} flex items-center justify-center shadow-sm border border-transparent`}
+        className={`shrink-0 w-14 h-14 rounded-full ${accentBg} flex items-center justify-center`}
       >
-        <Icon className={`w-8 h-8 ${accentText}`} strokeWidth={2} />
+        <Icon className="w-6 h-6 text-white" strokeWidth={1.75} />
       </div>
-      <div className="max-w-md">
-        <h3 className="text-2xl font-black tracking-tight text-secondary-900 mb-3">{title}</h3>
-        <p className="text-secondary-600 font-medium leading-relaxed">
+      <div className={`max-w-3xl${reverse ? " md:text-right" : ""}`}>
+        <h3 className="font-display text-3xl mb-2 text-secondary-900">{title}</h3>
+        <p className="font-sans text-lg text-secondary-700/80 leading-relaxed">
           {description}
         </p>
       </div>
@@ -39,62 +58,111 @@ function RoleFeatureRow({ icon: Icon, title, description, accent, reverse }) {
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
-  const { user, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    if (isAuthenticated) {
-      if (user?.role === 'HOST') {
-        navigate('/host/dashboard');
-      } else if (user?.role === 'CANDIDATE') {
-        navigate('/candidate/dashboard');
-      }
-    }
-  }, [isAuthenticated, navigate, user]);
+  }, []);
+
+  // Logged-in users land straight in their dashboard, never on
+  // the marketing page.
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role");
+  if (token) {
+    if (role === "HOST") return <Navigate to="/host/dashboard" replace />;
+    if (role === "CANDIDATE") return <Navigate to="/candidate/dashboard" replace />;
+  }
 
   return (
-    <div className="min-h-screen bg-secondary-50 font-sans text-secondary-900">
-      <style>{`
-        @keyframes draw-check {
-          to { stroke-dashoffset: 0; }
-        }
-        .check-path {
-          stroke-dasharray: 40;
-          stroke-dashoffset: 40;
-          animation: draw-check 0.6s 0.8s ease-out forwards;
-        }
-      `}</style>
+    <div className="min-h-screen bg-surface font-sans text-secondary-900 overflow-x-hidden">
+      <style>{checkAnimStyles}</style>
 
       {/* Navbar */}
-      <header className="max-w-[1600px] mx-auto px-6 lg:px-12 py-6 flex items-center justify-between">
-        <span className="text-2xl font-black tracking-tight text-brand-600 flex items-center gap-2">
-          <Sparkles className="w-6 h-6" />
+      <header className="relative w-full px-6 sm:px-10 lg:px-16 xl:px-20 py-5 flex items-center justify-between">
+        <Link to="/" className="font-display text-2xl tracking-tight" aria-label="AssessMate home">
           AssessMate
-        </span>
-        <nav className="flex items-center gap-4">
+        </Link>
+
+        {/* Desktop navigation */}
+        <nav className="hidden md:flex items-center gap-1" aria-label="Main">
+          {NAV_LINKS.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className="font-sans text-base px-3 py-2 text-secondary-900/70 hover:text-secondary-900 transition-colors"
+            >
+              {l.label}
+            </a>
+          ))}
           <Link
             to="/login"
-            className="text-sm font-bold text-secondary-600 hover:text-brand-600 transition-colors"
+            className="font-sans text-base px-4 py-2 text-secondary-900/80 hover:text-secondary-900 transition-colors"
           >
             Log in
           </Link>
           <Link
             to="/signup"
-            className="text-sm font-bold px-5 py-2.5 rounded-xl bg-secondary-900 text-white hover:bg-secondary-800 transition-colors shadow-sm"
+            className="font-sans text-base px-4 py-2 rounded-md bg-secondary-900 text-white hover:bg-secondary-700 transition-colors"
           >
             Sign up
           </Link>
         </nav>
+
+        {/* Mobile: sign up + menu button */}
+        <div className="flex md:hidden items-center gap-2">
+          <Link
+            to="/signup"
+            className="font-sans text-base px-3 py-2 rounded-md bg-secondary-900 text-white"
+          >
+            Sign up
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            className="p-2 rounded-md text-secondary-900 hover:bg-secondary-900/5"
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+          >
+            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        {/* Mobile menu panel */}
+        {menuOpen && (
+          <nav
+            id="mobile-menu"
+            aria-label="Mobile"
+            className="md:hidden absolute left-4 right-4 top-full z-50 bg-white rounded-2xl border border-secondary-900/10 shadow-xl p-3 flex flex-col"
+          >
+            {NAV_LINKS.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                onClick={() => setMenuOpen(false)}
+                className="px-4 py-3 rounded-lg text-secondary-900 hover:bg-secondary-900/5"
+              >
+                {l.label}
+              </a>
+            ))}
+            <Link
+              to="/login"
+              onClick={() => setMenuOpen(false)}
+              className="px-4 py-3 rounded-lg text-secondary-900 hover:bg-secondary-900/5"
+            >
+              Log in
+            </Link>
+          </nav>
+        )}
       </header>
 
       {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-12 pb-24 md:pt-20 md:pb-32 grid lg:grid-cols-2 gap-16 items-center">
+      <section className="w-full px-6 sm:px-10 lg:px-16 xl:px-20 pt-8 pb-20 md:pt-16 md:pb-28 grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
         <div>
-          <h1 className="text-5xl md:text-6xl font-black tracking-tight leading-[1.1] mb-6 text-secondary-900">
-            Exams that write themselves. <br className="hidden md:block" /><span className="text-brand-600">Results you can trust.</span>
+          <h1 className="font-display text-5xl md:text-6xl lg:text-7xl leading-[1.0] mb-4">
+            Exams that write themselves. Results you can trust.
           </h1>
-          <p className="text-lg text-secondary-500 font-medium leading-relaxed mb-10 max-w-lg">
+          <p className="text-xl text-secondary-700/80 leading-relaxed mb-5">
             Generate questions from a topic, a document, or a paragraph of
             notes. Add coding rounds with real test cases. Proctor and grade
             it all from one dashboard — then share a single code and let
@@ -103,27 +171,24 @@ export default function LandingPage() {
           <div className="flex flex-wrap gap-4">
             <Link
               to="/signup?role=host"
-              className="px-8 py-4 rounded-2xl bg-brand-600 text-white font-bold hover:bg-brand-500 transition-all shadow-[0_0_20px_rgba(var(--brand-500),0.3)] hover:shadow-[0_0_30px_rgba(var(--brand-500),0.4)] text-sm uppercase tracking-wide"
+              className="px-7 py-3.5 rounded-md bg-brand-500 text-white font-medium hover:bg-brand-600 transition-colors"
             >
               Create an exam
             </Link>
             <Link
               to="/signup?role=candidate"
-              className="px-8 py-4 rounded-2xl bg-white border border-secondary-200 text-secondary-700 font-bold hover:bg-secondary-50 hover:border-secondary-300 transition-all text-sm uppercase tracking-wide shadow-sm"
+              className="px-7 py-3.5 rounded-md border border-accent-500 text-accent-500 font-medium hover:bg-accent-500 hover:text-white transition-colors"
             >
               Join an exam
             </Link>
           </div>
         </div>
 
-        {/* Mock exam card */}
-        <div className="relative w-full max-w-md mx-auto lg:ml-auto">
-          <div className="absolute top-10 -right-10 w-72 h-72 bg-brand-500/20 rounded-full blur-[80px] -z-10"></div>
-          <div className="absolute -bottom-10 -left-10 w-72 h-72 bg-purple-500/20 rounded-full blur-[80px] -z-10"></div>
-          
-          <div className="bg-white/90 backdrop-blur-xl rounded-[2rem] border border-secondary-200/60 shadow-xl p-8 w-full">
-            <p className="text-xs font-bold text-secondary-400 uppercase tracking-widest mb-4">Question 4 of 20</p>
-            <p className="text-lg font-extrabold text-secondary-900 mb-6 leading-snug">
+        {/* Mock exam card — the one deliberate visual moment */}
+        <div className="relative flex items-center justify-center md:justify-end">
+          <div className="bg-white rounded-2xl border border-secondary-900/10 shadow-[0_20px_60px_-15px_rgba(22,36,31,0.25)] p-9 max-w-md w-full">
+            <p className="text-sm text-secondary-500 mb-5">Question 4 of 20</p>
+            <p className="font-display text-xl mb-7">
               Which method safely closes a database connection pool?
             </p>
             <div className="space-y-3">
@@ -135,31 +200,29 @@ export default function LandingPage() {
               ].map((option, i) => (
                 <div
                   key={option}
-                  className={`flex items-center gap-4 px-5 py-4 rounded-xl border transition-all ${
-                    i === 2
-                      ? "border-brand-300 bg-brand-50 text-brand-900 shadow-sm"
-                      : "border-secondary-100 text-secondary-700 bg-white"
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3.5 rounded-lg border ${i === 2
+                    ? "border-brand-500 bg-brand-50"
+                    : "border-secondary-900/10"
+                    }`}
                 >
                   <div
-                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                      i === 2 ? "border-brand-500 bg-brand-100" : "border-secondary-200"
-                    }`}
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${i === 2 ? "border-brand-500" : "border-secondary-900/20"
+                      }`}
                   >
                     {i === 2 && mounted && (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                         <path
-                          className="check-path text-brand-600"
+                          className="check-path"
                           d="M4 12l6 6L20 6"
-                          stroke="currentColor"
-                          strokeWidth="3.5"
+                          stroke="#2F6F4E"
+                          strokeWidth="3"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
                       </svg>
                     )}
                   </div>
-                  <span className="font-bold text-[15px]">{option}</span>
+                  <span className="text-base">{option}</span>
                 </div>
               ))}
             </div>
@@ -168,43 +231,43 @@ export default function LandingPage() {
       </section>
 
       {/* For Hosts */}
-      <section className="max-w-6xl mx-auto px-6 py-20 border-t border-secondary-200/50">
+      <section id="hosts" className="scroll-mt-4 w-full px-6 sm:px-10 lg:px-16 xl:px-20 py-16 border-t border-secondary-900/10">
         <div className="mb-4">
-          <span className="text-xs font-black text-brand-600 uppercase tracking-widest bg-brand-50 px-3 py-1.5 rounded-lg border border-brand-100">For hosts</span>
+          <span className="text-base font-medium text-brand-600">For hosts</span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-12 max-w-xl text-secondary-900">
+        <h2 className="font-display text-4xl mb-8">
           Build a full exam in minutes, not days.
         </h2>
-        <div className="divide-y divide-secondary-100/60">
+        <div className="divide-y divide-secondary-900/10">
           <RoleFeatureRow
             icon={Sparkles}
-            accent="brand"
+            accent="green"
             title="AI-generated questions"
             description="Give it a topic, paste in notes, or upload a PDF, slide deck, or Word doc — get grounded, difficulty-balanced questions back, with answers verified against your source material."
           />
           <RoleFeatureRow
             icon={Code2}
-            accent="brand"
+            accent="green"
             reverse
             title="Coding questions, real execution"
             description="Assign programming problems with actual test cases, run against multiple languages, graded automatically — not just multiple choice."
           />
           <RoleFeatureRow
             icon={Eye}
-            accent="brand"
+            accent="green"
             title="Live proctoring"
             description="See flagged events as they happen during an exam, not after — tab switches, copy-paste attempts, and more, timestamped per candidate."
           />
           <RoleFeatureRow
             icon={BarChart3}
-            accent="brand"
+            accent="green"
             reverse
             title="Analytics that explain results"
             description="Score distributions, per-question difficulty, and topic-level breakdowns — so you know which questions actually worked."
           />
           <RoleFeatureRow
             icon={FileSpreadsheet}
-            accent="brand"
+            accent="green"
             title="Bulk import from Excel"
             description="Already have a question bank in a spreadsheet? Import it directly instead of re-typing everything."
           />
@@ -212,32 +275,32 @@ export default function LandingPage() {
       </section>
 
       {/* For Candidates */}
-      <section className="max-w-6xl mx-auto px-6 py-20 border-t border-secondary-200/50">
+      <section id="candidates" className="scroll-mt-4 w-full px-6 sm:px-10 lg:px-16 xl:px-20 py-16 border-t border-secondary-900/10">
         <div className="mb-4">
-          <span className="text-xs font-black text-purple-600 uppercase tracking-widest bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100">
+          <span className="text-base font-medium text-accent-600">
             For candidates
           </span>
         </div>
-        <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-12 max-w-xl text-secondary-900">
+        <h2 className="font-display text-4xl mb-8">
           One code. Straight into the exam.
         </h2>
-        <div className="divide-y divide-secondary-100/60">
+        <div className="divide-y divide-secondary-900/10">
           <RoleFeatureRow
             icon={KeyRound}
-            accent="purple"
+            accent="warm"
             title="Join with a code"
             description="No account setup ceremony — enter the code your host shared and you're in, right on time."
           />
           <RoleFeatureRow
             icon={Clock}
-            accent="purple"
+            accent="warm"
             reverse
             title="Timed, in one place"
             description="Multiple choice and coding rounds in a single session, with a clear countdown — no juggling separate tools."
           />
           <RoleFeatureRow
             icon={CheckCircle2}
-            accent="purple"
+            accent="warm"
             title="Instant results"
             description="See your score and review your answers right after submitting — no waiting on someone to grade it by hand."
           />
@@ -245,21 +308,21 @@ export default function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section className="max-w-6xl mx-auto px-6 py-20 border-t border-secondary-200/50">
-        <h2 className="text-3xl font-black tracking-tight mb-12 text-secondary-900">How it works</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
+      <section id="how-it-works" className="scroll-mt-4 w-full px-6 sm:px-10 lg:px-16 xl:px-20 py-16 border-t border-secondary-900/10">
+        <h2 className="font-display text-4xl mb-10">How it works</h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {[
             ["Host creates an exam", "Set topics, difficulty mix, and question types."],
             ["Share the join code", "One code, sent however you like."],
             ["Candidate takes it", "MCQ and coding, timed, in one session."],
             ["Host reviews results", "Scores, answer review, and analytics — ready immediately."],
           ].map(([title, desc], i) => (
-            <div key={title} className="bg-white/60 p-6 rounded-[2rem] border border-secondary-100/50 hover:shadow-lg hover:border-brand-100 transition-all">
-              <div className="w-12 h-12 bg-secondary-100 rounded-2xl flex items-center justify-center text-xl font-black text-secondary-400 mb-5">
+            <div key={title}>
+              <div className="font-display text-4xl text-brand-500 mb-3">
                 {i + 1}
               </div>
-              <h3 className="font-extrabold text-[15px] mb-2 text-secondary-900">{title}</h3>
-              <p className="text-sm text-secondary-500 leading-relaxed font-medium">
+              <h3 className="text-lg font-medium mb-2">{title}</h3>
+              <p className="text-base text-secondary-600 leading-relaxed">
                 {desc}
               </p>
             </div>
@@ -268,17 +331,49 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="max-w-6xl mx-auto px-6 py-10 border-t border-secondary-200/50 flex flex-col sm:flex-row items-center justify-between gap-6">
-        <span className="text-lg font-black tracking-tight text-secondary-900 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-brand-600" /> AssessMate
-        </span>
-        <div className="flex gap-8 text-sm font-bold text-secondary-500">
-          <Link to="/login" className="hover:text-brand-600 transition-colors">
-            Log in
-          </Link>
-          <Link to="/signup" className="hover:text-brand-600 transition-colors">
-            Sign up
-          </Link>
+      <footer className="border-t border-secondary-900/10">
+        <div className="w-full px-6 sm:px-10 lg:px-16 xl:px-20 py-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <Link to="/" className="font-display text-lg" aria-label="AssessMate home">
+              {SITE.name}
+            </Link>
+            <p className="mt-2 text-sm text-secondary-600 max-w-xs leading-relaxed">
+              AI-generated exams, coding rounds and proctoring in one place.
+            </p>
+          </div>
+
+          <nav aria-label="Footer" className="flex flex-col gap-2 text-sm text-secondary-600">
+            {NAV_LINKS.map((l) => (
+              <a key={l.href} href={l.href} className="hover:text-secondary-900 transition-colors w-fit">
+                {l.label}
+              </a>
+            ))}
+            <Link to="/login" className="hover:text-secondary-900 transition-colors w-fit">Log in</Link>
+            <Link to="/signup" className="hover:text-secondary-900 transition-colors w-fit">Sign up</Link>
+          </nav>
+
+          {(SITE.contactEmail || SITE.contactPhone) && (
+            <div className="flex flex-col gap-2 text-sm text-secondary-600">
+              {SITE.contactEmail && (
+                <a
+                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${SITE.contactEmail}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 hover:text-secondary-900 transition-colors cursor-pointer w-fit break-all"
+                >
+                  <Mail className="w-4 h-4 shrink-0" /> {SITE.contactEmail}
+                </a>
+              )}
+              {SITE.contactPhone && (
+                <a href={toTelHref(SITE.contactPhone)} className="inline-flex items-center gap-2 hover:text-secondary-900 transition-colors w-fit">
+                  <Phone className="w-4 h-4 shrink-0" /> {SITE.contactPhone}
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="w-full px-6 sm:px-10 lg:px-16 xl:px-20 py-5 border-t border-secondary-900/10 text-xs text-secondary-500">
+          © {new Date().getFullYear()} {SITE.name}. All rights reserved.
         </div>
       </footer>
     </div>

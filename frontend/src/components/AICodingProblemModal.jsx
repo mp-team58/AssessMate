@@ -203,11 +203,11 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
                 </button>
                 
                 {isAdvancedOpen && (
-                  <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-[#EBE3D5] bg-[#F8F5F0]">
+                  <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-[#d3d9d6] bg-[#f4f6f5]">
                     <div>
                       <label className="block text-sm font-semibold text-secondary-700 mb-1.5">Difficulty</label>
                       <select 
-                        className="w-full px-4 py-2.5 bg-white border border-[#EBE3D5] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
+                        className="w-full px-4 py-2.5 bg-white border border-[#d3d9d6] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
                         value={settings.difficulty}
                         onChange={(e) => setSettings({...settings, difficulty: e.target.value})}
                       >
@@ -221,7 +221,7 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
                       <label className="block text-sm font-semibold text-secondary-700 mb-1.5">Marks</label>
                       <input 
                         type="number"
-                        className="w-full px-4 py-2.5 bg-white border border-[#EBE3D5] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
+                        className="w-full px-4 py-2.5 bg-white border border-[#d3d9d6] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
                         placeholder="AI Suggests"
                         value={settings.marks}
                         onChange={(e) => setSettings({...settings, marks: e.target.value})}
@@ -231,7 +231,7 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
                       <label className="block text-sm font-semibold text-secondary-700 mb-1.5">Time Limit (seconds)</label>
                       <input 
                         type="number"
-                        className="w-full px-4 py-2.5 bg-white border border-[#EBE3D5] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
+                        className="w-full px-4 py-2.5 bg-white border border-[#d3d9d6] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
                         placeholder="AI Suggests"
                         value={settings.timeLimitSeconds}
                         onChange={(e) => setSettings({...settings, timeLimitSeconds: e.target.value})}
@@ -241,7 +241,7 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
                       <label className="block text-sm font-semibold text-secondary-700 mb-1.5">Memory Limit (MB)</label>
                       <input 
                         type="number"
-                        className="w-full px-4 py-2.5 bg-white border border-[#EBE3D5] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
+                        className="w-full px-4 py-2.5 bg-white border border-[#d3d9d6] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
                         value={settings.memoryLimitMb}
                         onChange={(e) => setSettings({...settings, memoryLimitMb: e.target.value})}
                       />
@@ -250,7 +250,7 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
                       <label className="block text-sm font-semibold text-secondary-700 mb-1.5">Test Case Count</label>
                       <input 
                         type="number"
-                        className="w-full px-4 py-2.5 bg-white border border-[#EBE3D5] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
+                        className="w-full px-4 py-2.5 bg-white border border-[#d3d9d6] rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm font-medium text-secondary-800 shadow-sm"
                         value={settings.testCaseCount}
                         onChange={(e) => setSettings({...settings, testCaseCount: e.target.value})}
                       />

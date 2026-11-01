@@ -9,7 +9,6 @@ import {
 import QuestionCard from '../components/QuestionCard';
 import QuestionForm from '../components/QuestionForm';
 import CodingProblemModal from '../components/CodingProblemModal';
-import MarkdownViewer from '../components/MarkdownViewer';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import {
@@ -17,7 +16,6 @@ import {
   Code2, HelpCircle, Clock, HardDrive, Eye, EyeOff, CheckCircle2
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
-import { useConfirm } from '../contexts/ConfirmContext';
 
 const BankQuestionRow = ({ question, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -157,7 +155,7 @@ const CodingBankProblemRow = ({ problem, onEdit, onDelete }) => {
             </div>
           </div>
 
-          <h3 className="text-base font-bold text-[#362E20] truncate pr-4">
+          <h3 className="text-base font-bold text-[#16241F] truncate pr-4">
             {problem.title}
           </h3>
 
@@ -199,9 +197,9 @@ const CodingBankProblemRow = ({ problem, onEdit, onDelete }) => {
             <span className="text-xs font-bold text-secondary-700 uppercase tracking-wider block mb-1">
               Description
             </span>
-            <div className="bg-white p-3.5 rounded-xl border border-secondary-200">
-              <MarkdownViewer content={problem.description} />
-            </div>
+            <p className="text-xs text-secondary-800 whitespace-pre-line leading-relaxed bg-white p-3.5 rounded-xl border border-secondary-200">
+              {problem.description}
+            </p>
           </div>
 
           {problem.constraints && (
@@ -284,14 +282,12 @@ const QuestionBank = () => {
   // Active Bank Tab: 'mcq' or 'coding'
   const [activeBankTab, setActiveBankTab] = useState('mcq');
   const { showToast } = useToast();
-  const { confirm } = useConfirm();
 
   // MCQ State
   const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
-  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     topic: '',
@@ -321,6 +317,7 @@ const QuestionBank = () => {
       setQuestions(res.data || res || []);
     } catch (error) {
       console.error('Failed to fetch questions', error);
+      showToast(error.message || 'Unable to load your questions. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -345,6 +342,7 @@ const QuestionBank = () => {
       }) : []);
     } catch (error) {
       console.error('Failed to fetch coding bank', error);
+      showToast(error.message || 'Unable to load coding problems. Please try again.', 'error');
     } finally {
       setIsCodingLoading(false);
     }
@@ -371,8 +369,6 @@ const QuestionBank = () => {
 
   // MCQ Action Handlers
   const handleAddSubmit = async (formData) => {
-    if (isSubmittingQuestion) return;
-    setIsSubmittingQuestion(true);
     try {
       await addQuestionToBank(formData);
       setIsModalOpen(false);
@@ -381,14 +377,10 @@ const QuestionBank = () => {
     } catch (error) {
       console.error('Failed to add question', error);
       showToast(error.message || 'Failed to add question', 'error');
-    } finally {
-      setIsSubmittingQuestion(false);
     }
   };
 
   const handleEditSubmit = async (formData) => {
-    if (isSubmittingQuestion) return;
-    setIsSubmittingQuestion(true);
     try {
       await editQuestion(editingQuestion.id, formData);
       setEditingQuestion(null);
@@ -397,13 +389,11 @@ const QuestionBank = () => {
     } catch (error) {
       console.error('Failed to edit question', error);
       showToast(error.message || 'Failed to edit question', 'error');
-    } finally {
-      setIsSubmittingQuestion(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (await confirm('Are you sure you want to delete this question from the bank?')) {
+    if (window.confirm('Are you sure you want to delete this question from the bank?')) {
       try {
         await deleteQuestion(id);
         fetchQuestions();
@@ -437,7 +427,7 @@ const QuestionBank = () => {
   };
 
   const handleDeleteCoding = async (id) => {
-    if (await confirm('Are you sure you want to delete this coding problem from the global bank?')) {
+    if (window.confirm('Are you sure you want to delete this coding problem from the global bank?')) {
       try {
         await deleteCodingProblem(id);
         fetchCodingProblems();
@@ -469,7 +459,7 @@ const QuestionBank = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[#362E20] tracking-tight">Question Bank</h1>
+          <h1 className="text-3xl font-bold text-[#16241F] tracking-tight">Question Bank</h1>
           <p className="text-secondary-600 mt-1">Manage your global repository of MCQs and coding challenges.</p>
         </div>
 
@@ -498,7 +488,7 @@ const QuestionBank = () => {
           onClick={() => setActiveBankTab('mcq')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all ${
             activeBankTab === 'mcq'
-              ? 'bg-[#362E20] text-amber-300 shadow-sm'
+              ? 'bg-[#16241F] text-amber-300 shadow-sm'
               : 'bg-white text-secondary-600 hover:bg-secondary-50 border border-secondary-200'
           }`}
         >
@@ -514,7 +504,7 @@ const QuestionBank = () => {
           onClick={() => setActiveBankTab('coding')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all ${
             activeBankTab === 'coding'
-              ? 'bg-[#362E20] text-amber-300 shadow-sm'
+              ? 'bg-[#16241F] text-amber-300 shadow-sm'
               : 'bg-white text-secondary-600 hover:bg-secondary-50 border border-secondary-200'
           }`}
         >
@@ -593,9 +583,10 @@ const QuestionBank = () => {
           {/* MCQ Question List */}
           <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
             {isLoading ? (
-              <div className="flex justify-center items-center py-20 text-secondary-400">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500 mr-3"></div>
-                Loading questions...
+              <div className="space-y-3 animate-pulse py-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-24 bg-white rounded-2xl border border-secondary-200 p-4 shadow-sm" />
+                ))}
               </div>
             ) : questions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm max-w-2xl mx-auto mt-4">
@@ -667,9 +658,10 @@ const QuestionBank = () => {
           {/* Coding Problems List */}
           <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
             {isCodingLoading ? (
-              <div className="flex justify-center items-center py-20 text-secondary-400">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500 mr-3"></div>
-                Loading coding problems...
+              <div className="space-y-3 animate-pulse py-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-28 bg-white rounded-2xl border border-secondary-200 p-4 shadow-sm" />
+                ))}
               </div>
             ) : filteredCodingProblems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm max-w-2xl mx-auto mt-4">
@@ -732,7 +724,6 @@ const QuestionBank = () => {
                 onSubmit={editingQuestion ? handleEditSubmit : handleAddSubmit}
                 onCancel={() => { setIsModalOpen(false); setEditingQuestion(null); }}
                 isExamContext={false}
-                isLoading={isSubmittingQuestion}
               />
             </div>
           </div>

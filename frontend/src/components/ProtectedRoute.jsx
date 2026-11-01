@@ -9,16 +9,17 @@ const ProtectedRoute = ({ allowedRole }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRole) {
-    const roles = Array.isArray(allowedRole) ? allowedRole : [allowedRole];
-    if (!roles.includes(role)) {
-      // Redirect user to their respective dashboard if they try to access unauthorized routes
-      if (role === 'HOST') return <Navigate to="/host/dashboard" replace />;
-      if (role === 'CANDIDATE') return <Navigate to="/candidate/dashboard" replace />;
-      
-      // Fallback if role is completely missing or invalid
-      return <Navigate to="/login" replace />;
-    }
+  const roleAllowed = Array.isArray(allowedRole)
+    ? allowedRole.includes(role)
+    : role === allowedRole;
+
+  if (allowedRole && !roleAllowed) {
+    // Redirect user to their respective dashboard if they try to access unauthorized routes
+    if (role === 'HOST') return <Navigate to="/host/dashboard" replace />;
+    if (role === 'CANDIDATE') return <Navigate to="/candidate/dashboard" replace />;
+    
+    // Fallback if role is completely missing or invalid
+    return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;

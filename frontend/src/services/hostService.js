@@ -22,10 +22,6 @@ export const getCandidateReport = async (examId, enrollmentId) => {
   return apiClient.get(`/results/exam/${examId}/candidate/${enrollmentId}`);
 };
 
-export const toggleCandidateResult = async (examId, enrollmentId) => {
-  return apiClient.put(`/results/exam/${examId}/candidate/${enrollmentId}/toggle-result`);
-};
-
 /**
  * PROCTORING DASHBOARD
  */

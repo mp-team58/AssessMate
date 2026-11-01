@@ -14,14 +14,12 @@ import {
   RotateCw,
   AlertCircle
 } from 'lucide-react';
-import { useToast } from '../contexts/ToastContext';
 
 const CandidatePerformance = () => {
   const [assessments, setAssessments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { showToast } = useToast();
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -32,7 +30,7 @@ const CandidatePerformance = () => {
       const list = Array.isArray(raw) ? raw : (raw?.content || []);
       setAssessments(list);
     } catch (err) {
-      showToast(err.message || 'Failed to fetch performance data.', 'error');
+      setError(err.message || 'Failed to fetch performance data.');
     } finally {
       setIsLoading(false);
     }
@@ -112,6 +110,21 @@ const CandidatePerformance = () => {
           <span>Refresh Data</span>
         </button>
       </header>
+
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
+            <span className="text-sm font-medium">{error}</span>
+          </div>
+          <button
+            onClick={fetchHistory}
+            className="px-3 py-1 bg-white border border-red-200 text-xs font-bold rounded-lg text-red-700 hover:bg-red-50"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Primary Key Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

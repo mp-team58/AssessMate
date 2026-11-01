@@ -13,17 +13,16 @@ import {
   ShieldCheck,
   AlertCircle,
   Library,
-  RotateCw,
+  RotateCw
 } from 'lucide-react';
-import { useToast } from '../contexts/ToastContext';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
 import { getCandidateHistory, getCandidateDashboard } from '../services/candidateService';
+import { prefetchRoute } from '../utils/prefetch';
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { showToast } = useToast();
 
   const [assessments, setAssessments] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -50,7 +49,7 @@ const CandidateDashboard = () => {
         setDashboardStats(statsRes.value.data || null);
       }
     } catch (err) {
-      showToast(err.message || 'Failed to load dashboard data.', 'error');
+      setError(err.message || 'Failed to load dashboard data.');
     } finally {
       setIsLoading(false);
     }
@@ -128,6 +127,8 @@ const CandidateDashboard = () => {
           <div className="flex flex-wrap gap-4">
             <Link
               to="/candidate/join"
+              onMouseEnter={() => prefetchRoute('/candidate/join')}
+              onFocus={() => prefetchRoute('/candidate/join')}
               className="inline-flex items-center gap-2 px-6 py-3 bg-white text-brand-900 rounded-xl font-bold hover:bg-brand-50 hover:scale-[1.02] transition-all shadow-lg"
             >
               <KeyRound className="w-4 h-4 text-brand-700" />
@@ -135,6 +136,8 @@ const CandidateDashboard = () => {
             </Link>
             <Link
               to="/candidate/my-assessments"
+              onMouseEnter={() => prefetchRoute('/candidate/my-assessments')}
+              onFocus={() => prefetchRoute('/candidate/my-assessments')}
               className="inline-flex items-center gap-2 px-6 py-3 bg-brand-800/60 backdrop-blur-sm border border-brand-400/30 text-white rounded-xl font-bold hover:bg-brand-700/60 transition-all"
             >
               <FileText className="w-4 h-4 text-brand-300" />
@@ -147,6 +150,21 @@ const CandidateDashboard = () => {
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-brand-500 blur-3xl opacity-30 animate-pulse pointer-events-none" />
         <div className="absolute bottom-0 right-40 -mb-20 w-72 h-72 rounded-full bg-brand-400 blur-3xl opacity-20 pointer-events-none" />
       </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
+            <span className="text-sm font-medium">{error}</span>
+          </div>
+          <button
+            onClick={fetchData}
+            className="px-3 py-1 bg-white border border-red-200 text-xs font-bold rounded-lg text-red-700 hover:bg-red-50 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Quick Statistics Overview Grid matching Host UI */}
       <div>
@@ -169,14 +187,14 @@ const CandidateDashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Card 1: Total Assessments */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 flex items-start gap-4 group hover:shadow-md hover:border-brand-300 transition-all">
-            <div className="p-3.5 bg-[#F8F5F0] text-brand-700 border border-[#EBE3D5] rounded-xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0">
+            <div className="p-3.5 bg-[#f4f6f5] text-brand-700 border border-[#d3d9d6] rounded-xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0">
               <Library className="w-7 h-7" />
             </div>
             <div>
               <p className="text-secondary-600 font-semibold text-xs uppercase tracking-wider mb-1">
                 Total Enrolled
               </p>
-              <h3 className="text-3xl font-extrabold text-[#362E20]">{totalCount}</h3>
+              <h3 className="text-3xl font-extrabold text-[#16241F]">{totalCount}</h3>
               <p className="text-xs text-secondary-500 mt-1.5 font-medium">
                 {activeCount} currently active
               </p>
@@ -185,14 +203,14 @@ const CandidateDashboard = () => {
 
           {/* Card 2: Completed */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 flex items-start gap-4 group hover:shadow-md hover:border-brand-300 transition-all">
-            <div className="p-3.5 bg-[#F8F5F0] text-emerald-700 border border-[#EBE3D5] rounded-xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0">
+            <div className="p-3.5 bg-[#f4f6f5] text-emerald-700 border border-[#d3d9d6] rounded-xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0">
               <CheckCircle2 className="w-7 h-7" />
             </div>
             <div>
               <p className="text-secondary-600 font-semibold text-xs uppercase tracking-wider mb-1">
                 Completed
               </p>
-              <h3 className="text-3xl font-extrabold text-[#362E20]">{completedCount}</h3>
+              <h3 className="text-3xl font-extrabold text-[#16241F]">{completedCount}</h3>
               <p className="text-xs text-emerald-600 mt-1.5 font-medium flex items-center gap-1">
                 AI Evaluated
               </p>
@@ -201,14 +219,14 @@ const CandidateDashboard = () => {
 
           {/* Card 3: Average Score */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 flex items-start gap-4 group hover:shadow-md hover:border-brand-300 transition-all">
-            <div className="p-3.5 bg-[#F8F5F0] text-brand-600 border border-[#EBE3D5] rounded-xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0">
+            <div className="p-3.5 bg-[#f4f6f5] text-brand-600 border border-[#d3d9d6] rounded-xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0">
               <Award className="w-7 h-7" />
             </div>
             <div>
               <p className="text-secondary-600 font-semibold text-xs uppercase tracking-wider mb-1">
                 Average Score
               </p>
-              <h3 className="text-3xl font-extrabold text-[#362E20]">
+              <h3 className="text-3xl font-extrabold text-[#16241F]">
                 {averageScore !== null ? `${averageScore}%` : '—'}
               </h3>
               <p className="text-xs text-secondary-500 mt-1.5 font-medium">
@@ -219,14 +237,14 @@ const CandidateDashboard = () => {
 
           {/* Card 4: Qualification Rate */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 flex items-start gap-4 group hover:shadow-md hover:border-brand-300 transition-all">
-            <div className="p-3.5 bg-[#F8F5F0] text-amber-700 border border-[#EBE3D5] rounded-xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0">
+            <div className="p-3.5 bg-[#f4f6f5] text-amber-700 border border-[#d3d9d6] rounded-xl group-hover:scale-110 transition-transform shadow-sm flex-shrink-0">
               <Sparkles className="w-7 h-7" />
             </div>
             <div>
               <p className="text-secondary-600 font-semibold text-xs uppercase tracking-wider mb-1">
                 Qualified Rate
               </p>
-              <h3 className="text-3xl font-extrabold text-[#362E20]">
+              <h3 className="text-3xl font-extrabold text-[#16241F]">
                 {passRate !== null ? `${passRate}%` : '—'}
               </h3>
               <p className="text-xs text-emerald-600 mt-1.5 font-medium">
@@ -318,8 +336,10 @@ const CandidateDashboard = () => {
             </div>
 
             {isLoading ? (
-              <div className="py-12 flex justify-center items-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600" />
+              <div className="space-y-3.5 animate-pulse py-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 bg-secondary-50/80 rounded-2xl border border-secondary-200/60 p-4 flex items-center justify-between shadow-sm" />
+                ))}
               </div>
             ) : recentAssessments.length === 0 ? (
               <div className="py-10 text-center space-y-3">

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Code2, AlertCircle, Check, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Button from './ui/Button';
-import { useToast } from '../contexts/ToastContext';
 
 const AVAILABLE_LANGUAGES = [
   { id: 'PYTHON', label: 'Python 3' },
@@ -40,7 +39,6 @@ const CodingProblemModal = ({
 }) => {
   const [formData, setFormData] = useState(DEFAULT_PROBLEM);
   const [error, setError] = useState('');
-  const { showToast } = useToast();
 
   useEffect(() => {
     if (initialData) {
@@ -132,26 +130,26 @@ const CodingProblemModal = ({
     setError('');
 
     if (!formData.title.trim()) {
-      showToast('Please provide a problem title.', 'error');
+      setError('Please provide a problem title.');
       return;
     }
     if (!formData.description.trim()) {
-      showToast('Please provide a problem description.', 'error');
+      setError('Please provide a problem description.');
       return;
     }
     if (!formData.allowedLanguages || formData.allowedLanguages.length === 0) {
-      showToast('Please select at least one allowed programming language.', 'error');
+      setError('Please select at least one allowed programming language.');
       return;
     }
     if (!formData.testCases || formData.testCases.length === 0) {
-      showToast('At least one testcase is required.', 'error');
+      setError('At least one testcase is required.');
       return;
     }
     const hasEmptyTc = formData.testCases.some(
       tc => !tc.input.trim() || !tc.expectedOutput.trim()
     );
     if (hasEmptyTc) {
-      showToast('All test cases must have both Input and Expected Output defined.', 'error');
+      setError('All test cases must have both Input and Expected Output defined.');
       return;
     }
 
@@ -176,11 +174,11 @@ const CodingProblemModal = ({
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-secondary-200 bg-white rounded-t-3xl shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#362E20] text-amber-300 flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-[#16241F] text-amber-300 flex items-center justify-center shadow-sm">
               <Code2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-[#362E20]">
+              <h2 className="text-xl font-bold text-[#16241F]">
                 {initialData ? 'Edit Coding Problem' : 'Create Coding Problem'}
               </h2>
               <p className="text-xs text-secondary-600">
@@ -199,6 +197,13 @@ const CodingProblemModal = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="p-6 md:p-8 overflow-y-auto space-y-6 custom-scrollbar">
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
             {/* Title & Basic Marks */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <div className="md:col-span-8">

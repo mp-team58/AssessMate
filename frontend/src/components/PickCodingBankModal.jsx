@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Library, Check, AlertCircle, Code2, Clock, HardDrive, Eye } from 'lucide-react';
 import { getCodingBank } from '../services/codingQuestionService';
-import MarkdownViewer from './MarkdownViewer';
 import Button from './ui/Button';
-import { useToast } from '../contexts/ToastContext';
 
 const PickCodingBankModal = ({
   isOpen,
@@ -14,20 +12,22 @@ const PickCodingBankModal = ({
 }) => {
   const [bankProblems, setBankProblems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
-  const { showToast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
       fetchBank();
       setSelectedIds([]);
       setSearchQuery('');
+      setError('');
     }
   }, [isOpen]);
 
   const fetchBank = async () => {
     setIsLoading(true);
+    setError('');
     try {
       const res = await getCodingBank();
       const list = res.data || res || [];
@@ -44,7 +44,7 @@ const PickCodingBankModal = ({
       }) : []);
     } catch (err) {
       console.error('Failed to load coding bank', err);
-      showToast('Failed to load problems from Global Coding Bank.', 'error');
+      setError('Failed to load problems from Global Coding Bank.');
     } finally {
       setIsLoading(false);
     }
@@ -88,11 +88,11 @@ const PickCodingBankModal = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-secondary-200 bg-secondary-50/50 rounded-t-3xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#362E20] text-amber-300 flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-[#16241F] text-amber-300 flex items-center justify-center shadow-sm">
               <Library className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-[#362E20]">
+              <h2 className="text-xl font-bold text-[#16241F]">
                 Select from Coding Question Bank
               </h2>
               <p className="text-xs text-secondary-600">
@@ -136,6 +136,13 @@ const PickCodingBankModal = ({
 
         {/* Problems List */}
         <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-secondary-400">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-500 border-t-transparent mb-3"></div>
@@ -178,7 +185,7 @@ const PickCodingBankModal = ({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h4 className="text-sm font-bold text-[#362E20] truncate">
+                      <h4 className="text-sm font-bold text-[#16241F] truncate">
                         {problem.title}
                       </h4>
                       <div className="flex items-center gap-2 shrink-0">
@@ -193,9 +200,9 @@ const PickCodingBankModal = ({
                       </div>
                     </div>
 
-                    <div className="text-xs text-secondary-600 mt-1 leading-relaxed bg-secondary-50/50 p-3 rounded-lg border border-secondary-100/50">
-                      <MarkdownViewer content={problem.description} className="text-xs" />
-                    </div>
+                    <p className="text-xs text-secondary-600 line-clamp-2 mt-1 leading-relaxed">
+                      {problem.description}
+                    </p>
 
                     <div className="flex flex-wrap items-center gap-3 mt-3 text-[11px] text-secondary-500">
                       {problem.allowedLanguages && problem.allowedLanguages.length > 0 && (

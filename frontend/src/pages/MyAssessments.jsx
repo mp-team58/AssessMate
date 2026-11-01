@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCandidateHistory } from '../services/candidateService';
 import Button from '../components/ui/Button';
+import { prefetchRoute } from '../utils/prefetch';
 import {
   Search,
   RotateCw,
@@ -33,7 +34,7 @@ const MyAssessments = () => {
       list.sort((a, b) => new Date(b.joinedAt || 0) - new Date(a.joinedAt || 0));
       setAssessments(list);
     } catch (err) {
-      showToast(err.message || 'Failed to fetch assessments.', 'error');
+      setError(err.message || 'Failed to fetch assessments.');
     } finally {
       setIsLoading(false);
     }
@@ -99,12 +100,29 @@ const MyAssessments = () => {
         </div>
         <Button
           onClick={() => navigate('/candidate/join')}
+          onMouseEnter={() => prefetchRoute('/candidate/join')}
+          onFocus={() => prefetchRoute('/candidate/join')}
           className="!w-auto px-6 py-2.5 text-sm shadow-md"
         >
           <KeyRound className="w-4 h-4" />
           <span>Join Assessment</span>
         </Button>
       </header>
+
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
+            <span className="text-sm font-medium">{error}</span>
+          </div>
+          <button
+            onClick={fetchAssessments}
+            className="px-3 py-1 bg-white border border-red-200 text-xs font-bold rounded-lg text-red-700 hover:bg-red-50 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search Bar matching Host UI */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
@@ -168,8 +186,20 @@ const MyAssessments = () => {
 
       {/* Assessment Grid matching MyExams */}
       {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 animate-pulse">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-white rounded-2xl p-6 border border-secondary-200 h-64 flex flex-col justify-between shadow-sm">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <div className="h-6 w-24 bg-secondary-200/70 rounded-full" />
+                  <div className="h-4 w-16 bg-secondary-200/50 rounded" />
+                </div>
+                <div className="h-6 w-3/4 bg-secondary-200/80 rounded-lg" />
+                <div className="h-4 w-1/2 bg-secondary-200/50 rounded" />
+              </div>
+              <div className="h-10 w-full bg-secondary-100 rounded-xl" />
+            </div>
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-secondary-200/80 max-w-xl mx-auto my-8 space-y-4">
@@ -275,7 +305,7 @@ const MyAssessments = () => {
                   ) : (
                     <button
                       onClick={() => handleStartExam(exam.enrollmentId, exam.examId || exam.id)}
-                      className="flex-1 bg-secondary-900 hover:bg-secondary-800 text-[#F3EDE0] py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                      className="flex-1 bg-secondary-900 hover:bg-secondary-800 text-[#F1F4F2] py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                     >
                       <Play className="w-4 h-4 fill-current" />
                       <span>{isInProgress ? 'Resume Exam' : 'Start Exam'}</span>

@@ -1,11 +1,10 @@
-import apiClient from './apiClient';
+import apiClient, { API_BASE_URL } from './apiClient';
 
 /**
  * Downloads the Excel template for bulk question upload
  */
 export const downloadExcelTemplate = () => {
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://08k7867x-8080.inc1.devtunnels.ms/api';
-  const url = `${BASE_URL}/questions/excel/template`;
+  const url = `${API_BASE_URL.replace(/\/$/, '')}/questions/excel/template`;
   
   const link = document.createElement('a');
   link.href = url;

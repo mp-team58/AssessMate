@@ -72,7 +72,8 @@ const CreateExam = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm({
+  const [step, setStep] = useState(0);
+  const { register, handleSubmit, watch, setValue, reset, trigger, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
     mode: 'onChange',
     defaultValues: {
@@ -119,6 +120,45 @@ const CreateExam = () => {
   const medPct = watch('mediumPercent') || 0;
   const hardPct = watch('hardPercent') || 0;
   const pctSum = Number(easyPct) + Number(medPct) + Number(hardPct);
+
+  // One long scrolling form was overwhelming (~30 fields on one
+  // screen). Group the existing sections into a 4-step wizard so
+  // only one focused chunk is visible at a time.
+  const steps = [
+    {
+      label: 'Basics',
+      fields: ['title', 'subject', 'passingPercentage', 'scheduledDate', 'scheduledHour', 'scheduledMinute', 'timerType', 'durationMinutes', 'gracePeriodMinutes', 'deviceAccess'],
+    },
+    {
+      label: 'Grading',
+      fields: ['easyPercent', 'mediumPercent', 'hardPercent', 'totalQuestions', 'negativeMark', 'easyMark', 'mediumMark', 'hardMark', 'easyNegative', 'mediumNegative', 'hardNegative', 'easySeconds', 'mediumSeconds', 'hardSeconds'],
+    },
+    {
+      label: 'Coding',
+      fields: ['hasCodingSection', 'codingDurationMinutes', 'codingQuestionsCount'],
+    },
+    {
+      label: 'Proctoring',
+      fields: [],
+    },
+  ];
+  const isLastStep = step === steps.length - 1;
+
+  const goNext = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const valid = await trigger(steps[step].fields);
+    if (valid) setStep((s) => Math.min(s + 1, steps.length - 1));
+  };
+  const goBack = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setStep((s) => Math.max(s - 1, 0));
+  };
 
   useEffect(() => {
     if (isEditMode) {
@@ -186,6 +226,7 @@ const CreateExam = () => {
   }, [id, isEditMode, reset, showToast]);
 
   const onSubmit = async (data) => {
+    if (!isLastStep) return;
     setIsLoading(true);
     try {
       // Format to "YYYY-MM-DDTHH:mm:ss"
@@ -272,8 +313,49 @@ const CreateExam = () => {
 
       <div className="bg-white rounded-3xl p-6 lg:p-10 shadow-sm border border-secondary-200/80 w-full flex-1">
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
+          {/* Step indicator */}
+          <div className="flex items-center mb-10">
+            {steps.map((s, i) => (
+              <React.Fragment key={s.label}>
+                <button
+                  type="button"
+                  onClick={() => i < step && setStep(i)}
+                  disabled={i > step}
+                  className="flex items-center gap-3 shrink-0"
+                >
+                  <span
+                    className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-colors ${
+                      i < step
+                        ? 'bg-brand-500 border-brand-500 text-white'
+                        : i === step
+                        ? 'border-brand-500 text-brand-600 bg-brand-50'
+                        : 'border-secondary-200 text-secondary-400'
+                    }`}
+                  >
+                    {i < step ? '✓' : i + 1}
+                  </span>
+                  <span className={`text-sm font-bold hidden sm:inline ${i <= step ? 'text-secondary-800' : 'text-secondary-400'}`}>
+                    {s.label}
+                  </span>
+                </button>
+                {i < steps.length - 1 && (
+                  <div className={`flex-1 h-0.5 mx-3 rounded ${i < step ? 'bg-brand-500' : 'bg-secondary-200'}`}></div>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (isLastStep) {
+                handleSubmit(onSubmit)(e);
+              }
+            }}
+            className="space-y-10"
+          >
             {/* General Info */}
+            {step === 0 && (<>
             <div className="bg-secondary-50/50 p-6 rounded-2xl border border-secondary-200">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-brand-100 text-brand-600 rounded-lg">
@@ -281,7 +363,7 @@ const CreateExam = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-bold text-secondary-800">1. General Information</h2>
+                <h2 className="text-xl font-bold text-secondary-800">General Information</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-12">
                 <Input label="Exam Title" placeholder="e.g. Java Basics Quiz" {...register('title')} error={errors.title} />
@@ -298,7 +380,7 @@ const CreateExam = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-bold text-secondary-800">2. Timing & Access</h2>
+                <h2 className="text-xl font-bold text-secondary-800">Timing & Access</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pl-12">
                 <Input type="date" label="Scheduled Date" {...register('scheduledDate')} error={errors.scheduledDate} />
@@ -354,6 +436,9 @@ const CreateExam = () => {
               </div>
             </div>
 
+            </>)}
+
+            {step === 1 && (<>
             {/* Structure & Grading */}
             <div className="bg-secondary-50/50 p-6 rounded-2xl border border-secondary-200">
               <div className="flex items-center gap-3 mb-6">
@@ -362,7 +447,7 @@ const CreateExam = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-bold text-secondary-800">3. Structure & Grading</h2>
+                <h2 className="text-xl font-bold text-secondary-800">Structure & Grading</h2>
               </div>
               
               <div className="pl-12">
@@ -397,6 +482,74 @@ const CreateExam = () => {
               </div>
             </div>
 
+            {/* Per-Question Settings */}
+            <div className="bg-secondary-50/50 p-6 rounded-2xl border border-secondary-200">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-secondary-800">Per-Question Settings</h2>
+              </div>
+              
+              <div className="pl-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Easy Questions Block */}
+                <div className="bg-white p-5 rounded-xl border border-secondary-200 shadow-sm hover:shadow-md hover:border-green-300 transition-all">
+                  <h3 className="font-bold text-green-700 mb-4 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                    Easy Questions
+                  </h3>
+                  <div className="space-y-4">
+                    <Input type="number" step="0.01" label="Marks" {...register('easyMark')} error={errors.easyMark} />
+                    {negativeMarkEnabled && (
+                      <Input type="number" step="0.01" label="Negative Marks" {...register('easyNegative')} error={errors.easyNegative} />
+                    )}
+                    {timerType === 'PER_QUESTION' && (
+                      <Input type="number" label="Time (Seconds)" {...register('easySeconds')} error={errors.easySeconds} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Medium Questions Block */}
+                <div className="bg-white p-5 rounded-xl border border-secondary-200 shadow-sm hover:shadow-md hover:border-yellow-300 transition-all">
+                  <h3 className="font-bold text-yellow-600 mb-4 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
+                    Medium Questions
+                  </h3>
+                  <div className="space-y-4">
+                    <Input type="number" step="0.01" label="Marks" {...register('mediumMark')} error={errors.mediumMark} />
+                    {negativeMarkEnabled && (
+                      <Input type="number" step="0.01" label="Negative Marks" {...register('mediumNegative')} error={errors.mediumNegative} />
+                    )}
+                    {timerType === 'PER_QUESTION' && (
+                      <Input type="number" label="Time (Seconds)" {...register('mediumSeconds')} error={errors.mediumSeconds} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Hard Questions Block */}
+                <div className="bg-white p-5 rounded-xl border border-secondary-200 shadow-sm hover:shadow-md hover:border-red-300 transition-all">
+                  <h3 className="font-bold text-red-600 mb-4 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                    Hard Questions
+                  </h3>
+                  <div className="space-y-4">
+                    <Input type="number" step="0.01" label="Marks" {...register('hardMark')} error={errors.hardMark} />
+                    {negativeMarkEnabled && (
+                      <Input type="number" step="0.01" label="Negative Marks" {...register('hardNegative')} error={errors.hardNegative} />
+                    )}
+                    {timerType === 'PER_QUESTION' && (
+                      <Input type="number" label="Time (Seconds)" {...register('hardSeconds')} error={errors.hardSeconds} />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            </>)}
+
+            {step === 2 && (<>
             {/* Coding Section */}
             <div className="bg-secondary-50/50 p-6 rounded-2xl border border-secondary-200">
               <div className="flex items-center gap-3 mb-6">
@@ -461,6 +614,9 @@ const CreateExam = () => {
               </div>
             </div>
 
+            </>)}
+
+            {step === 3 && (<>
             {/* Proctoring Settings */}
             <div className="bg-secondary-50/50 p-6 rounded-2xl border border-secondary-200">
               <div className="flex items-center gap-3 mb-6">
@@ -478,6 +634,10 @@ const CreateExam = () => {
                 <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
                   <input type="checkbox" {...register('requireMic')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
                   <span className="font-semibold text-secondary-800 text-sm">Require Microphone</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
+                  <input type="checkbox" {...register('requireScreenShare')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
+                  <span className="font-semibold text-secondary-800 text-sm">Require Screen Share</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer group bg-white p-3 rounded-xl border border-secondary-200 hover:border-purple-300 shadow-sm transition-colors">
                   <input type="checkbox" {...register('enableFaceDetection')} className="w-5 h-5 text-purple-600 rounded border-secondary-300 focus:ring-purple-500" />
@@ -515,75 +675,35 @@ const CreateExam = () => {
               </div>
             </div>
 
-            {/* Per-Question Settings */}
-            <div className="bg-secondary-50/50 p-6 rounded-2xl border border-secondary-200">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-bold text-secondary-800">4. Per-Question Settings</h2>
-              </div>
-              
-              <div className="pl-12 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Easy Questions Block */}
-                <div className="bg-white p-5 rounded-xl border border-secondary-200 shadow-sm hover:shadow-md hover:border-green-300 transition-all">
-                  <h3 className="font-bold text-green-700 mb-4 flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-                    Easy Questions
-                  </h3>
-                  <div className="space-y-4">
-                    <Input type="number" step="0.01" label="Marks" {...register('easyMark')} error={errors.easyMark} />
-                    {negativeMarkEnabled && (
-                      <Input type="number" step="0.01" label="Negative Marks" {...register('easyNegative')} error={errors.easyNegative} />
-                    )}
-                    {timerType === 'PER_QUESTION' && (
-                      <Input type="number" label="Time (Seconds)" {...register('easySeconds')} error={errors.easySeconds} />
-                    )}
-                  </div>
-                </div>
+            </>)}
 
-                {/* Medium Questions Block */}
-                <div className="bg-white p-5 rounded-xl border border-secondary-200 shadow-sm hover:shadow-md hover:border-yellow-300 transition-all">
-                  <h3 className="font-bold text-yellow-600 mb-4 flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
-                    Medium Questions
-                  </h3>
-                  <div className="space-y-4">
-                    <Input type="number" step="0.01" label="Marks" {...register('mediumMark')} error={errors.mediumMark} />
-                    {negativeMarkEnabled && (
-                      <Input type="number" step="0.01" label="Negative Marks" {...register('mediumNegative')} error={errors.mediumNegative} />
-                    )}
-                    {timerType === 'PER_QUESTION' && (
-                      <Input type="number" label="Time (Seconds)" {...register('mediumSeconds')} error={errors.mediumSeconds} />
-                    )}
-                  </div>
-                </div>
+            <div className="pt-4 flex items-center justify-between border-t border-secondary-100">
+              {step > 0 ? (
+                <Button key="wizard-back-btn" type="button" variant="outline" onClick={goBack} className="px-6 py-3">
+                  Back
+                </Button>
+              ) : <span />}
 
-                {/* Hard Questions Block */}
-                <div className="bg-white p-5 rounded-xl border border-secondary-200 shadow-sm hover:shadow-md hover:border-red-300 transition-all">
-                  <h3 className="font-bold text-red-600 mb-4 flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                    Hard Questions
-                  </h3>
-                  <div className="space-y-4">
-                    <Input type="number" step="0.01" label="Marks" {...register('hardMark')} error={errors.hardMark} />
-                    {negativeMarkEnabled && (
-                      <Input type="number" step="0.01" label="Negative Marks" {...register('hardNegative')} error={errors.hardNegative} />
-                    )}
-                    {timerType === 'PER_QUESTION' && (
-                      <Input type="number" label="Time (Seconds)" {...register('hardSeconds')} error={errors.hardSeconds} />
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-4 flex justify-end">
-              <Button type="submit" disabled={isLoading || pctSum !== 100} className="w-full md:w-auto px-8 py-3 text-lg">
-                {isLoading ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create Exam')}
-              </Button>
+              {isLastStep ? (
+                <Button
+                  key="wizard-submit-btn"
+                  type="button"
+                  onClick={handleSubmit(onSubmit)}
+                  disabled={isLoading || pctSum !== 100}
+                  className="w-full md:w-auto px-8 py-3 text-lg"
+                >
+                  {isLoading ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create Exam')}
+                </Button>
+              ) : (
+                <Button
+                  key="wizard-next-btn"
+                  type="button"
+                  onClick={goNext}
+                  className="px-8 py-3"
+                >
+                  Next
+                </Button>
+              )}
             </div>
           </form>
         </div>
@@ -600,7 +720,7 @@ const CreateExam = () => {
             <h3 className="text-2xl font-extrabold text-secondary-900 mb-2">Exam Created!</h3>
             <p className="text-secondary-600 mb-6 font-medium">Share this Join Code with candidates:</p>
             
-            <div className="bg-[#F9F2EA] border border-secondary-200 rounded-xl p-6 mb-8">
+            <div className="bg-[#dcebe2] border border-secondary-200 rounded-xl p-6 mb-8">
               <span className="text-4xl font-mono font-extrabold tracking-[0.2em] text-brand-700">
                 {successModal.joinCode}
               </span>

@@ -1,20 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html {
-    /* Globally scales down all Tailwind rem values (padding, margins, text sizes) to make the app look properly sized at 100% zoom */
-    font-size: 13px; 
+    /* Phones keep a slightly larger base so text stays readable; desktop scales
+       Tailwind rem values down so the app looks properly sized at 100% zoom. */
+    font-size: 14px;
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  @media (min-width: 768px) {
+    html { font-size: 13px; }
   }
   body {
-    @apply font-sans antialiased text-secondary-800 bg-[#F3EDE0] leading-relaxed;
+    @apply font-sans antialiased text-secondary-800 bg-surface leading-relaxed;
+    /* Never allow the whole page to scroll sideways */
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+  img, video, canvas, svg, iframe {
+    max-width: 100%;
+  }
+  a, button, [role="button"], input, select, textarea, label {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  /* iOS Safari zooms the page when an input smaller than 16px is focused,
+     which looks like a broken, horizontally scrolling layout. */
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
   }
   
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight font-bold text-secondary-900;
+    @apply tracking-tight font-bold text-secondary-900 font-sans;
   }
 }
 
@@ -22,7 +45,6 @@
 input[type="time"]::-webkit-calendar-picker-indicator,
 input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  filter: invert(0.4) sepia(1) saturate(3) hue-rotate(330deg);
   opacity: 0.6;
   transition: opacity 0.2s;
 }

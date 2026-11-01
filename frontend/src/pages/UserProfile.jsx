@@ -1,57 +1,95 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getMyProfile } from '../services/authService';
-import Button from '../components/ui/Button';
 import {
-  User,
   Mail,
   ShieldCheck,
   CheckCircle2,
   Calendar,
   Lock,
-  ArrowRight,
   BookOpenCheck,
-  Award,
   Loader2
 } from 'lucide-react';
 
 const UserProfile = () => {
   const { user: authUser } = useAuth();
-  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchProfile = async () => {
       try {
         const response = await getMyProfile();
-        setProfile(response.data);
+        if (isMounted) {
+          setProfile(response.data);
+        }
       } catch (err) {
         console.error('Failed to fetch profile', err);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchProfile();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const displayUser = profile || authUser;
-  const isHost = displayUser?.role === 'HOST';
+  const displayUser = profile?.user || profile?.data || profile || authUser;
+  const isHost = (displayUser?.role || authUser?.role) === 'HOST';
+  const roleName = isHost ? 'Host' : 'Candidate';
+  const roleBadge = isHost ? 'HOST' : 'CANDIDATE';
+  const fullName = displayUser?.name || authUser?.name || `${roleName} User`;
+  const email = displayUser?.email || authUser?.email || (isHost ? 'host@assessmate.com' : 'candidate@assessmate.com');
+  const userId = displayUser?.id || displayUser?._id || authUser?.id || authUser?._id || 'N/A';
+
+  const rawCreatedAt = displayUser?.createdAt || profile?.createdAt;
+  const joinedDate = rawCreatedAt
+    ? new Date(rawCreatedAt).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    : 'Recent Member';
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+      <div className="max-w-4xl mx-auto space-y-8 pb-16 animate-pulse font-sans">
+        <div className="space-y-2">
+          <div className="h-8 w-36 bg-secondary-200/80 rounded-xl" />
+          <div className="h-4 w-64 bg-secondary-200/50 rounded-lg" />
+        </div>
+        <div className="bg-white rounded-3xl p-6 md:p-8 border border-secondary-200 space-y-6">
+          <div className="flex items-center gap-6 pb-6 border-b border-secondary-100">
+            <div className="w-20 h-20 rounded-2xl bg-secondary-200/70" />
+            <div className="space-y-2 flex-1">
+              <div className="h-6 w-48 bg-secondary-200/80 rounded-lg" />
+              <div className="h-4 w-32 bg-secondary-200/50 rounded" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-4 bg-secondary-50 rounded-2xl border border-secondary-200 space-y-2">
+                <div className="h-3 w-24 bg-secondary-200/70 rounded" />
+                <div className="h-5 w-40 bg-secondary-200/90 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
+    <div className="max-w-4xl mx-auto space-y-8 pb-16 animate-in fade-in duration-300">
       {/* Header */}
       <header>
-        <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">My Profile</h1>
+        <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">
+          Profile
+        </h1>
         <p className="text-secondary-600 mt-1.5 text-base">
           Manage your profile information, access credentials, and security settings.
         </p>
@@ -61,20 +99,20 @@ const UserProfile = () => {
       <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-secondary-200 space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 pb-6 border-b border-secondary-100">
           <div className="w-20 h-20 rounded-2xl bg-brand-500/20 border-2 border-brand-500/40 text-brand-700 font-extrabold flex items-center justify-center text-3xl shadow-inner flex-shrink-0">
-            {displayUser?.name ? displayUser.name[0].toUpperCase() : (isHost ? 'H' : 'C')}
+            {fullName ? fullName[0].toUpperCase() : (isHost ? 'H' : 'C')}
           </div>
 
           <div className="space-y-1 flex-1">
             <div className="flex items-center gap-3 flex-wrap">
               <h2 className="text-2xl font-extrabold text-secondary-900 tracking-tight">
-                {displayUser?.name || 'User'}
+                {fullName}
               </h2>
               <span className="px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider bg-brand-50 text-brand-700 border border-brand-200">
-                {displayUser?.role || 'User'}
+                {roleBadge}
               </span>
             </div>
             <p className="text-secondary-500 text-sm font-medium">
-              Registered {isHost ? 'Host' : 'Candidate'} on AssessMate Proctoring Platform
+              Registered {roleName} on AssessMate Proctoring Platform
             </p>
           </div>
         </div>
@@ -83,61 +121,43 @@ const UserProfile = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="p-4 bg-secondary-50 rounded-2xl border border-secondary-200 space-y-1">
             <div className="flex items-center gap-2 text-xs font-bold text-secondary-500 uppercase tracking-wider">
-              <User className="w-4 h-4 text-brand-600" />
-              <span>Full Name</span>
+              <Mail className="w-4 h-4 text-brand-600" />
+              <span>Email Address</span>
             </div>
-            <p className="text-base font-bold text-secondary-900">{displayUser?.name || 'User'}</p>
+            <p className="text-base font-bold text-secondary-900 truncate">{email}</p>
           </div>
-          
-          {profile?.email && (
-            <div className="p-4 bg-secondary-50 rounded-2xl border border-secondary-200 space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-secondary-500 uppercase tracking-wider">
-                <Mail className="w-4 h-4 text-brand-600" />
-                <span>Email Address</span>
-              </div>
-              <p className="text-base font-bold text-secondary-900">{profile.email}</p>
-            </div>
-          )}
 
           <div className="p-4 bg-secondary-50 rounded-2xl border border-secondary-200 space-y-1">
             <div className="flex items-center gap-2 text-xs font-bold text-secondary-500 uppercase tracking-wider">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>Assigned Role</span>
             </div>
-            <p className="text-base font-bold text-emerald-700 capitalize">{displayUser?.role || 'User'}</p>
+            <p className="text-base font-bold text-emerald-700 capitalize">{roleName}</p>
           </div>
-          
-          {profile?.createdAt && (
-            <div className="p-4 bg-secondary-50 rounded-2xl border border-secondary-200 space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold text-secondary-500 uppercase tracking-wider">
-                <Calendar className="w-4 h-4 text-brand-600" />
-                <span>Joined On</span>
-              </div>
-              <p className="text-sm font-bold text-secondary-800">
-                {new Date(profile.createdAt).toLocaleDateString(undefined, {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </p>
+
+          <div className="p-4 bg-secondary-50 rounded-2xl border border-secondary-200 space-y-1">
+            <div className="flex items-center gap-2 text-xs font-bold text-secondary-500 uppercase tracking-wider">
+              <Calendar className="w-4 h-4 text-brand-600" />
+              <span>Joined On</span>
             </div>
-          )}
+            <p className="text-base font-bold text-secondary-900">{joinedDate}</p>
+          </div>
 
           <div className="p-4 bg-secondary-50 rounded-2xl border border-secondary-200 space-y-1">
             <div className="flex items-center gap-2 text-xs font-bold text-secondary-500 uppercase tracking-wider">
               <Lock className="w-4 h-4 text-brand-600" />
               <span>User ID / Identifier</span>
             </div>
-            <p className="text-sm font-mono font-bold text-secondary-800">{displayUser?.id || 'unknown'}</p>
+            <p className="text-sm font-mono font-bold text-secondary-800 truncate">{userId}</p>
           </div>
 
-          <div className="p-4 bg-secondary-50 rounded-2xl border border-secondary-200 space-y-1">
+          <div className="p-4 bg-secondary-50 rounded-2xl border border-secondary-200 space-y-1 sm:col-span-2">
             <div className="flex items-center gap-2 text-xs font-bold text-secondary-500 uppercase tracking-wider">
-              <CheckCircle2 className="w-4 h-4 text-green-600" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>Account Status</span>
             </div>
-            <p className="text-sm font-bold text-green-700 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
+            <p className="text-base font-bold text-emerald-700 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               Active &amp; Verified
             </p>
           </div>
@@ -209,12 +229,6 @@ const UserProfile = () => {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="flex items-center gap-4 pt-2">
-        <Button onClick={() => navigate(isHost ? '/host/dashboard' : '/candidate/dashboard')} className="!w-auto px-6 py-2.5 text-sm">
-          <span>Return to Dashboard</span>
-        </Button>
-      </div>
     </div>
   );
 };

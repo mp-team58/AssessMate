@@ -14,7 +14,6 @@ import {
   FileText
 } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { useToast } from '../contexts/ToastContext';
 import { joinExamByCode } from '../services/candidateService';
 
 const JoinAssessment = () => {
@@ -24,7 +23,6 @@ const JoinAssessment = () => {
   const [error, setError] = useState('');
   const [enrolledExam, setEnrolledExam] = useState(null);
   const navigate = useNavigate();
-  const { showToast } = useToast();
 
   useEffect(() => {
     const codeParam = searchParams.get('code');
@@ -47,11 +45,10 @@ const JoinAssessment = () => {
         sessionStorage.setItem(`exam_config_${res.data.enrollmentId}`, JSON.stringify(res.data));
       }
     } catch (err) {
-      showToast(
+      setError(
         err.response?.data?.message ||
           err.message ||
-          'Invalid or expired access code. Please verify the code with your instructor.',
-        'error'
+          'Invalid or expired access code. Please verify the code with your instructor.'
       );
     } finally {
       setIsLoading(false);
@@ -83,6 +80,13 @@ const JoinAssessment = () => {
           Enter your unique access code to verify your credentials and begin your proctored assessment session.
         </p>
       </header>
+
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
+          <span className="text-sm font-medium">{error}</span>
+        </div>
+      )}
 
       {/* Access Code Input Card */}
       <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-6">
@@ -192,7 +196,7 @@ const JoinAssessment = () => {
 
       {/* Pre-Flight Instructions Modal / Verified Card */}
       {enrolledExam && (
-        <div className="fixed inset-0 z-50 bg-[#362E20]/65 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-[#16241F]/65 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-secondary-200 space-y-6 animate-in zoom-in-95 duration-200">
             <div className="border-b border-secondary-100 pb-4">
               <span className="px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider bg-green-100 text-green-800 flex items-center gap-1.5 w-fit">

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { BookOpenCheck } from 'lucide-react';
 
 const AuthLayout = ({ children }) => {
@@ -19,12 +20,12 @@ const AuthLayout = ({ children }) => {
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMCwwLDAsMC4wNSkiLz48L3N2Zz4=')] opacity-50"></div>
 
           {/* Logo */}
-          <div className="relative flex items-center gap-3 text-2xl font-extrabold tracking-tight text-secondary-900 z-10 hover:scale-105 transition-transform origin-left">
+          <Link to="/" aria-label="AssessMate home" className="relative flex items-center gap-3 text-2xl font-extrabold tracking-tight text-secondary-900 z-10 hover:scale-105 transition-transform origin-left w-fit">
             <div className="p-2 bg-brand-100 rounded-xl">
               <BookOpenCheck className="w-8 h-8 text-brand-600" />
             </div>
             <span>AssessMate<span className="text-brand-500">.</span></span>
-          </div>
+          </Link>
 
           <div className="relative mt-12 mb-auto pr-4 z-10">
             <h1 className="text-4xl lg:text-5xl font-black mb-6 leading-[1.15] text-secondary-900 tracking-tighter">
@@ -44,7 +45,16 @@ const AuthLayout = ({ children }) => {
         {/* Right Form Panel */}
         <div className="flex-1 flex flex-col justify-center items-center p-6 lg:p-10 bg-[#ffffff] relative">
           <div className="w-full max-w-md">
+            <Link to="/" aria-label="AssessMate home" className="lg:hidden flex items-center justify-center gap-2 mb-8 text-xl font-extrabold tracking-tight text-secondary-900">
+              <span className="p-1.5 bg-brand-100 rounded-lg">
+                <BookOpenCheck className="w-6 h-6 text-brand-600" />
+              </span>
+              <span>AssessMate<span className="text-brand-500">.</span></span>
+            </Link>
             {children}
+            <p className="lg:hidden mt-8 text-center text-xs font-medium text-secondary-400">
+              © {new Date().getFullYear()} AssessMate. All rights reserved.
+            </p>
           </div>
         </div>
 

@@ -8,6 +8,9 @@ import {
 import { getMyExams } from '../services/examService';
 import { getHostAnalytics } from '../services/hostService';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import ContentSkeleton from '../components/ui/ContentSkeleton';
+import { prefetchRoute } from '../utils/prefetch';
 
 const StatCard = ({ title, value, icon: Icon, color, trend }) => {
   const colorMap = {
@@ -66,6 +69,7 @@ const ActionCard = ({ title, desc, icon: Icon, color, link, onClick }) => {
 const HostDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [exams, setExams] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,14 +91,15 @@ const HostDashboard = () => {
       if (analyticsRes.data) setAnalytics(analyticsRes.data);
     } catch (err) {
       console.error(err);
+      showToast(err.message || 'Unable to load your dashboard. Please refresh and try again.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const publishedExams = exams.filter(e => e.status === 'PUBLISHED');
+  const publishedExams = exams.filter(e => e.status === 'LIVE');
   const draftExams = exams.filter(e => e.status === 'DRAFT');
-  const completedExams = exams.filter(e => e.status === 'COMPLETED');
+  const completedExams = exams.filter(e => e.status === 'ENDED');
   
   // Use analytics data if available, otherwise calculate from exams array
   const totalCandidates = analytics?.totalCandidates ?? exams.reduce((acc, curr) => acc + (curr.candidateCount || 0), 0);
@@ -118,11 +123,7 @@ const HostDashboard = () => {
     .slice(0, 5);
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-full min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent shadow-lg shadow-brand-500/20"></div>
-      </div>
-    );
+    return <ContentSkeleton />;
   }
 
   return (
@@ -145,6 +146,8 @@ const HostDashboard = () => {
             <div className="flex flex-wrap items-center gap-4">
               <Link
                 to="/host/create-exam"
+                onMouseEnter={() => prefetchRoute('/host/create-exam')}
+                onFocus={() => prefetchRoute('/host/create-exam')}
                 className="inline-flex items-center gap-2 px-8 py-4 bg-brand-500 text-white rounded-2xl font-bold hover:bg-brand-400 transition-all shadow-[0_0_30px_rgba(var(--brand-500),0.3)] hover:shadow-[0_0_40px_rgba(var(--brand-500),0.5)] text-sm uppercase tracking-wide"
               >
                 <PlusCircle className="w-5 h-5" />
@@ -152,6 +155,8 @@ const HostDashboard = () => {
               </Link>
               <Link
                 to="/host/question-bank"
+                onMouseEnter={() => prefetchRoute('/host/question-bank')}
+                onFocus={() => prefetchRoute('/host/question-bank')}
                 className="inline-flex items-center gap-2 px-8 py-4 bg-white/5 backdrop-blur-xl border border-white/10 text-white rounded-2xl font-bold hover:bg-white/10 transition-all text-sm uppercase tracking-wide"
               >
                 <Library className="w-5 h-5" />
@@ -345,7 +350,7 @@ const HostDashboard = () => {
                   <div key={exam.id} className="p-5 md:p-6 hover:bg-brand-50/20 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">
                     <div className="flex items-center gap-5">
                       <div className={`w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center font-black text-xl shadow-sm ${
-                        exam.status === 'PUBLISHED' ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-700 border border-emerald-200/50' :
+                        exam.status === 'LIVE' ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-700 border border-emerald-200/50' :
                         exam.status === 'DRAFT' ? 'bg-gradient-to-br from-amber-100 to-amber-200 text-amber-700 border border-amber-200/50' :
                         'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-700 border border-blue-200/50'
                       }`}>
@@ -370,7 +375,7 @@ const HostDashboard = () => {
                     </div>
                     <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-5">
                       <span className={`px-4 py-1.5 text-[11px] font-black rounded-xl uppercase tracking-widest ${
-                        exam.status === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm' :
+                        exam.status === 'LIVE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm' :
                         exam.status === 'DRAFT' ? 'bg-amber-50 text-amber-700 border border-amber-200 shadow-sm' :
                         'bg-blue-50 text-blue-700 border border-blue-200 shadow-sm'
                       }`}>

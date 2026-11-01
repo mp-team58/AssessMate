@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from '../layouts/AuthLayout';
 import Toggle from '../components/ui/Toggle';
 import Input from '../components/ui/Input';
@@ -23,7 +23,9 @@ const signupSchema = yup.object().shape({
 });
 
 const Signup = () => {
-  const [role, setRole] = useState('host');
+  const [searchParams] = useSearchParams();
+  const initialRole = searchParams.get('role') === 'candidate' ? 'candidate' : 'host';
+  const [role, setRole] = useState(initialRole);
   const [step, setStep] = useState('FORM'); // 'FORM' | 'OTP'
   const [isLoading, setIsLoading] = useState(false);
   const [otp, setOtp] = useState('');

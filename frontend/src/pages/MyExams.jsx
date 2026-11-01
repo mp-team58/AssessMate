@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getMyExams, deleteExam } from '../services/examService';
-import Button from '../components/ui/Button';
 import ShareExamModal from '../components/ShareExamModal';
 import { useToast } from '../contexts/ToastContext';
-import { useConfirm } from '../contexts/ConfirmContext';
-import { Share2 } from 'lucide-react';
+import { 
+  Share2, PlusCircle, Sparkles, FileText, FileSpreadsheet, 
+  Trash2, Clock, Calendar, HelpCircle, Code2, KeyRound, BookOpenCheck 
+} from 'lucide-react';
+import { prefetchRoute } from '../utils/prefetch';
 
 const MyExams = () => {
   const [exams, setExams] = useState([]);
@@ -13,7 +15,6 @@ const MyExams = () => {
   const [shareExamId, setShareExamId] = useState(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { confirm } = useConfirm();
 
   const fetchExams = async () => {
     setIsLoading(true);
@@ -34,7 +35,7 @@ const MyExams = () => {
   }, []);
 
   const handleDelete = async (id) => {
-    if (!(await confirm('Are you sure you want to delete this exam?'))) return;
+    if (!window.confirm('Are you sure you want to delete this exam?')) return;
     try {
       await deleteExam(id);
       setExams(exams.filter(exam => exam.id !== id));
@@ -46,29 +47,57 @@ const MyExams = () => {
 
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300 relative z-10 font-sans">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">My Exams</h1>
-          <p className="text-secondary-600 mt-2 text-base">Manage your drafts and live assessments</p>
+          <h1 className="text-3xl font-black text-secondary-900 tracking-tight">My Exams</h1>
+          <p className="text-secondary-600 mt-1 text-sm font-medium">Manage your drafts, live assessments, and past exams</p>
         </div>
+        {exams.length > 0 && (
+          <Link
+            to="/host/create-exam"
+            onMouseEnter={() => prefetchRoute('/host/create-exam')}
+            onFocus={() => prefetchRoute('/host/create-exam')}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-sm hover:shadow transition-all text-sm shrink-0"
+          >
+            <PlusCircle className="w-4 h-4" />
+            Create Exam
+          </Link>
+        )}
       </header>
 
       {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div>
+        <div className="space-y-4 animate-pulse">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 bg-white/80 rounded-2xl border border-secondary-200/70 p-6 flex flex-col justify-between shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-5 w-48 bg-secondary-200/80 rounded-lg" />
+                  <div className="h-3 w-32 bg-secondary-200/50 rounded" />
+                </div>
+                <div className="h-7 w-20 bg-secondary-200/60 rounded-full" />
+              </div>
+              <div className="h-4 w-64 bg-secondary-200/40 rounded" />
+            </div>
+          ))}
         </div>
       ) : exams.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-secondary-200/60 max-w-2xl mx-auto mt-10">
-          <div className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+        <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-white border border-secondary-200/80 shadow-sm flex items-center justify-center text-brand-600 mb-4">
+            <BookOpenCheck className="w-8 h-8 text-brand-600" />
           </div>
-          <h3 className="text-2xl font-bold text-secondary-800 mb-3">No exams created yet</h3>
-          <p className="text-secondary-500 mb-8 text-lg max-w-md mx-auto">Get started by creating your first assessment. It only takes a few minutes to set up.</p>
-          <Button onClick={() => navigate('/host/create-exam')} className="w-auto px-8 py-3 text-lg rounded-xl shadow-lg shadow-brand-500/30 hover:shadow-brand-500/40 transition-all">
+          <h2 className="text-xl font-bold text-secondary-900 mb-2">
+            No exams created yet
+          </h2>
+          <p className="text-secondary-500 text-sm max-w-sm mb-6 leading-relaxed">
+            Get started by creating your first assessment. It only takes a few minutes to set up.
+          </p>
+          <Link
+            to="/host/create-exam"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-md shadow-brand-600/20 hover:shadow-lg transition-all text-sm"
+          >
+            <PlusCircle className="w-4 h-4" />
             Create First Exam
-          </Button>
+          </Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">

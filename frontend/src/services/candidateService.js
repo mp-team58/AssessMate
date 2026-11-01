@@ -3,7 +3,7 @@ import { candidateApiClient } from './apiClient';
 /**
  * Step 1: Exam Enrollment
  * Validates joinCode and links candidate to the exam, returning enrollment details.
- * Calls https://dxpb79fh-8080.inc1.devtunnels.ms/api/candidate/join/{joinCode}
+ * Calls /api/candidate/join/{joinCode}
  * @param {string} joinCode
  * @returns {Promise<{data: {enrollmentId: number, examTitle: string, subject: string, totalMarks: number, passingMarks: number, durationMinutes: number}}>}
  */
@@ -14,7 +14,7 @@ export const joinExamByCode = async (joinCode) => {
 /**
  * Step 2: Fetch Exam Questions
  * Retrieves the randomized question set for the active exam.
- * Calls https://dxpb79fh-8080.inc1.devtunnels.ms/api/candidate/exam/{enrollmentId}/questions
+ * Calls /api/candidate/exam/{enrollmentId}/questions
  * @param {number|string} enrollmentId
  * @returns {Promise<{data: {enrollmentId: number, examTitle: string, durationMinutes: number, questions: Array<Object>}}>}
  */
@@ -31,10 +31,7 @@ export const getExamQuestions = async (enrollmentId) => {
  */
 export const uploadProctorEvidence = async (fileBlob, type) => {
   const formData = new FormData();
-  let filename = 'evidence_snapshot.jpg';
-  if (type === 'audio') {
-    filename = fileBlob.type.includes('mp4') ? 'evidence_audio.mp4' : 'evidence_audio.webm';
-  }
+  const filename = type === 'audio' ? 'evidence_audio.webm' : 'evidence_snapshot.jpg';
   formData.append('file', fileBlob, filename);
   formData.append('type', type);
   return candidateApiClient.post('/candidate/proctor/evidence', formData);
@@ -71,7 +68,7 @@ export const logProctorEvent = async (enrollmentId, eventType, details = '', ima
 /**
  * Step 4: Submit Exam Answers
  * Submits the answers map for auto-grading.
- * Calls https://dxpb79fh-8080.inc1.devtunnels.ms/api/candidate/submit/{enrollmentId}
+ * Calls /api/candidate/submit/{enrollmentId}
  * @param {number|string} enrollmentId
  * @param {Object.<string, string>} answers - Map of questionId to answer string
  */
@@ -83,7 +80,7 @@ export const submitExamAnswers = async (enrollmentId, answers) => {
 
 /**
  * Step 5A: Get Result & Personalized AI Feedback
- * Calls https://dxpb79fh-8080.inc1.devtunnels.ms/api/candidate/result/{enrollmentId}
+ * Calls /api/candidate/result/{enrollmentId}
  * @param {number|string} enrollmentId
  * @returns {Promise<{data: {enrollmentId: number, examTitle: string, totalScore: number, maxScore: number, percentage: number, passed: boolean, weakTopicsJson: string, aiFeedback: string}}>}
  */

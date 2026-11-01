@@ -49,7 +49,7 @@ const QuestionCard = ({
       <div className={`flex items-start gap-3.5 flex-1 min-w-0 ${selectable ? 'pr-8' : ''}`}>
 
         {index !== null && (
-          <div className="w-8 h-8 rounded-xl bg-[#362E20] text-amber-300 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm">
+          <div className="w-8 h-8 rounded-xl bg-[#16241F] text-amber-300 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm">
             {index}
           </div>
         )}
@@ -68,14 +68,14 @@ const QuestionCard = ({
                 {question.topic}
               </span>
             )}
-            {showSource && question.addedBy && (
-              <span className={`px-2.5 py-0.5 rounded-md ${getSourceColor(question.addedBy)}`}>
-                {question.addedBy}
+            {showSource && question.source && (
+              <span className={`px-2.5 py-0.5 rounded-md ${getSourceColor(question.source)}`}>
+                {question.source}
               </span>
             )}
 
             <div className="ml-auto flex items-center gap-1">
-              {question.isVerified && question.addedBy === 'AI' && (
+              {question.isVerified && question.source === 'AI' && (
                 <span className="flex items-center text-green-700 bg-green-50 px-2.5 py-0.5 rounded-md border border-green-200">
                   <CheckCircle className="w-3 h-3 mr-1" /> Verified
                 </span>
@@ -89,7 +89,7 @@ const QuestionCard = ({
           </div>
 
           {/* Question Text */}
-          <h4 className="text-[15px] font-bold text-[#362E20] mb-3 leading-relaxed break-words whitespace-pre-wrap">
+          <h4 className="text-[15px] font-bold text-[#16241F] mb-3 leading-relaxed break-words whitespace-pre-wrap">
             {question.questionText}
           </h4>
 
@@ -152,7 +152,7 @@ const QuestionCard = ({
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
                 <p className="text-[13px] text-amber-800 font-medium">
-                  {question.addedBy === 'AI'
+                  {question.source === 'AI'
                     ? 'This question was AI generated and needs your review.'
                     : 'This question needs review before publishing.'}
                 </p>

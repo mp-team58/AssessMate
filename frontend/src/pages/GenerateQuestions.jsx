@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/ui/Button';
 import { getExamById } from '../services/examService';
+import { useToast } from '../contexts/ToastContext';
 
 const GenerateQuestions = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [exam, setExam] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const examId = localStorage.getItem('currentExamId');
@@ -21,13 +23,14 @@ const GenerateQuestions = () => {
         setExam(response.data);
       } catch (err) {
         console.error("Failed to load exam details", err);
+        showToast(err.message || "Unable to load exam details. Please try again.", "error");
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchExam();
-  }, [examId, navigate]);
+  }, [examId, navigate, showToast]);
 
   return (
     <div className="max-w-4xl mx-auto font-sans relative z-10">
@@ -55,7 +58,7 @@ const GenerateQuestions = () => {
                 You are managing questions for: <strong className="text-brand-700">{exam?.title || `Exam #${examId}`}</strong>
               </p>
               
-              <div className="bg-[#F9F2EA] border border-secondary-200 rounded-2xl p-10 mb-8 max-w-lg mx-auto">
+              <div className="bg-[#dcebe2] border border-secondary-200 rounded-2xl p-10 mb-8 max-w-lg mx-auto">
                 <p className="text-secondary-800 font-medium">
                   The automated question generation module will be implemented here in the next phase.
                 </p>

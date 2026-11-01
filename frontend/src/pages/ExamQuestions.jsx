@@ -19,7 +19,6 @@ import ExcelUpload from '../components/ExcelUpload';
 import AIGeneration from '../components/AIGeneration';
 import CodingProblemModal from '../components/CodingProblemModal';
 import PickCodingBankModal from '../components/PickCodingBankModal';
-import MarkdownViewer from '../components/MarkdownViewer';
 import Button from '../components/ui/Button';
 import {
   Edit2, Trash2, Plus, Cpu, Library, Search, Filter, Rocket,
@@ -27,7 +26,6 @@ import {
   CheckCircle2, HelpCircle, Sparkles
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
-import { useConfirm } from '../contexts/ConfirmContext';
 import AICodingProblemModal from '../components/AICodingProblemModal';
 import { scrollAppToTop } from '../utils/scroll';
 
@@ -40,7 +38,6 @@ const ExamQuestions = () => {
   const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { showToast } = useToast();
-  const { confirm } = useConfirm();
 
   // Section Tab: 'mcq' or 'coding'
   const [sectionTab, setSectionTab] = useState('mcq');
@@ -48,7 +45,6 @@ const ExamQuestions = () => {
   // MCQ Tab Actions ('manual', 'bank', 'excel', 'ai')
   const [activeTab, setActiveTab] = useState(null);
   const [editingQuestion, setEditingQuestion] = useState(null);
-  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
 
   // Bank Tab State for MCQ
   const [bankQuestions, setBankQuestions] = useState([]);
@@ -129,6 +125,7 @@ const ExamQuestions = () => {
           setBankQuestions(res.data || res);
         } catch (error) {
           console.error('Failed to fetch bank questions', error);
+          showToast(error.message || 'Unable to load the question bank. Please try again.', 'error');
         } finally {
           setIsBankLoading(false);
         }
@@ -140,8 +137,6 @@ const ExamQuestions = () => {
 
   // MCQ Handlers
   const handleManualSubmit = async (formData) => {
-    if (isSubmittingQuestion) return;
-    setIsSubmittingQuestion(true);
     try {
       await addQuestionManually(examId, formData);
       setActiveTab(null);
@@ -150,14 +145,10 @@ const ExamQuestions = () => {
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to add question', 'error');
-    } finally {
-      setIsSubmittingQuestion(false);
     }
   };
 
   const handleEditSubmit = async (formData) => {
-    if (isSubmittingQuestion) return;
-    setIsSubmittingQuestion(true);
     try {
       await editQuestion(editingQuestion.id, formData);
       setEditingQuestion(null);
@@ -166,13 +157,11 @@ const ExamQuestions = () => {
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to edit question', 'error');
-    } finally {
-      setIsSubmittingQuestion(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (await confirm("Are you sure you want to delete this question?")) {
+    if (window.confirm("Are you sure you want to delete this question?")) {
       try {
         await deleteQuestion(id);
         fetchExamData();
@@ -187,13 +176,8 @@ const ExamQuestions = () => {
   const handleVerify = async (id) => {
     try {
       await verifyQuestion(id);
-      setQuestions(prev => prev.map(q => q.id === id ? { ...q, isVerified: true } : q));
-      setStats(prev => prev ? {
-        ...prev,
-        unverifiedCount: Math.max(0, (prev.unverifiedCount || 0) - 1)
-      } : prev);
-      showToast('Question verified', 'success');
       fetchExamData();
+      showToast('Question verified', 'success');
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to verify question', 'error');
@@ -264,7 +248,7 @@ const ExamQuestions = () => {
   };
 
   const handleDeleteCodingProblem = async (problemId) => {
-    if (await confirm("Are you sure you want to remove this coding problem from the exam pool?")) {
+    if (window.confirm("Are you sure you want to remove this coding problem from the exam pool?")) {
       try {
         await deleteCodingProblem(problemId);
         await fetchCodingData();
@@ -311,7 +295,7 @@ const ExamQuestions = () => {
       return;
     }
 
-    if (await confirm("Are you sure you want to publish this exam? You won't be able to edit questions after publishing.")) {
+    if (window.confirm("Are you sure you want to publish this exam? You won't be able to edit questions after publishing.")) {
       try {
         await publishExam(examId);
         showToast('Exam published successfully', 'success');
@@ -384,7 +368,7 @@ const ExamQuestions = () => {
               onClick={() => setSectionTab('mcq')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all ${
                 sectionTab === 'mcq'
-                  ? 'bg-[#362E20] text-amber-300 shadow-sm'
+                  ? 'bg-[#16241F] text-amber-300 shadow-sm'
                   : 'bg-secondary-50 text-secondary-600 hover:bg-secondary-100 border border-secondary-200'
               }`}
             >
@@ -400,7 +384,7 @@ const ExamQuestions = () => {
               onClick={() => setSectionTab('coding')}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all ${
                 sectionTab === 'coding'
-                  ? 'bg-[#362E20] text-amber-300 shadow-sm'
+                  ? 'bg-[#16241F] text-amber-300 shadow-sm'
                   : 'bg-secondary-50 text-secondary-600 hover:bg-secondary-100 border border-secondary-200'
               }`}
             >
@@ -427,7 +411,7 @@ const ExamQuestions = () => {
           <div className="bg-white rounded-3xl p-6 border border-secondary-200 shadow-sm space-y-4">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
               <div>
-                <h3 className="text-base font-bold text-[#362E20]">Coding Problem Pool Overview</h3>
+                <h3 className="text-base font-bold text-[#16241F]">Coding Problem Pool Overview</h3>
                 <p className="text-xs text-secondary-500 mt-0.5">
                   Problems in this pool are randomly assigned to candidates during their exam session.
                 </p>
@@ -466,7 +450,7 @@ const ExamQuestions = () => {
                   <span className="text-[11px] font-bold text-secondary-500 uppercase tracking-wider block">
                     Problems in Pool
                   </span>
-                  <span className="text-2xl font-black text-[#362E20] mt-0.5 block">
+                  <span className="text-2xl font-black text-[#16241F] mt-0.5 block">
                     {codingPoolCount}
                   </span>
                 </div>
@@ -576,13 +560,13 @@ const ExamQuestions = () => {
                     className="bg-white border border-secondary-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
                   >
                     <div className="flex items-start gap-3.5 flex-1 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-[#362E20] text-amber-300 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm">
+                      <div className="w-8 h-8 rounded-xl bg-[#16241F] text-amber-300 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm">
                         {index + 1}
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                          <h4 className="text-base font-bold text-[#362E20] truncate mr-2">
+                          <h4 className="text-base font-bold text-[#16241F] truncate mr-2">
                             {problem.title}
                           </h4>
                           <span className="px-2.5 py-0.5 text-xs font-bold bg-amber-100 text-amber-900 border border-amber-200 rounded-md">
@@ -595,9 +579,9 @@ const ExamQuestions = () => {
                           )}
                         </div>
 
-                        <div className="bg-secondary-50/50 p-3 rounded-lg mt-2 border border-secondary-100/50">
-                          <MarkdownViewer content={problem.description} className="text-xs" />
-                        </div>
+                        <p className="text-xs text-secondary-600 line-clamp-2 leading-relaxed">
+                          {problem.description}
+                        </p>
 
                         <div className="flex flex-wrap items-center gap-3 mt-3 text-[11px] text-secondary-500">
                           {problem.allowedLanguages && problem.allowedLanguages.length > 0 && (
@@ -737,7 +721,6 @@ const ExamQuestions = () => {
                 onCancel={() => { setActiveTab(null); setEditingQuestion(null); }}
                 isExamContext={true}
                 examId={examId}
-                isLoading={isSubmittingQuestion}
               />
             </div>
           )}
@@ -853,7 +836,6 @@ const ExamQuestions = () => {
             <AIGeneration
               examId={examId}
               stats={stats}
-              questions={questions}
               onGenerationSuccess={fetchExamData}
               onEdit={(q) => { setEditingQuestion(q); setActiveTab(null); scrollAppToTop(); }}
               onDelete={handleDelete}
@@ -922,8 +904,8 @@ const ExamQuestions = () => {
                             Mem: {cq.memoryLimitMb}MB
                           </span>
                         </div>
-                        <div className="bg-secondary-50 p-4 rounded-xl border border-secondary-100">
-                          <MarkdownViewer content={cq.description} />
+                        <div className="text-secondary-600 text-sm bg-secondary-50 p-3 rounded-xl border border-secondary-100 overflow-hidden line-clamp-2">
+                          {cq.description}
                         </div>
                       </div>
                     </div>

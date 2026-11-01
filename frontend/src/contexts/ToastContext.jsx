@@ -59,6 +59,19 @@ export const ToastProvider = ({ children }) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
+  // Show a message that was stored right before a full page redirect
+  // (e.g. "session ended" -> login page).
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('pendingToast');
+      if (raw) {
+        sessionStorage.removeItem('pendingToast');
+        const { message, type } = JSON.parse(raw);
+        if (message) showToast(message, type || 'info');
+      }
+    } catch (_) { /* ignore malformed value */ }
+  }, [showToast]);
+
   useEffect(() => {
     const handleGlobalToast = (e) => {
       showToast(e.detail.message, e.detail.type);
@@ -70,7 +83,7 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-[100] flex flex-col items-end gap-3 pointer-events-none" aria-live="polite" role="status">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}

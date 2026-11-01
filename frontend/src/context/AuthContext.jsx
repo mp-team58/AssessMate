@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react';
-import apiClient from '../services/apiClient';
+import apiClient, { clearApiCache } from '../services/apiClient';
 
 const AuthContext = createContext();
 
@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
   );
 
   const login = (accessToken, role, name, id) => {
+    clearApiCache();
     setUser({ role, name, id });
     if (accessToken) {
       setToken(accessToken);
@@ -30,6 +31,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('Logout failed on backend', err);
     } finally {
+      clearApiCache();
       setUser(null);
       setToken(null);
       localStorage.clear();

@@ -17,22 +17,46 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class Judge0Service {
 
-    @Value("${judge0.api.url}")
+    public static final int DEFAULT_CPU_TIME_LIMIT = 3;
+    public static final int MAX_CPU_TIME_LIMIT = 10;
+    public static final int MIN_CPU_TIME_LIMIT = 1;
+
+    public static final int DEFAULT_MEMORY_LIMIT_MB = 128;
+    public static final int MAX_MEMORY_LIMIT_MB = 256;
+    public static final int MIN_MEMORY_LIMIT_MB = 32;
+
+    public static final int MAX_SOURCE_CODE_SIZE = 65536; // 64 KB
+    public static final int MAX_INPUT_SIZE = 10240; // 10 KB
+    public static final int MAX_FILE_SIZE_KB = 1024; // 1 MB output limit
+
+    @Value("${judge0.api.url:https://ce.judge0.com}")
     private String apiUrl;
 
     @Value("${judge0.api.key:}")
     private String apiKey;
 
-    @Value("${judge0.connect-timeout-ms:30000}")
+    @Value("${judge0.auth-header:X-Auth-Token}")
+    private String authHeader;
+
+    @Value("${judge0.connect-timeout-ms:10000}")
     private long connectTimeoutMs;
 
-    @Value("${judge0.read-timeout-ms:60000}")
+    @Value("${judge0.read-timeout-ms:20000}")
     private long readTimeoutMs;
 
-    @Value("${judge0.write-timeout-ms:30000}")
+    @Value("${judge0.write-timeout-ms:10000}")
     private long writeTimeoutMs;
 
+    private OkHttpClient httpClient;
+
+    public void setHttpClient(OkHttpClient httpClient) {
+        this.httpClient = httpClient;
+    }
+
     private OkHttpClient getClient() {
+        if (this.httpClient != null) {
+            return this.httpClient;
+        }
         return new OkHttpClient.Builder()
             .connectTimeout(connectTimeoutMs, TimeUnit.MILLISECONDS)
             .readTimeout(readTimeoutMs, TimeUnit.MILLISECONDS)
@@ -41,11 +65,6 @@ public class Judge0Service {
     }
 
     private final Gson gson = new Gson();
-
-    // ─────────────────────────────────────────
-    // RUN CODE — sample test only
-    // Plain text mode, wait=true
-    // ─────────────────────────────────────────
 
     public RunCodeResponse runCode(
             String sourceCode,
@@ -56,6 +75,7 @@ public class Judge0Service {
             int memoryLimitMb) {
 
         validateSourceCodeSize(sourceCode);
+        validateInputSize(input);
 
         try {
             Judge0Result result = executeCode(
@@ -87,10 +107,6 @@ public class Judge0Service {
         }
     }
 
-    // ─────────────────────────────────────────
-    // SUBMIT CODE — all test cases
-    // ─────────────────────────────────────────
-
     public List<TestCaseResult> submitCode(
             String sourceCode,
             Language language,
@@ -100,6 +116,11 @@ public class Judge0Service {
             CodeSubmission submission) {
 
         validateSourceCodeSize(sourceCode);
+        if (testCases != null) {
+            for (TestCase tc : testCases) {
+                validateInputSize(tc.getInput());
+            }
+        }
 
         List<TestCaseResult> results = new ArrayList<>();
 
@@ -120,7 +141,6 @@ public class Judge0Service {
 
                 SubmissionStatus status;
                 if (result.getStatusId() == 3) {
-                    // Judge0 says Accepted, but we also verify output
                     status = actual.equals(expected)
                         ? SubmissionStatus.ACCEPTED
                         : SubmissionStatus.WRONG;
@@ -157,12 +177,6 @@ public class Judge0Service {
         return results;
     }
 
-    // ─────────────────────────────────────────
-    // CORE EXECUTION
-    // Plain text mode — no base64 guessing
-    // wait=true — no polling needed
-    // ─────────────────────────────────────────
-
     private Judge0Result executeCode(
             String sourceCode,
             Language language,
@@ -171,8 +185,15 @@ public class Judge0Service {
             int memoryLimitMb)
             throws IOException {
 
-        JsonObject body = new JsonObject();
+        if (language == null || language.getJudge0Id() <= 0) {
+            throw new BadRequestException("Unsupported or invalid programming language.");
+        }
 
+        // Enforce backend bounds - candidate/host request cannot exceed safe limits
+        int safeTimeLimit = Math.min(Math.max(timeLimitSeconds > 0 ? timeLimitSeconds : DEFAULT_CPU_TIME_LIMIT, MIN_CPU_TIME_LIMIT), MAX_CPU_TIME_LIMIT);
+        int safeMemoryMb = Math.min(Math.max(memoryLimitMb > 0 ? memoryLimitMb : DEFAULT_MEMORY_LIMIT_MB, MIN_MEMORY_LIMIT_MB), MAX_MEMORY_LIMIT_MB);
+
+        JsonObject body = new JsonObject();
         body.addProperty("source_code", sourceCode);
         body.addProperty("language_id", language.getJudge0Id());
 
@@ -180,8 +201,16 @@ public class Judge0Service {
             body.addProperty("stdin", input);
         }
 
-        body.addProperty("cpu_time_limit", timeLimitSeconds);
-        body.addProperty("memory_limit", memoryLimitMb * 1024);
+        // P6: Enforced Resource Limits
+        body.addProperty("cpu_time_limit", safeTimeLimit);
+        body.addProperty("wall_time_limit", safeTimeLimit * 2);
+        body.addProperty("cpu_extra_time", 1.0);
+        body.addProperty("memory_limit", safeMemoryMb * 1024);
+        body.addProperty("max_file_size", MAX_FILE_SIZE_KB);
+        body.addProperty("max_processes_and_or_threads", 60);
+
+        // P6: Explicit network isolation request
+        body.addProperty("enable_network", false);
 
         String url = apiUrl + "/submissions?wait=true";
 
@@ -192,8 +221,13 @@ public class Judge0Service {
                 MediaType.parse("application/json")));
 
         if (apiKey != null && !apiKey.trim().isEmpty()) {
-            reqBuilder.addHeader("X-RapidAPI-Key", apiKey);
-            reqBuilder.addHeader("X-RapidAPI-Host", "judge0-ce.p.rapidapi.com");
+            if (apiUrl != null && apiUrl.contains("rapidapi.com")) {
+                reqBuilder.addHeader("X-RapidAPI-Key", apiKey);
+                reqBuilder.addHeader("X-RapidAPI-Host", "judge0-ce.p.rapidapi.com");
+            } else {
+                String header = (authHeader != null && !authHeader.trim().isEmpty()) ? authHeader : "X-Auth-Token";
+                reqBuilder.addHeader(header, apiKey);
+            }
         }
 
         Request request = reqBuilder.build();
@@ -215,13 +249,7 @@ public class Judge0Service {
         }
     }
 
-    // ─────────────────────────────────────────
-    // PARSE RESPONSE
-    // Plain text mode — no base64 decoding
-    // ─────────────────────────────────────────
-
     private Judge0Result parseResult(JsonObject obj) {
-
         Judge0Result result = new Judge0Result();
 
         if (obj.has("status")
@@ -257,18 +285,13 @@ public class Judge0Service {
         return obj.get(field).getAsString();
     }
 
-    // ─────────────────────────────────────────
-    // STATUS MAPPING
-    // ─────────────────────────────────────────
-
     private String mapStatus(int statusId) {
         return switch (statusId) {
             case 3 -> "ACCEPTED";
             case 4 -> "WRONG";
             case 5 -> "TLE";
             case 6 -> "CE";
-            case 7, 8, 9, 10, 11, 12, 14 -> "RE";
-            case 13 -> "RE";
+            case 7, 8, 9, 10, 11, 12, 13, 14 -> "RE";
             default -> "RE";
         };
     }
@@ -293,16 +316,18 @@ public class Judge0Service {
         }
     }
 
-    // ─────────────────────────────────────────
-    // VALIDATION
-    // ─────────────────────────────────────────
-
     private void validateSourceCodeSize(String sourceCode) {
         if (sourceCode == null || sourceCode.trim().isEmpty()) {
             throw new BadRequestException("Source code cannot be empty.");
         }
-        if (sourceCode.length() > 65536) {
+        if (sourceCode.length() > MAX_SOURCE_CODE_SIZE) {
             throw new BadRequestException("Source code exceeds maximum allowed size of 64KB.");
+        }
+    }
+
+    private void validateInputSize(String input) {
+        if (input != null && input.length() > MAX_INPUT_SIZE) {
+            throw new BadRequestException("Input exceeds maximum allowed size of 10KB.");
         }
     }
 
@@ -316,4 +341,3 @@ public class Judge0Service {
         private Integer memory;
     }
 }
-

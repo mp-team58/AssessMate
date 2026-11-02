@@ -69,6 +69,7 @@ export default function LandingPage() {
   const token = localStorage.getItem("token");
   const role = localStorage.getItem("role");
   if (token) {
+    if (role === "ADMIN") return <Navigate to="/admin/dashboard" replace />;
     if (role === "HOST") return <Navigate to="/host/dashboard" replace />;
     if (role === "CANDIDATE") return <Navigate to="/candidate/dashboard" replace />;
   }

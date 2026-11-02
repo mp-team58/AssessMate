@@ -39,11 +39,12 @@ const UserProfile = () => {
   }, []);
 
   const displayUser = profile?.user || profile?.data || profile || authUser;
-  const isHost = (displayUser?.role || authUser?.role) === 'HOST';
-  const roleName = isHost ? 'Host' : 'Candidate';
-  const roleBadge = isHost ? 'HOST' : 'CANDIDATE';
+  const currentRole = displayUser?.role || authUser?.role || 'CANDIDATE';
+  const isHost = currentRole === 'HOST';
+  const roleName = currentRole === 'ADMIN' ? 'Administrator' : isHost ? 'Host' : 'Candidate';
+  const roleBadge = currentRole;
   const fullName = displayUser?.name || authUser?.name || `${roleName} User`;
-  const email = displayUser?.email || authUser?.email || (isHost ? 'host@assessmate.com' : 'candidate@assessmate.com');
+  const email = displayUser?.email || authUser?.email || (currentRole === 'ADMIN' ? 'admin@assessmate.com' : isHost ? 'host@assessmate.com' : 'candidate@assessmate.com');
   const userId = displayUser?.id || displayUser?._id || authUser?.id || authUser?._id || 'N/A';
 
   const rawCreatedAt = displayUser?.createdAt || profile?.createdAt;

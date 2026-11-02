@@ -40,7 +40,9 @@ const Login = () => {
       const { token, role: userRole, name, id } = response.data;
       login(token, userRole, name, id);
       // Navigate to respective dashboard based on role returned from backend
-      if (userRole === 'HOST') {
+      if (userRole === 'ADMIN') {
+        navigate('/admin/dashboard');
+      } else if (userRole === 'HOST') {
         navigate('/host/dashboard');
       } else if (userRole === 'CANDIDATE') {
         navigate('/candidate/dashboard');

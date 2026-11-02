@@ -13,6 +13,10 @@ const routeLoaders = {
   '/candidate/results': () => import('../pages/CandidateResults'),
   '/candidate/performance': () => import('../pages/CandidatePerformance'),
   '/candidate/join': () => import('../pages/JoinAssessment'),
+  '/admin/dashboard': () => import('../pages/admin/AdminDashboard'),
+  '/admin/users': () => import('../pages/admin/AdminUsers'),
+  '/admin/exams': () => import('../pages/admin/AdminExams'),
+  '/admin/activity': () => import('../pages/admin/AdminActivity'),
   '/profile': () => import('../pages/UserProfile'),
 };
 
@@ -37,9 +41,14 @@ export const prefetchRoute = (path) => {
  * Automatically prefetch commonly visited routes during idle time
  */
 export const prefetchCommonRoutes = (role) => {
-  const routes = role === 'HOST'
-    ? ['/host/my-exams', '/host/question-bank', '/host/create-exam', '/profile']
-    : ['/candidate/my-assessments', '/candidate/results', '/candidate/performance', '/profile'];
+  let routes = [];
+  if (role === 'HOST') {
+    routes = ['/host/my-exams', '/host/question-bank', '/host/create-exam', '/profile'];
+  } else if (role === 'ADMIN') {
+    routes = ['/admin/dashboard', '/admin/users', '/admin/exams', '/admin/activity'];
+  } else if (role === 'CANDIDATE') {
+    routes = ['/candidate/my-assessments', '/candidate/results', '/candidate/performance', '/profile'];
+  }
 
   const schedule = typeof window !== 'undefined' && window.requestIdleCallback 
     ? window.requestIdleCallback 

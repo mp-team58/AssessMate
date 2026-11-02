@@ -15,6 +15,7 @@ const ProtectedRoute = ({ allowedRole }) => {
 
   if (allowedRole && !roleAllowed) {
     // Redirect user to their respective dashboard if they try to access unauthorized routes
+    if (role === 'ADMIN') return <Navigate to="/admin/dashboard" replace />;
     if (role === 'HOST') return <Navigate to="/host/dashboard" replace />;
     if (role === 'CANDIDATE') return <Navigate to="/candidate/dashboard" replace />;
     

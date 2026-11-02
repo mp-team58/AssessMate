@@ -7,6 +7,10 @@ import { Navigate } from 'react-router-dom';
 export default function DynamicLayout() {
   const { user } = useAuth();
 
+  if (user?.role === 'ADMIN') {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
   if (user?.role === 'HOST') {
     return <DashboardLayout />;
   }

@@ -6,6 +6,7 @@ const NotFound = () => {
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('role');
   const dashboard =
+    token && role === 'ADMIN' ? '/admin/dashboard' :
     token && role === 'HOST' ? '/host/dashboard' :
     token && role === 'CANDIDATE' ? '/candidate/dashboard' : null;
 

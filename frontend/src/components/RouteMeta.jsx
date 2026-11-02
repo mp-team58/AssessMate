@@ -32,6 +32,15 @@ const META = [
   ['/candidate/join', 'Join an exam' + SUFFIX, 'Enter the join code from your host to start an exam.'],
   ['/candidate/result/:enrollmentId', 'Exam result' + SUFFIX, 'Your score, answer review and personalised feedback.'],
   ['/candidate/exam/:enrollmentId', 'Exam in progress' + SUFFIX, 'Your exam is in progress.'],
+
+  ['/admin', 'Admin Login' + SUFFIX, 'AssessMate System Administrator Sign In'],
+  ['/admin/dashboard', 'Admin Dashboard' + SUFFIX, 'System health, global assessment status, and user statistics.'],
+  ['/admin/users', 'User Management' + SUFFIX, 'Manage registered hosts, candidates, and administrators.'],
+  ['/admin/hosts', 'Hosts Directory' + SUFFIX, 'Browse and inspect registered exam hosts.'],
+  ['/admin/candidates', 'Candidates Directory' + SUFFIX, 'Browse and inspect registered exam candidates.'],
+  ['/admin/exams', 'Assessments Oversight' + SUFFIX, 'Monitor and suspend platform assessments.'],
+  ['/admin/activity', 'Audit Trail' + SUFFIX, 'Immutable record of administrative operations.'],
+  ['/admin/settings', 'Admin Governance' + SUFFIX, 'Delegate administrative roles and update security credentials.'],
 ];
 
 const NOT_FOUND = ['Page not found' + SUFFIX, 'The page you are looking for does not exist.'];

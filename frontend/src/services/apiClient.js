@@ -36,8 +36,10 @@ const redirectToLogin = (message) => {
   try {
     sessionStorage.setItem('pendingToast', JSON.stringify({ message, type: 'warning' }));
   } catch (_) { /* storage unavailable */ }
-  if (window.location.pathname !== '/login') {
-    window.location.href = '/login';
+  const isAdmin = window.location.pathname.startsWith('/admin');
+  const target = isAdmin ? '/admin' : '/login';
+  if (window.location.pathname !== target) {
+    window.location.href = target;
   }
 };
 
@@ -155,12 +157,14 @@ const createApiClient = (baseUrl) => {
         if (!isAuthEndpoint && (response.status === 401 || response.status === 403)) {
           const msg = (data && typeof data === 'object' && data.message) ? data.message : (typeof data === 'string' ? data : '');
           let redirectMessage = 'Your session has expired or is invalid. Please log in again.';
-          if (msg.includes('another device')) {
+          if (msg.includes('deactivated')) {
+            redirectMessage = msg;
+          } else if (msg.includes('another device')) {
             redirectMessage = 'Your session was ended because you logged in from another device.';
           } else if (response.status === 401) {
-            redirectMessage = 'Your session has expired. Please log in again.';
+            redirectMessage = msg || 'Your session has expired. Please log in again.';
           } else if (response.status === 403) {
-            redirectMessage = 'You do not have permission to do that, or your login session is invalid. Please log in again.';
+            redirectMessage = msg || 'You do not have permission to do that, or your login session is invalid. Please log in again.';
           }
           redirectToLogin(redirectMessage);
         }

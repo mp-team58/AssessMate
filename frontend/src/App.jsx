@@ -16,6 +16,9 @@ import RouteMeta from './components/RouteMeta';
 import { useLocation } from 'react-router-dom';
 import { scrollAppToTop } from './utils/scroll';
 
+import AdminProtectedRoute from './components/AdminProtectedRoute';
+import AdminLayout from './layouts/AdminLayout';
+
 const HostDashboard = React.lazy(() => import('./pages/HostDashboard'));
 const HostExamResults = React.lazy(() => import('./pages/HostExamResults'));
 const HostCandidateReport = React.lazy(() => import('./pages/HostCandidateReport'));
@@ -35,6 +38,15 @@ const UserProfile = React.lazy(() => import('./pages/UserProfile'));
 const JoinAssessment = React.lazy(() => import('./pages/JoinAssessment'));
 const ActiveExam = React.lazy(() => import('./pages/ActiveExam'));
 const ExamResult = React.lazy(() => import('./pages/ExamResult'));
+
+const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin'));
+const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminUsers = React.lazy(() => import('./pages/admin/AdminUsers'));
+const AdminHosts = React.lazy(() => import('./pages/admin/AdminHosts'));
+const AdminCandidates = React.lazy(() => import('./pages/admin/AdminCandidates'));
+const AdminExams = React.lazy(() => import('./pages/admin/AdminExams'));
+const AdminActivity = React.lazy(() => import('./pages/admin/AdminActivity'));
+const AdminSettings = React.lazy(() => import('./pages/admin/AdminSettings'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -59,55 +71,69 @@ function App() {
         <React.Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        
-        {/* Protected Routes (Role based protection) */}
-        <Route element={<ProtectedRoute allowedRole="HOST" />}>
-          <Route element={<DashboardLayout />}>
-            <Route path="/host/dashboard" element={<HostDashboard />} />
-            <Route path="/host/my-exams" element={<MyExams />} />
-            <Route path="/host/exams/:id/manage" element={<ManageExam />} />
-            <Route path="/host/exams/:id/results" element={<HostExamResults />} />
-            <Route path="/host/exams/:id/results/:enrollmentId" element={<HostCandidateReport />} />
-            <Route path="/host/exams/:id/proctoring" element={<HostProctoring />} />
-            <Route path="/host/exams/:id/live" element={<HostLiveMonitor />} />
-            <Route path="/host/create-exam" element={<CreateExam />} />
-            <Route path="/host/exams/:id/edit" element={<CreateExam />} />
-            <Route path="/host/generate-questions" element={<GenerateQuestions />} />
-            <Route path="/host/question-bank" element={<QuestionBank />} />
-            <Route path="/host/exams/:examId/questions" element={<ExamQuestions />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminLogin />} />
+          <Route element={<AdminProtectedRoute />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/hosts" element={<AdminHosts />} />
+              <Route path="/admin/candidates" element={<AdminCandidates />} />
+              <Route path="/admin/exams" element={<AdminExams />} />
+              <Route path="/admin/activity" element={<AdminActivity />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Candidate Routes with Layout matching Host Dashboard */}
-        <Route element={<ProtectedRoute allowedRole="CANDIDATE" />}>
-          <Route element={<CandidateLayout />}>
-          <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
-          <Route path="/candidate/my-assessments" element={<MyAssessments />} />
-          <Route path="/candidate/results" element={<CandidateResults />} />
-          <Route path="/candidate/performance" element={<CandidatePerformance />} />
-          <Route path="/candidate/profile" element={<Navigate to="/profile" replace />} />
-          <Route path="/candidate/join" element={<JoinAssessment />} />
-          <Route path="/candidate/result/:enrollmentId" element={<ExamResult />} />
+          {/* Protected Routes (Role based protection) */}
+          <Route element={<ProtectedRoute allowedRole="HOST" />}>
+            <Route element={<DashboardLayout />}>
+              <Route path="/host/dashboard" element={<HostDashboard />} />
+              <Route path="/host/my-exams" element={<MyExams />} />
+              <Route path="/host/exams/:id/manage" element={<ManageExam />} />
+              <Route path="/host/exams/:id/results" element={<HostExamResults />} />
+              <Route path="/host/exams/:id/results/:enrollmentId" element={<HostCandidateReport />} />
+              <Route path="/host/exams/:id/proctoring" element={<HostProctoring />} />
+              <Route path="/host/exams/:id/live" element={<HostLiveMonitor />} />
+              <Route path="/host/create-exam" element={<CreateExam />} />
+              <Route path="/host/exams/:id/edit" element={<CreateExam />} />
+              <Route path="/host/generate-questions" element={<GenerateQuestions />} />
+              <Route path="/host/question-bank" element={<QuestionBank />} />
+              <Route path="/host/exams/:examId/questions" element={<ExamQuestions />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Active Exam is full-screen dedicated examination room */}
-        <Route element={<ProtectedRoute allowedRole="CANDIDATE" />}>
-          <Route path="/candidate/exam/:enrollmentId" element={<ActiveExam />} />
-        </Route>
-
-        {/* Shared Profile Route */}
-        <Route element={<ProtectedRoute allowedRole={['HOST', 'CANDIDATE']} />}>
-          <Route element={<DynamicLayout />}>
-            <Route path="/profile" element={<UserProfile />} />
+          {/* Candidate Routes with Layout matching Host Dashboard */}
+          <Route element={<ProtectedRoute allowedRole="CANDIDATE" />}>
+            <Route element={<CandidateLayout />}>
+              <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
+              <Route path="/candidate/my-assessments" element={<MyAssessments />} />
+              <Route path="/candidate/results" element={<CandidateResults />} />
+              <Route path="/candidate/performance" element={<CandidatePerformance />} />
+              <Route path="/candidate/profile" element={<Navigate to="/profile" replace />} />
+              <Route path="/candidate/join" element={<JoinAssessment />} />
+              <Route path="/candidate/result/:enrollmentId" element={<ExamResult />} />
+            </Route>
           </Route>
-        </Route>
 
-        {/* Anything that doesn't match above */}
-        <Route path="*" element={<NotFound />} />
+          {/* Active Exam is full-screen dedicated examination room */}
+          <Route element={<ProtectedRoute allowedRole="CANDIDATE" />}>
+            <Route path="/candidate/exam/:enrollmentId" element={<ActiveExam />} />
+          </Route>
+
+          {/* Shared Profile Route */}
+          <Route element={<ProtectedRoute allowedRole={['HOST', 'CANDIDATE', 'ADMIN']} />}>
+            <Route element={<DynamicLayout />}>
+              <Route path="/profile" element={<UserProfile />} />
+            </Route>
+          </Route>
+
+          {/* Anything that doesn't match above */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
         </React.Suspense>
       </ToastProvider>

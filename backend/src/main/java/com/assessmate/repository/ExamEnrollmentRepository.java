@@ -13,9 +13,13 @@ import java.util.List;
 public interface ExamEnrollmentRepository extends JpaRepository<ExamEnrollment, Long> {
     Optional<ExamEnrollment> findByExamAndCandidate(Exam exam, User candidate);
     List<ExamEnrollment> findByExamId(Long examId);
+    List<ExamEnrollment> findByExamIdAndStatus(Long examId, com.assessmate.entity.EnrollmentStatus status);
     List<ExamEnrollment> findByExamIdIn(List<Long> examIds);
     long countByExamId(Long examId);
     long countByExamIdAndStatus(Long examId, com.assessmate.entity.EnrollmentStatus status);
+    boolean existsByCandidateIdAndStatus(Long candidateId, com.assessmate.entity.EnrollmentStatus status);
+    long countByCandidateId(Long candidateId);
+    long countByCandidateIdAndStatus(Long candidateId, com.assessmate.entity.EnrollmentStatus status);
     
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"exam"})
     java.util.List<ExamEnrollment> findByCandidateIdOrderByJoinedAtDesc(Long candidateId);

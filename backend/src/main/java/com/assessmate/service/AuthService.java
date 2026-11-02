@@ -28,6 +28,7 @@ public class AuthService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final AdminAuditService auditService;
 
     @Value("${app.otp.expiry-minutes:10}")
     private int otpExpiryMinutes;
@@ -42,11 +43,15 @@ public class AuthService {
     public void requestRegisterOtp(RegisterRequest req) {
         String email = req.getEmail().trim().toLowerCase(Locale.ROOT);
 
+        // Security check: strictly whitelist registration roles. Public registration can never create ADMIN.
+        if (req.getRole() == null || 
+            (!req.getRole().equalsIgnoreCase("HOST") && !req.getRole().equalsIgnoreCase("CANDIDATE"))) {
+            throw new BadRequestException("Invalid role. Registration is only permitted for HOST or CANDIDATE.");
+        }
+
         if (userRepository.existsByEmail(email)) {
             throw new BadRequestException("Email already registered");
         }
-
-
 
         checkCooldown(email, OtpPurpose.REGISTER);
 
@@ -65,7 +70,7 @@ public class AuthService {
                 .createdAt(LocalDateTime.now())
                 .pendingName(req.getName())
                 .pendingPasswordHash(passwordEncoder.encode(req.getPassword()))
-                .pendingRole(Role.valueOf(req.getRole().toUpperCase()))
+                .pendingRole(Role.valueOf(req.getRole().toUpperCase(Locale.ROOT)))
                 .build();
 
         otpRepository.save(otpVerification);
@@ -90,6 +95,9 @@ public class AuthService {
                 .email(email)
                 .password(otpVerification.getPendingPasswordHash())
                 .role(otpVerification.getPendingRole())
+                .status(AccountStatus.ACTIVE)
+                .mustChangePassword(false)
+                .tokenVersion(1L)
                 .build();
 
         userRepository.save(user);
@@ -100,7 +108,7 @@ public class AuthService {
         user.setActiveToken(token);
         userRepository.save(user);
 
-        return new AuthResponse(token, user.getRole().name(), user.getName(), user.getId());
+        return new AuthResponse(token, user.getRole().name(), user.getName(), user.getId(), false);
     }
 
     @Transactional
@@ -109,6 +117,12 @@ public class AuthService {
 
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
+            return;
+        }
+
+        User user = userOpt.get();
+        if (user.getStatus() == AccountStatus.DELETED || user.getStatus() == AccountStatus.DEACTIVATED) {
+            // Return quietly without revealing existence or status
             return;
         }
 
@@ -140,6 +154,10 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadRequestException("If an account exists for this email, a verification code has been sent."));
 
+        if (user.getStatus() == AccountStatus.DELETED || user.getStatus() == AccountStatus.DEACTIVATED) {
+            throw new BadRequestException("If an account exists for this email, a verification code has been sent.");
+        }
+
         OtpVerification otpVerification = otpRepository.findByEmailAndPurpose(email, OtpPurpose.FORGOT_PASSWORD)
                 .orElseThrow(() -> new BadRequestException("Verification code has expired. Please request a new code."));
 
@@ -147,6 +165,8 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         user.setActiveToken(null);
+        Long currentVersion = user.getTokenVersion() != null ? user.getTokenVersion() : 1L;
+        user.setTokenVersion(currentVersion + 1);
         userRepository.save(user);
 
         otpRepository.delete(otpVerification);
@@ -166,10 +186,28 @@ public class AuthService {
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new BadRequestException("Invalid email or password"));
 
+            // 1. Admin portal validation: if portal=ADMIN, only ADMIN can authenticate
+            if (req.getPortal() != null && req.getPortal().equalsIgnoreCase("ADMIN")) {
+                if (user.getRole() != Role.ADMIN) {
+                    throw new BadRequestException("Invalid email or password");
+                }
+            }
+
+            // 2. Account status validation
+            if (user.getStatus() == AccountStatus.DELETED) {
+                throw new BadRequestException("Invalid email or password");
+            }
+
+            if (user.getStatus() == AccountStatus.DEACTIVATED) {
+                throw new BadRequestException("Your account has been deactivated. Please contact support.");
+            }
+
+            // 3. Password match
             if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
                 throw new BadRequestException("Invalid email or password");
             }
 
+            // 4. Role mismatch check for standard login
             if (req.getRole() != null && !req.getRole().isEmpty()) {
                 if (!user.getRole().name().equalsIgnoreCase(req.getRole())) {
                     throw new BadRequestException("This account is registered as " + user.getRole().name() + ". Please select the correct role.");
@@ -185,16 +223,27 @@ public class AuthService {
             user.setActiveToken(token);
             userRepository.save(user);
 
-            return new AuthResponse(token, user.getRole().name(), user.getName(), user.getId());
+            // Audit admin login
+            if (user.getRole() == Role.ADMIN) {
+                auditService.logAction(
+                        user.getId(),
+                        user.getEmail(),
+                        "ADMIN_LOGIN",
+                        "AUTH",
+                        user.getId().toString(),
+                        String.format("{\"portal\":\"%s\"}", req.getPortal() != null ? req.getPortal() : "DEFAULT"),
+                        clientIp
+                );
+            }
+
+            return new AuthResponse(token, user.getRole().name(), user.getName(), user.getId(), user.getMustChangePassword());
 
         } catch (BadRequestException ex) {
-            // Record failed attempt for client IP and normalized email
             loginRateLimiterService.onLoginFailure(clientIp, email);
             throw ex;
         }
     }
 
-    
     @Transactional
     public void changePassword(String email, com.assessmate.dto.ChangePasswordRequest request) {
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
@@ -205,7 +254,12 @@ public class AuthService {
             throw new BadRequestException("Current password does not match");
         }
 
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BadRequestException("New password cannot be the same as your current password.");
+        }
+
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
         Long currentVersion = user.getTokenVersion() != null ? user.getTokenVersion() : 1L;
         user.setTokenVersion(currentVersion + 1);
         user.setActiveToken(null);
@@ -219,6 +273,18 @@ public class AuthService {
 
         user.setActiveToken(null);
         userRepository.save(user);
+
+        if (user.getRole() == Role.ADMIN) {
+            auditService.logAction(
+                    user.getId(),
+                    user.getEmail(),
+                    "ADMIN_LOGOUT",
+                    "AUTH",
+                    user.getId().toString(),
+                    "{}",
+                    "127.0.0.1"
+            );
+        }
     }
 
     public ProfileResponse getMyProfile(java.security.Principal principal) {

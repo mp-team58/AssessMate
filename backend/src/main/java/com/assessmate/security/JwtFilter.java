@@ -1,5 +1,7 @@
 package com.assessmate.security;
 
+import com.assessmate.entity.AccountStatus;
+import com.assessmate.entity.Role;
 import com.assessmate.entity.User;
 import com.assessmate.repository.UserRepository;
 import io.jsonwebtoken.Claims;
@@ -87,7 +89,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 }
             }
 
-            // 2. Fetch user to verify account existence and current token version
+            // 2. Fetch user to verify account existence and status
             Optional<User> userOpt = userRepository.findByEmail(email);
             if (userOpt.isEmpty()) {
                 sendUnauthorized(response, "User not found.");
@@ -95,6 +97,17 @@ public class JwtFilter extends OncePerRequestFilter {
             }
 
             User user = userOpt.get();
+
+            // Check account status
+            if (user.getStatus() == AccountStatus.DEACTIVATED) {
+                sendUnauthorized(response, "Your account has been deactivated. Please contact support.");
+                return;
+            }
+            if (user.getStatus() == AccountStatus.DELETED) {
+                sendUnauthorized(response, "User not found.");
+                return;
+            }
+
             Long expectedVersion = user.getTokenVersion() != null ? user.getTokenVersion() : 1L;
 
             // 3. Extract tokenVersion claim from JWT
@@ -116,7 +129,22 @@ public class JwtFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // 6. Set Authentication in SecurityContext
+            // 6. Admin mustChangePassword enforcement: lock down everything except password change and profile
+            if (user.getRole() == Role.ADMIN && Boolean.TRUE.equals(user.getMustChangePassword())) {
+                String uri = request.getRequestURI();
+                boolean isPasswordChangeEndpoint = uri != null && (
+                        uri.endsWith("/auth/change-password") ||
+                        uri.endsWith("/auth/profile") ||
+                        uri.endsWith("/auth/me") ||
+                        uri.endsWith("/auth/logout")
+                );
+                if (!isPasswordChangeEndpoint) {
+                    sendForbidden(response, "Password change required. You must change your temporary password before accessing administrative features.");
+                    return;
+                }
+            }
+
+            // 7. Set Authentication in SecurityContext
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
                 UsernamePasswordAuthenticationToken authToken =
@@ -138,6 +166,16 @@ public class JwtFilter extends OncePerRequestFilter {
         response.setCharacterEncoding("UTF-8");
         response.getWriter().write(String.format(
             "{\"status\": 401, \"error\": \"Unauthorized\", \"message\": \"%s\"}",
+            message
+        ));
+    }
+
+    private void sendForbidden(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(String.format(
+            "{\"status\": 403, \"error\": \"Forbidden\", \"message\": \"%s\"}",
             message
         ));
     }

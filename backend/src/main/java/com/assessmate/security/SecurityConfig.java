@@ -67,6 +67,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/coding/languages").permitAll()
                 .requestMatchers("/uploads/questions/**").permitAll()
                 .requestMatchers("/uploads/proctoring/**", "/api/proctoring/evidence/**").authenticated()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/exams/*/coding/candidate").hasRole("CANDIDATE")
                 .requestMatchers("/api/exams/**", "/api/exams", "/api/questions/**", "/api/coding/bank/**", "/api/coding/bank", "/api/analytics/**").hasRole("HOST")
                 .requestMatchers("/api/candidate/**").hasRole("CANDIDATE")
@@ -120,11 +121,10 @@ public class SecurityConfig {
                 "Access-Control-Request-Headers"
         ));
         config.setExposedHeaders(List.of(
-                "Authorization",
                 "Retry-After",
                 "Content-Disposition"
         ));
-        config.setMaxAge(3600L); // 1 hour preflight cache
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

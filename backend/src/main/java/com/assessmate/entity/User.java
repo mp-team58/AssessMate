@@ -30,12 +30,43 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    @Builder.Default
+    private AccountStatus status = AccountStatus.ACTIVE;
+
+    public AccountStatus getStatus() {
+        return status != null ? status : AccountStatus.ACTIVE;
+    }
+
+    @Column
+    private LocalDateTime deletedAt;
+
+    @Column(length = 255)
+    private String deletedBy;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean mustChangePassword = false;
+
+    public Boolean getMustChangePassword() {
+        return mustChangePassword != null && mustChangePassword;
+    }
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
     public void prePersist() {
-        createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (status == null) {
+            status = AccountStatus.ACTIVE;
+        }
+        if (mustChangePassword == null) {
+            mustChangePassword = false;
+        }
     }
 
     @Column(length = 512)
@@ -48,7 +79,4 @@ public class User {
     public Long getTokenVersion() {
         return tokenVersion != null ? tokenVersion : 1L;
     }
-// stores current valid JWT token
-// replaced on every new login
-// null = user is logged out
 }

@@ -2,5 +2,6 @@ package com.assessmate.entity;
 
 public enum Role {
     HOST,
-    CANDIDATE
+    CANDIDATE,
+    ADMIN
 }

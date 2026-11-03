@@ -15,8 +15,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -228,6 +230,102 @@ class AdminSecurityHttpMockMvcTest {
         mockMvc.perform(delete("/api/admin/users/999")
                         .header("Authorization", "Bearer " + candidateToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/auth/profile updates name for CANDIDATE successfully")
+    void testCandidateCanUpdateOwnName() throws Exception {
+        String payload = "{\"name\":\"Updated Candidate Name\"}";
+        mockMvc.perform(patch("/api/auth/profile")
+                        .header("Authorization", "Bearer " + candidateToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated Candidate Name"))
+                .andExpect(jsonPath("$.email").value(candidateUser.getEmail()))
+                .andExpect(jsonPath("$.role").value("CANDIDATE"));
+
+        User refreshed = userRepository.findById(candidateUser.getId()).orElseThrow();
+        assertEquals("Updated Candidate Name", refreshed.getName());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/auth/profile updates name for HOST successfully")
+    void testHostCanUpdateOwnName() throws Exception {
+        String payload = "{\"name\":\"Updated Host Name\"}";
+        mockMvc.perform(patch("/api/auth/profile")
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated Host Name"))
+                .andExpect(jsonPath("$.email").value(hostUser.getEmail()))
+                .andExpect(jsonPath("$.role").value("HOST"));
+
+        User refreshed = userRepository.findById(hostUser.getId()).orElseThrow();
+        assertEquals("Updated Host Name", refreshed.getName());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/auth/profile updates name for ADMIN successfully")
+    void testAdminCanUpdateOwnName() throws Exception {
+        String payload = "{\"name\":\"Updated Admin Master\"}";
+        mockMvc.perform(patch("/api/auth/profile")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated Admin Master"))
+                .andExpect(jsonPath("$.email").value(adminUser.getEmail()))
+                .andExpect(jsonPath("$.role").value("ADMIN"));
+
+        User refreshed = userRepository.findById(adminUser.getId()).orElseThrow();
+        assertEquals("Updated Admin Master", refreshed.getName());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/auth/profile rejects blank or invalid names with 400 Bad Request")
+    void testProfileUpdateRejectsBlankName() throws Exception {
+        String blankPayload = "{\"name\":\"   \"}";
+        mockMvc.perform(patch("/api/auth/profile")
+                        .header("Authorization", "Bearer " + candidateToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(blankPayload))
+                .andExpect(status().isBadRequest());
+
+        String shortPayload = "{\"name\":\"A\"}";
+        mockMvc.perform(patch("/api/auth/profile")
+                        .header("Authorization", "Bearer " + candidateToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(shortPayload))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/auth/profile requires authentication (401 Unauthorized for anonymous)")
+    void testProfileUpdateRequiresAuth() throws Exception {
+        String payload = "{\"name\":\"Intruder Name\"}";
+        mockMvc.perform(patch("/api/auth/profile")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/change-password with wrong current password returns 400 Bad Request")
+    void testChangePasswordWithWrongCurrentPasswordReturns400() throws Exception {
+        String payload = """
+            {
+                "currentPassword": "WrongPassword123!",
+                "newPassword": "BrandNewPassword789!"
+            }
+        """;
+        mockMvc.perform(post("/api/auth/change-password")
+                        .header("Authorization", "Bearer " + candidateToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Current password does not match"));
     }
 }
 

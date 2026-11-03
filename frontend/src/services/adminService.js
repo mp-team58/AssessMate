@@ -66,6 +66,23 @@ export const adminService = {
 
   createAdmin: (data) => apiClient.post('/admin/admins', data),
 
+  resendInvitation: (adminId) => apiClient.post(`/admin/admins/${adminId}/resend-invitation`),
+
+  deleteAdmin: (adminId, currentPassword) => {
+    const encoded = encodeURIComponent(currentPassword);
+    return apiClient.delete(`/admin/admins/${adminId}?currentPassword=${encoded}`, {
+      data: { currentPassword },
+      body: JSON.stringify({ currentPassword })
+    });
+  },
+
+  getSecurityStatus: () => apiClient.get('/admin/security-status'),
+
+  validateInvitation: (token) =>
+    apiClient.get(`/auth/admin/invitation/validate?token=${encodeURIComponent(token)}`),
+
+  setupPassword: (data) => apiClient.post('/auth/admin/setup-password', data),
+
   deleteUser: (id) => apiClient.delete(`/admin/users/${id}`),
 
   getActivityLogs: (params = {}) => {

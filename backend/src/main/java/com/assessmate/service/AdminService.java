@@ -1,5 +1,9 @@
 package com.assessmate.service;
 
+import com.assessmate.repository.AdminInvitationRepository;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.HexFormat;
+
 import com.assessmate.dto.*;
 import com.assessmate.entity.*;
 import com.assessmate.exception.BadRequestException;
@@ -42,6 +46,18 @@ public class AdminService {
     private final OtpVerificationRepository otpRepository;
     private final PasswordEncoder passwordEncoder;
     private final ExamSubmissionService examSubmissionService;
+    private final AdminInvitationRepository adminInvitationRepository;
+    private final EmailService emailService;
+
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
+    @Value("${ADMIN_EMERGENCY_RECOVERY_KEY:}")
+    private String emergencyRecoveryKey;
+
+    @Value("${ADMIN_EMERGENCY_RECOVERY_ENABLED:false}")
+    private boolean emergencyRecoveryEnabledProperty;
+
 
     public AdminDashboardStatsResponse getDashboardStats() {
         long totalUsers = userRepository.count();
@@ -326,30 +342,44 @@ public class AdminService {
             throw new BadRequestException("An account with this email already exists.");
         }
 
-        String temporaryPassword = generateSecurePassword();
-
         User newAdmin = User.builder()
                 .name(request.getName().trim())
                 .email(email)
-                .password(passwordEncoder.encode(temporaryPassword))
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                 .role(Role.ADMIN)
-                .status(AccountStatus.ACTIVE)
-                .mustChangePassword(true)
+                .status(AccountStatus.PENDING_INVITATION)
+                .mustChangePassword(false)
                 .tokenVersion(1L)
                 .createdAt(LocalDateTime.now())
                 .build();
 
         User saved = userRepository.save(newAdmin);
 
+        String rawToken = generateSecureToken();
+        String tokenHash = hashToken(rawToken);
+
+        adminInvitationRepository.deleteByEmail(email);
+        AdminInvitation invitation = AdminInvitation.builder()
+                .email(email)
+                .tokenHash(tokenHash)
+                .expiresAt(LocalDateTime.now().plusMinutes(30))
+                .createdAt(LocalDateTime.now())
+                .createdBy(adminEmail)
+                .build();
+        adminInvitationRepository.save(invitation);
+
+        String setupUrl = (frontendUrl != null && !frontendUrl.isEmpty() ? frontendUrl : "http://localhost:5173") + "/admin/setup-password?token=" + rawToken;
+        boolean emailDelivered = emailService.sendAdminInvitation(email, saved.getName(), setupUrl);
+
         User admin = userRepository.findByEmail(adminEmail).orElse(null);
         Long adminId = admin != null ? admin.getId() : null;
         auditService.logAction(
                 adminId,
                 adminEmail,
-                "ADMIN_CREATE",
+                "ADMIN_INVITATION_CREATE",
                 "USER",
                 saved.getId().toString(),
-                String.format("{\"newAdminEmail\":\"%s\"}", AdminAuditService.maskEmail(email)),
+                String.format("{\"newAdminEmail\":\"%s\", \"emailDelivered\":%b}", AdminAuditService.maskEmail(email), emailDelivered),
                 clientIp
         );
 
@@ -357,10 +387,283 @@ public class AdminService {
                 .id(saved.getId())
                 .name(saved.getName())
                 .email(saved.getEmail())
-                .temporaryPassword(temporaryPassword)
-                .message("Administrator account created successfully. The user must change their password upon initial login.")
+                .invitationSent(true)
+                .emailDelivered(emailDelivered)
+                .deliveryStatus(emailDelivered ? "DELIVERED" : (emailService.isMailConfigured() ? "FAILED" : "SMTP_NOT_CONFIGURED"))
+                .message(emailDelivered
+                        ? "Administrator invitation email sent successfully. The user must complete password setup within 30 minutes."
+                        : "Administrator account provisioned, but invitation email could not be delivered. Please verify SMTP settings or resend.")
                 .build();
     }
+
+    public static String hashToken(String rawToken) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(rawToken.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (Exception e) {
+            throw new RuntimeException("SHA-256 hashing failed", e);
+        }
+    }
+
+    private String generateSecureToken() {
+        byte[] bytes = new byte[32];
+        new SecureRandom().nextBytes(bytes);
+        return HexFormat.of().formatHex(bytes);
+    }
+
+    @Transactional
+    public Map<String, Object> resendInvitation(Long adminId, String adminEmail, String clientIp) {
+        User targetAdmin = userRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException("Administrator not found"));
+
+        if (targetAdmin.getRole() != Role.ADMIN) {
+            throw new BadRequestException("Target user is not an administrator.");
+        }
+
+        if (targetAdmin.getStatus() != AccountStatus.PENDING_INVITATION) {
+            throw new BadRequestException("Invitation can only be sent for pending administrator accounts.");
+        }
+
+        // Rate limit: 60s cooldown
+        Optional<AdminInvitation> lastInv = adminInvitationRepository.findTopByEmailOrderByCreatedAtDesc(targetAdmin.getEmail());
+        if (lastInv.isPresent() && lastInv.get().getCreatedAt().plusSeconds(60).isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("Please wait 60 seconds before requesting another invitation.");
+        }
+
+        adminInvitationRepository.deleteByEmail(targetAdmin.getEmail());
+
+        String rawToken = generateSecureToken();
+        String tokenHash = hashToken(rawToken);
+
+        AdminInvitation invitation = AdminInvitation.builder()
+                .email(targetAdmin.getEmail())
+                .tokenHash(tokenHash)
+                .expiresAt(LocalDateTime.now().plusMinutes(30))
+                .createdAt(LocalDateTime.now())
+                .createdBy(adminEmail)
+                .build();
+        adminInvitationRepository.save(invitation);
+
+        String setupUrl = (frontendUrl != null && !frontendUrl.isEmpty() ? frontendUrl : "http://localhost:5173") + "/admin/setup-password?token=" + rawToken;
+        boolean emailDelivered = emailService.sendAdminInvitation(targetAdmin.getEmail(), targetAdmin.getName(), setupUrl);
+
+        User admin = userRepository.findByEmail(adminEmail).orElse(null);
+        Long adminIdVal = admin != null ? admin.getId() : null;
+        auditService.logAction(
+                adminIdVal,
+                adminEmail,
+                "ADMIN_INVITATION_RESEND",
+                "USER",
+                targetAdmin.getId().toString(),
+                String.format("{\"targetEmail\":\"%s\", \"emailDelivered\":%b}", AdminAuditService.maskEmail(targetAdmin.getEmail()), emailDelivered),
+                clientIp
+        );
+
+        return Map.of(
+                "message", emailDelivered ? "Invitation email resent successfully." : "Invitation re-generated, but email delivery failed.",
+                "emailDelivered", emailDelivered
+        );
+    }
+
+    public Map<String, Object> validateInvitationToken(String rawToken) {
+        if (rawToken == null || rawToken.trim().isEmpty()) {
+            throw new BadRequestException("Invitation token is required.");
+        }
+
+        String tokenHash = hashToken(rawToken.trim());
+        AdminInvitation invitation = adminInvitationRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> new BadRequestException("Invitation link is invalid or has already been used."));
+
+        if (invitation.isUsed()) {
+            throw new BadRequestException("This invitation link has already been used. Please log in or request a new invitation.");
+        }
+
+        if (invitation.isExpired()) {
+            throw new BadRequestException("This invitation link has expired. Please contact an administrator to resend your invitation.");
+        }
+
+        User user = userRepository.findByEmail(invitation.getEmail())
+                .orElseThrow(() -> new BadRequestException("Associated administrator account was not found."));
+
+        if (user.getStatus() != AccountStatus.PENDING_INVITATION && user.getStatus() != AccountStatus.ACTIVE) {
+            throw new BadRequestException("This account is not eligible for password setup.");
+        }
+
+        return Map.of(
+                "valid", true,
+                "email", invitation.getEmail(),
+                "name", user.getName()
+        );
+    }
+
+    @Transactional
+    public Map<String, String> setupAdminPassword(AdminSetupPasswordRequest req, String clientIp) {
+        String tokenHash = hashToken(req.getToken().trim());
+        AdminInvitation invitation = adminInvitationRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> new BadRequestException("Invitation link is invalid or has already been used."));
+
+        if (invitation.isUsed()) {
+            throw new BadRequestException("This invitation link has already been used. Please log in.");
+        }
+
+        if (invitation.isExpired()) {
+            throw new BadRequestException("This invitation link has expired. Please request a new invitation.");
+        }
+
+        User user = userRepository.findByEmail(invitation.getEmail())
+                .orElseThrow(() -> new BadRequestException("Associated administrator account not found."));
+
+        if (user.getStatus() == AccountStatus.DELETED || user.getStatus() == AccountStatus.DEACTIVATED) {
+            throw new BadRequestException("This administrator account has been disabled.");
+        }
+
+        user.setPassword(passwordEncoder.encode(req.getNewPassword()));
+        user.setStatus(AccountStatus.ACTIVE);
+        user.setMustChangePassword(false);
+        user.setActiveToken(null);
+        user.setTokenVersion((user.getTokenVersion() != null ? user.getTokenVersion() : 1L) + 1);
+        userRepository.save(user);
+
+        invitation.setUsedAt(LocalDateTime.now());
+        adminInvitationRepository.save(invitation);
+
+        auditService.logAction(
+                user.getId(),
+                user.getEmail(),
+                "ADMIN_INVITATION_ACCEPT",
+                "USER",
+                user.getId().toString(),
+                "{\"status\":\"ACTIVE\"}",
+                clientIp
+        );
+
+        return Map.of("message", "Password created successfully. You may now log in as an administrator.");
+    }
+
+    @Transactional
+    public Map<String, String> deleteAdmin(Long adminId, AdminDeleteRequest request, String actingAdminEmail, String clientIp) {
+        User actingAdmin = userRepository.findByEmail(actingAdminEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Acting administrator not found"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), actingAdmin.getPassword())) {
+            throw new BadRequestException("Incorrect password. Deletion verification failed.");
+        }
+
+        User targetAdmin = userRepository.findById(adminId)
+                .orElseThrow(() -> new ResourceNotFoundException("Target administrator not found"));
+
+        if (targetAdmin.getRole() != Role.ADMIN) {
+            throw new BadRequestException("Target account is not an administrator.");
+        }
+
+        if (actingAdmin.getId().equals(targetAdmin.getId()) || actingAdmin.getEmail().equalsIgnoreCase(targetAdmin.getEmail())) {
+            throw new BadRequestException("You cannot delete your own administrator account.");
+        }
+
+        if (targetAdmin.getStatus() == AccountStatus.DELETED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Account is already deleted.");
+        }
+
+        long activeAdmins = userRepository.countByRoleAndStatus(Role.ADMIN, AccountStatus.ACTIVE);
+        if (activeAdmins <= 1 && targetAdmin.getStatus() == AccountStatus.ACTIVE) {
+            throw new BadRequestException("Cannot delete the last active administrator.");
+        }
+
+        String originalEmail = targetAdmin.getEmail();
+
+        targetAdmin.setStatus(AccountStatus.DELETED);
+        targetAdmin.setDeletedAt(LocalDateTime.now());
+        targetAdmin.setDeletedBy(actingAdminEmail);
+        targetAdmin.setEmail("deleted-admin-" + targetAdmin.getId() + "@deleted.invalid");
+        targetAdmin.setName("Deleted Administrator");
+        targetAdmin.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        targetAdmin.setActiveToken(null);
+        targetAdmin.setTokenVersion((targetAdmin.getTokenVersion() != null ? targetAdmin.getTokenVersion() : 1L) + 1);
+        userRepository.save(targetAdmin);
+
+        adminInvitationRepository.deleteByEmail(originalEmail);
+
+        auditService.logAction(
+                actingAdmin.getId(),
+                actingAdminEmail,
+                "ADMIN_DELETE",
+                "USER",
+                adminId.toString(),
+                String.format("{\"targetEmail\":\"%s\"}", AdminAuditService.maskEmail(originalEmail)),
+                clientIp
+        );
+
+        return Map.of("message", "Administrator account successfully deleted and anonymized.");
+    }
+
+    public AdminSecurityStatusResponse getAdminSecurityStatus() {
+        long totalActiveAdmins = userRepository.countByRoleAndStatus(Role.ADMIN, AccountStatus.ACTIVE);
+        boolean singleActiveAdminWarning = totalActiveAdmins <= 1;
+        boolean emergencyConfigured = emergencyRecoveryKey != null && !emergencyRecoveryKey.trim().isEmpty();
+        boolean emergencyEnabled = emergencyRecoveryEnabledProperty && emergencyConfigured;
+
+        String lastRecoveryEvent = null;
+        LocalDateTime lastRecoveryTimestamp = null;
+        List<AdminAuditLog> logs = auditLogRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 10)).getContent();
+        for (AdminAuditLog l : logs) {
+            if ("ADMIN_EMERGENCY_RECOVERY".equals(l.getAction()) || "ADMIN_STATUS_CHANGE".equals(l.getAction())) {
+                lastRecoveryEvent = l.getAction() + " on " + l.getTargetType() + " #" + l.getTargetId();
+                lastRecoveryTimestamp = l.getCreatedAt();
+                break;
+            }
+        }
+
+        return AdminSecurityStatusResponse.builder()
+                .totalActiveAdmins(totalActiveAdmins)
+                .singleActiveAdminWarning(singleActiveAdminWarning)
+                .emergencyRecoveryConfigured(emergencyConfigured)
+                .emergencyRecoveryEnabled(emergencyEnabled)
+                .lastRecoveryEvent(lastRecoveryEvent)
+                .lastRecoveryTimestamp(lastRecoveryTimestamp)
+                .build();
+    }
+
+    @Transactional
+    public Map<String, String> emergencyRecoverAdmin(EmergencyRecoveryRequest request, String clientIp) {
+        if (!emergencyRecoveryEnabledProperty) {
+            throw new BadRequestException("Emergency recovery is currently disabled on this system.");
+        }
+
+        if (emergencyRecoveryKey == null || emergencyRecoveryKey.trim().isEmpty() || !emergencyRecoveryKey.equals(request.getRecoverySecret())) {
+            throw new BadRequestException("Invalid emergency recovery authorization secret.");
+        }
+
+        String email = request.getAdminEmail().trim().toLowerCase(Locale.ROOT);
+        User targetAdmin = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Administrator account not found."));
+
+        if (targetAdmin.getRole() != Role.ADMIN) {
+            throw new BadRequestException("Target account is not an administrator.");
+        }
+
+        targetAdmin.setStatus(AccountStatus.ACTIVE);
+        targetAdmin.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        targetAdmin.setMustChangePassword(true);
+        targetAdmin.setActiveToken(null);
+        targetAdmin.setTokenVersion((targetAdmin.getTokenVersion() != null ? targetAdmin.getTokenVersion() : 1L) + 1);
+        userRepository.save(targetAdmin);
+
+        this.emergencyRecoveryEnabledProperty = false;
+
+        auditService.logAction(
+                targetAdmin.getId(),
+                targetAdmin.getEmail(),
+                "ADMIN_EMERGENCY_RECOVERY",
+                "USER",
+                targetAdmin.getId().toString(),
+                String.format("{\"recoveredEmail\":\"%s\"}", AdminAuditService.maskEmail(email)),
+                clientIp
+        );
+
+        return Map.of("message", "Emergency recovery completed successfully. Please sign in and update your password.");
+    }
+
 
     @Transactional
     public void deleteUser(Long userId, String adminEmail, String clientIp) {

@@ -3,6 +3,7 @@ package com.assessmate.entity;
 public enum AccountStatus {
     ACTIVE,
     DEACTIVATED,
-    DELETED
+    DELETED,
+    PENDING_INVITATION
 }
 

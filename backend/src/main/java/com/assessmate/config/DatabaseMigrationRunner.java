@@ -39,6 +39,9 @@ public class DatabaseMigrationRunner {
             try {
                 jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'ACTIVE'");
                 jdbcTemplate.execute("UPDATE users SET status = 'ACTIVE' WHERE status IS NULL");
+                jdbcTemplate.execute("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_status_check");
+                jdbcTemplate.execute("ALTER TABLE users ADD CONSTRAINT users_status_check CHECK (status IN ('ACTIVE', 'DEACTIVATED', 'DELETED', 'PENDING_INVITATION'))");
+                log.info("Migration: Updated users_status_check to support ('ACTIVE', 'DEACTIVATED', 'DELETED', 'PENDING_INVITATION').");
             } catch (Exception e) {
                 log.debug("Note: users.status column notice: {}", e.getMessage());
             }
@@ -79,6 +82,26 @@ public class DatabaseMigrationRunner {
                 log.info("Migration: admin_audit_logs table verified.");
             } catch (Exception e) {
                 log.debug("Note: admin_audit_logs creation notice: {}", e.getMessage());
+            }
+
+            // 6. Ensure admin_invitations table exists
+            try {
+                jdbcTemplate.execute("""
+                    CREATE TABLE IF NOT EXISTS admin_invitations (
+                        id BIGSERIAL PRIMARY KEY,
+                        email VARCHAR(255) NOT NULL,
+                        token_hash VARCHAR(128) NOT NULL UNIQUE,
+                        expires_at TIMESTAMP NOT NULL,
+                        created_at TIMESTAMP NOT NULL,
+                        used_at TIMESTAMP,
+                        created_by VARCHAR(255)
+                    )
+                """);
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_admin_invitations_email ON admin_invitations(email)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_admin_invitations_token_hash ON admin_invitations(token_hash)");
+                log.info("Migration: admin_invitations table verified.");
+            } catch (Exception e) {
+                log.debug("Note: admin_invitations creation notice: {}", e.getMessage());
             }
 
             log.info("AssessMate database migrations completed successfully.");

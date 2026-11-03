@@ -4,6 +4,7 @@ import com.assessmate.dto.*;
 import com.assessmate.entity.AccountStatus;
 import com.assessmate.entity.ExamStatus;
 import com.assessmate.entity.Role;
+import com.assessmate.exception.BadRequestException;
 import com.assessmate.security.ClientIpResolver;
 import com.assessmate.service.AdminService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -132,6 +133,11 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "User status updated to " + body.getStatus()));
     }
 
+    @GetMapping("/security-status")
+    public ResponseEntity<AdminSecurityStatusResponse> getAdminSecurityStatus() {
+        return ResponseEntity.ok(adminService.getAdminSecurityStatus());
+    }
+
     @PostMapping("/admins")
     public ResponseEntity<CreateAdminResponse> createAdmin(
             @Valid @RequestBody CreateAdminRequest body,
@@ -140,6 +146,56 @@ public class AdminController {
     ) {
         String clientIp = clientIpResolver.resolveClientIp(request);
         return ResponseEntity.ok(adminService.createAdmin(body, principal.getName(), clientIp));
+    }
+
+    @PostMapping("/admins/{id}/resend-invitation")
+    public ResponseEntity<Map<String, Object>> resendInvitation(
+            @PathVariable Long id,
+            Principal principal,
+            HttpServletRequest request
+    ) {
+        String clientIp = clientIpResolver.resolveClientIp(request);
+        return ResponseEntity.ok(adminService.resendInvitation(id, principal.getName(), clientIp));
+    }
+
+    @DeleteMapping("/admins/{id}")
+    public ResponseEntity<Map<String, String>> deleteAdmin(
+            @PathVariable Long id,
+            @RequestBody(required = false) AdminDeleteRequest body,
+            @RequestParam(required = false) String currentPassword,
+            @RequestHeader(value = "X-Admin-Password", required = false) String passwordHeader,
+            Principal principal,
+            HttpServletRequest request
+    ) {
+        String password = null;
+        if (body != null && body.getCurrentPassword() != null && !body.getCurrentPassword().isBlank()) {
+            password = body.getCurrentPassword().trim();
+        } else if (currentPassword != null && !currentPassword.isBlank()) {
+            password = currentPassword.trim();
+        } else if (passwordHeader != null && !passwordHeader.isBlank()) {
+            password = passwordHeader.trim();
+        }
+
+        if (password == null || password.isBlank()) {
+            throw new BadRequestException("Current administrator password is required for confirmation");
+        }
+
+        AdminDeleteRequest req = new AdminDeleteRequest();
+        req.setCurrentPassword(password);
+        String clientIp = clientIpResolver.resolveClientIp(request);
+        return ResponseEntity.ok(adminService.deleteAdmin(id, req, principal.getName(), clientIp));
+    }
+
+    @PostMapping("/admins/{id}/delete")
+    public ResponseEntity<Map<String, String>> deleteAdminPost(
+            @PathVariable Long id,
+            @RequestBody(required = false) AdminDeleteRequest body,
+            @RequestParam(required = false) String currentPassword,
+            @RequestHeader(value = "X-Admin-Password", required = false) String passwordHeader,
+            Principal principal,
+            HttpServletRequest request
+    ) {
+        return deleteAdmin(id, body, currentPassword, passwordHeader, principal, request);
     }
 
     @DeleteMapping("/users/{id}")

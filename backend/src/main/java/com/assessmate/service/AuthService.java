@@ -20,6 +20,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -121,8 +122,15 @@ public class AuthService {
         }
 
         User user = userOpt.get();
-        if (user.getStatus() == AccountStatus.DELETED || user.getStatus() == AccountStatus.DEACTIVATED) {
+        if (user.getStatus() == AccountStatus.DELETED || 
+            user.getStatus() == AccountStatus.DEACTIVATED || 
+            user.getStatus() == AccountStatus.PENDING_INVITATION) {
             // Return quietly without revealing existence or status
+            return;
+        }
+
+        // Restrict recovery to active ADMIN accounts when initiated from Admin portal
+        if ("ADMIN".equalsIgnoreCase(req.getPortal()) && user.getRole() != Role.ADMIN) {
             return;
         }
 
@@ -154,7 +162,14 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadRequestException("If an account exists for this email, a verification code has been sent."));
 
-        if (user.getStatus() == AccountStatus.DELETED || user.getStatus() == AccountStatus.DEACTIVATED) {
+        if (user.getStatus() == AccountStatus.DELETED || 
+            user.getStatus() == AccountStatus.DEACTIVATED || 
+            user.getStatus() == AccountStatus.PENDING_INVITATION) {
+            throw new BadRequestException("If an account exists for this email, a verification code has been sent.");
+        }
+
+        // Restrict recovery to active ADMIN accounts when initiated from Admin portal
+        if ("ADMIN".equalsIgnoreCase(req.getPortal()) && user.getRole() != Role.ADMIN) {
             throw new BadRequestException("If an account exists for this email, a verification code has been sent.");
         }
 
@@ -200,6 +215,10 @@ public class AuthService {
 
             if (user.getStatus() == AccountStatus.DEACTIVATED) {
                 throw new BadRequestException("Your account has been deactivated. Please contact support.");
+            }
+
+            if (user.getStatus() == AccountStatus.PENDING_INVITATION) {
+                throw new BadRequestException("Account invitation is pending. Please complete password setup via the link sent to your email.");
             }
 
             // 3. Password match
@@ -292,13 +311,53 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        return new ProfileResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getRole().name(),
-                user.getCreatedAt()
-        );
+        return ProfileResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .role(user.getRole().name())
+                .status(user.getStatus() != null ? user.getStatus().name() : "ACTIVE")
+                .createdAt(user.getCreatedAt())
+                .build();
+    }
+
+    @Transactional
+    public ProfileResponse updateProfile(String authenticatedEmail, UpdateProfileRequest request, String clientIp) {
+        String email = authenticatedEmail.trim().toLowerCase(Locale.ROOT);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (user.getStatus() == AccountStatus.DELETED || user.getStatus() == AccountStatus.DEACTIVATED) {
+            throw new BadRequestException("Account is inactive.");
+        }
+
+        String newName = request.getName().trim();
+        String previousName = user.getName();
+        user.setName(newName);
+        userRepository.save(user);
+
+        try {
+            auditService.logAction(
+                    user.getId(),
+                    user.getEmail(),
+                    "PROFILE_UPDATE",
+                    "USER",
+                    user.getId().toString(),
+                    String.format("{\"previousName\":\"%s\", \"newName\":\"%s\"}", previousName, newName),
+                    clientIp
+            );
+        } catch (Exception e) {
+            log.warn("Failed to audit profile update for user {}: {}", user.getId(), e.getMessage());
+        }
+
+        return ProfileResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .role(user.getRole().name())
+                .status(user.getStatus() != null ? user.getStatus().name() : "ACTIVE")
+                .createdAt(user.getCreatedAt())
+                .build();
     }
 
     private void checkCooldown(String email, OtpPurpose purpose) {

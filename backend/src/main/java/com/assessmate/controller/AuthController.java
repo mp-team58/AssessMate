@@ -1,8 +1,6 @@
 package com.assessmate.controller;
 
-import com.assessmate.dto.AuthResponse;
-import com.assessmate.dto.LoginRequest;
-import com.assessmate.dto.RegisterRequest;
+import com.assessmate.dto.*;
 import com.assessmate.exception.BadRequestException;
 import com.assessmate.service.AuthService;
 import jakarta.validation.Valid;
@@ -15,12 +13,35 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-
 public class AuthController {
 
     private final AuthService authService;
+    private final com.assessmate.service.AdminService adminService;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.assessmate.security.ClientIpResolver clientIpResolver;
+
+    @GetMapping("/admin/invitation/validate")
+    public ResponseEntity<Map<String, Object>> validateAdminInvitation(@RequestParam String token) {
+        return ResponseEntity.ok(adminService.validateInvitationToken(token));
+    }
+
+    @PostMapping("/admin/setup-password")
+    public ResponseEntity<Map<String, String>> setupAdminPassword(
+            @Valid @RequestBody AdminSetupPasswordRequest request,
+            jakarta.servlet.http.HttpServletRequest httpRequest
+    ) {
+        String clientIp = clientIpResolver != null ? clientIpResolver.resolveClientIp(httpRequest) : "127.0.0.1";
+        return ResponseEntity.ok(adminService.setupAdminPassword(request, clientIp));
+    }
+
+    @PostMapping("/admin/emergency-recovery")
+    public ResponseEntity<Map<String, String>> emergencyRecoverAdmin(
+            @Valid @RequestBody EmergencyRecoveryRequest request,
+            jakarta.servlet.http.HttpServletRequest httpRequest
+    ) {
+        String clientIp = clientIpResolver != null ? clientIpResolver.resolveClientIp(httpRequest) : "127.0.0.1";
+        return ResponseEntity.ok(adminService.emergencyRecoverAdmin(request, clientIp));
+    }
 
     @PostMapping("/register/request-otp")
     public ResponseEntity<Map<String, String>> requestRegisterOtp(
@@ -80,7 +101,6 @@ public class AuthController {
         return request.getRemoteAddr();
     }
 
-    
     @PostMapping("/change-password")
     public ResponseEntity<Map<String, String>> changePassword(
             @Valid @RequestBody com.assessmate.dto.ChangePasswordRequest request,
@@ -102,11 +122,24 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
-    @GetMapping("/me")
+    @GetMapping({"/me", "/profile"})
     public ResponseEntity<com.assessmate.dto.ProfileResponse> getMyProfile(Principal principal) {
         if (principal == null) {
             throw new BadRequestException("No active session found.");
         }
         return ResponseEntity.ok(authService.getMyProfile(principal));
+    }
+
+    @PatchMapping("/profile")
+    public ResponseEntity<com.assessmate.dto.ProfileResponse> updateProfile(
+            @Valid @RequestBody com.assessmate.dto.UpdateProfileRequest request,
+            Principal principal,
+            jakarta.servlet.http.HttpServletRequest httpRequest
+    ) {
+        if (principal == null) {
+            throw new BadRequestException("No active session found.");
+        }
+        String clientIp = clientIpResolver != null ? clientIpResolver.resolveClientIp(httpRequest) : extractClientIp(httpRequest);
+        return ResponseEntity.ok(authService.updateProfile(principal.getName(), request, clientIp));
     }
 }

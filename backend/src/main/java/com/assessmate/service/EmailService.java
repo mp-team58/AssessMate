@@ -49,7 +49,32 @@ public class EmailService {
         send(toEmail, subject, body);
     }
 
-    private void send(String toEmail, String subject, String body) {
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
+    @Value("${spring.mail.password:}")
+    private String mailPassword;
+
+    public boolean isMailConfigured() {
+        return mailUsername != null && !mailUsername.trim().isEmpty() &&
+               mailPassword != null && !mailPassword.trim().isEmpty();
+    }
+
+    public boolean sendAdminInvitation(String toEmail, String name, String setupUrl) {
+        String subject = "You've been invited as an Administrator on AssessMate";
+
+        String body = "Hi " + name + ",\n\n" +
+                "You have been invited to join AssessMate as a System Administrator.\n\n" +
+                "Please click the link below to set up your password and activate your administrator account:\n\n" +
+                setupUrl + "\n\n" +
+                "This invitation link expires in 30 minutes.\n\n" +
+                "If you were not expecting this invitation, you can safely ignore this email.\n\n" +
+                "— AssessMate Team";
+
+        return send(toEmail, subject, body);
+    }
+
+    private boolean send(String toEmail, String subject, String body) {
         log.info("\n========== EMAIL SIMULATION ==========\nTo: {}\nSubject: {}\n{}\n======================================", toEmail, subject, body);
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -58,8 +83,10 @@ public class EmailService {
             message.setSubject(subject);
             message.setText(body);
             mailSender.send(message);
+            return true;
         } catch (Exception e) {
-            log.error("Failed to send OTP email to {} (Did you configure MAIL_USERNAME in .env?). OTP was printed above for testing.", toEmail);
+            log.error("Failed to send email to {}: {}", toEmail, e.getMessage());
+            return false;
         }
     }
 }

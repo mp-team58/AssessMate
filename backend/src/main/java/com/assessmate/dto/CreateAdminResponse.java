@@ -14,6 +14,8 @@ public class CreateAdminResponse {
     private String name;
     private String email;
     private String temporaryPassword;
+    private Boolean invitationSent;
+    private Boolean emailDelivered;
+    private String deliveryStatus;
     private String message;
 }
-

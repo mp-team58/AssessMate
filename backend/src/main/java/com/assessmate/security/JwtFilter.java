@@ -103,6 +103,10 @@ public class JwtFilter extends OncePerRequestFilter {
                 sendUnauthorized(response, "Your account has been deactivated. Please contact support.");
                 return;
             }
+            if (user.getStatus() == AccountStatus.PENDING_INVITATION) {
+                sendUnauthorized(response, "Account invitation is pending. Please complete password setup via the link sent to your email.");
+                return;
+            }
             if (user.getStatus() == AccountStatus.DELETED) {
                 sendUnauthorized(response, "User not found.");
                 return;

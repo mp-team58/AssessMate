@@ -116,20 +116,22 @@ export const verifyRegisterOtp = async (payload) => {
  */
 export const requestPasswordResetOtp = async (payload) => {
   return apiClient.post('/auth/forgot-password/request-otp', {
-    email: payload.email
+    email: payload.email,
+    ...(payload.portal ? { portal: payload.portal } : {})
   });
 };
 
 /**
  * Reset Password
- * @param {{ email: string, otp: string, newPassword: string }} payload 
+ * @param {{ email: string, otp: string, newPassword: string, portal?: string }} payload 
  * @returns {Promise<any>}
  */
 export const resetPassword = async (payload) => {
   return apiClient.post('/auth/forgot-password/reset', {
     email: payload.email,
     otp: payload.otp,
-    newPassword: payload.newPassword
+    newPassword: payload.newPassword,
+    ...(payload.portal ? { portal: payload.portal } : {})
   });
 };
 
@@ -138,6 +140,9 @@ export const resetPassword = async (payload) => {
  */
 export const logout = () => {
   localStorage.removeItem('token');
+  localStorage.removeItem('name');
+  localStorage.removeItem('email');
+  localStorage.removeItem('role');
   localStorage.removeItem('currentExamId');
 };
 
@@ -149,3 +154,20 @@ export const getMyProfile = async () => {
   return apiClient.get('/auth/me');
 };
 
+/**
+ * Update current user's profile (name)
+ * @param {{ name: string }} payload
+ * @returns {Promise<any>}
+ */
+export const updateProfile = async (payload) => {
+  return apiClient.patch('/auth/profile', payload);
+};
+
+/**
+ * Change current user's password
+ * @param {{ currentPassword: string, newPassword: string }} payload
+ * @returns {Promise<any>}
+ */
+export const changePassword = async (payload) => {
+  return apiClient.post('/auth/change-password', payload);
+};

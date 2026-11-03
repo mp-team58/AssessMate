@@ -17,12 +17,15 @@ import {
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { getCandidateHistory, getCandidateDashboard } from '../services/candidateService';
 import { prefetchRoute } from '../utils/prefetch';
+import { checkDeviceAccess } from '../utils/deviceDetection';
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
 
   const [assessments, setAssessments] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -50,6 +53,7 @@ const CandidateDashboard = () => {
       }
     } catch (err) {
       setError(err.message || 'Failed to load dashboard data.');
+      showToast(err.message || 'Failed to load dashboard data.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +63,14 @@ const CandidateDashboard = () => {
     fetchData();
   }, []);
 
-  const handleStartExam = async (enrollmentId, examId) => {
+  const handleStartExam = async (enrollmentId, examId, deviceAccess) => {
+    if (deviceAccess) {
+      const check = checkDeviceAccess(deviceAccess);
+      if (!check.allowed) {
+        showToast(check.message, 'error');
+        return;
+      }
+    }
     sessionStorage.setItem('currentEnrollmentId', enrollmentId);
     if (examId) {
       sessionStorage.setItem('currentExamId', String(examId));
@@ -151,20 +162,7 @@ const CandidateDashboard = () => {
         <div className="absolute bottom-0 right-40 -mb-20 w-72 h-72 rounded-full bg-brand-400 blur-3xl opacity-20 pointer-events-none" />
       </div>
 
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
-            <span className="text-sm font-medium">{error}</span>
-          </div>
-          <button
-            onClick={fetchData}
-            className="px-3 py-1 bg-white border border-red-200 text-xs font-bold rounded-lg text-red-700 hover:bg-red-50 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+
 
       {/* Quick Statistics Overview Grid matching Host UI */}
       <div>
@@ -284,7 +282,7 @@ const CandidateDashboard = () => {
             </div>
 
             <Button
-              onClick={() => handleStartExam(activeAssessment.enrollmentId)}
+              onClick={() => handleStartExam(activeAssessment.enrollmentId, null, activeAssessment.deviceAccess)}
               className="!w-auto px-7 py-3 text-base shadow-lg shadow-brand-600/20"
             >
               <Play className="w-4 h-4 fill-current" />
@@ -340,6 +338,23 @@ const CandidateDashboard = () => {
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="h-20 bg-secondary-50/80 rounded-2xl border border-secondary-200/60 p-4 flex items-center justify-between shadow-sm" />
                 ))}
+              </div>
+            ) : error && recentAssessments.length === 0 ? (
+              <div className="py-10 text-center space-y-3">
+                <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mx-auto text-red-600 border border-red-100">
+                  <AlertCircle className="w-7 h-7 text-red-500" />
+                </div>
+                <h4 className="text-base font-bold text-secondary-900">Unable to load assessments</h4>
+                <p className="text-xs text-secondary-500 max-w-sm mx-auto">
+                  A connection issue occurred while retrieving your assessment history.
+                </p>
+                <Button
+                  onClick={fetchData}
+                  className="!w-auto px-5 py-2 text-sm mx-auto inline-flex items-center gap-1.5"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                  <span>Retry</span>
+                </Button>
               </div>
             ) : recentAssessments.length === 0 ? (
               <div className="py-10 text-center space-y-3">
@@ -419,7 +434,7 @@ const CandidateDashboard = () => {
                           </Button>
                         ) : (
                           <Button
-                            onClick={() => handleStartExam(exam.enrollmentId, exam.examId || exam.id)}
+                            onClick={() => handleStartExam(exam.enrollmentId, exam.examId || exam.id, exam.deviceAccess)}
                             variant="secondary"
                             className="!w-auto px-4 py-1.5 text-xs"
                           >

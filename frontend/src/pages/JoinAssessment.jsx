@@ -11,18 +11,59 @@ import {
   CheckCircle2,
   Lock,
   Eye,
-  FileText
+  FileText,
+  Monitor,
+  Smartphone
 } from 'lucide-react';
+import { checkDeviceAccess } from '../utils/deviceDetection';
 import Button from '../components/ui/Button';
+import { useToast } from '../contexts/ToastContext';
 import { joinExamByCode } from '../services/candidateService';
+
+const formatJoinErrorMessage = (err) => {
+  const rawMsg = err?.response?.data?.message || err?.message || '';
+
+  if (/restricted to Desktop/i.test(rawMsg)) {
+    return 'This exam is restricted to Desktop devices only. Mobile phones and tablets are not permitted.';
+  }
+  if (/restricted to Mobile/i.test(rawMsg)) {
+    return 'This exam is restricted to Mobile devices only. Desktop and laptop computers are not permitted.';
+  }
+
+  if (/has not started yet/i.test(rawMsg) || /wait until/i.test(rawMsg)) {
+    const match = rawMsg.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)/);
+    if (match) {
+      const parsedDate = new Date(match[1]);
+      if (!isNaN(parsedDate.getTime())) {
+        const formattedDate = parsedDate.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        });
+        const formattedTime = parsedDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
+        return `The exam hasn't started yet. Please try again on ${formattedDate} at ${formattedTime}.`;
+      }
+    }
+    return "The exam hasn't started yet. Please check back at the scheduled start time.";
+  }
+
+  return (
+    rawMsg ||
+    'Invalid or expired access code. Please verify the code with your instructor.'
+  );
+};
 
 const JoinAssessment = () => {
   const [searchParams] = useSearchParams();
   const [joinCode, setJoinCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [enrolledExam, setEnrolledExam] = useState(null);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   useEffect(() => {
     const codeParam = searchParams.get('code');
@@ -36,7 +77,6 @@ const JoinAssessment = () => {
     if (!joinCode.trim()) return;
 
     setIsLoading(true);
-    setError('');
 
     try {
       const res = await joinExamByCode(joinCode.trim());
@@ -45,17 +85,21 @@ const JoinAssessment = () => {
         sessionStorage.setItem(`exam_config_${res.data.enrollmentId}`, JSON.stringify(res.data));
       }
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          'Invalid or expired access code. Please verify the code with your instructor.'
-      );
+      const friendlyMessage = formatJoinErrorMessage(err);
+      showToast(friendlyMessage, 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleStartExam = async (enrollmentId, examId) => {
+  const handleStartExam = async (enrollmentId, examId, deviceAccess) => {
+    if (deviceAccess) {
+      const check = checkDeviceAccess(deviceAccess);
+      if (!check.allowed) {
+        showToast(check.message, 'error');
+        return;
+      }
+    }
     sessionStorage.setItem('currentEnrollmentId', enrollmentId);
     if (examId) {
       sessionStorage.setItem('currentExamId', String(examId));
@@ -81,12 +125,7 @@ const JoinAssessment = () => {
         </p>
       </header>
 
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
-          <span className="text-sm font-medium">{error}</span>
-        </div>
-      )}
+
 
       {/* Access Code Input Card */}
       <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-6">
@@ -233,6 +272,22 @@ const JoinAssessment = () => {
               </div>
             </div>
 
+            {enrolledExam.deviceAccess && enrolledExam.deviceAccess !== 'BOTH' && (
+              <div className="p-3.5 bg-blue-50/80 rounded-2xl border border-blue-200 text-blue-900 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2 font-semibold">
+                  {enrolledExam.deviceAccess === 'DESKTOP' ? (
+                    <Monitor className="w-4 h-4 text-blue-600" />
+                  ) : (
+                    <Smartphone className="w-4 h-4 text-blue-600" />
+                  )}
+                  <span>Device Requirement</span>
+                </div>
+                <span className="font-bold px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800 text-[11px] uppercase tracking-wider">
+                  {enrolledExam.deviceAccess === 'DESKTOP' ? 'Desktop / Laptop Only' : 'Mobile Only'}
+                </span>
+              </div>
+            )}
+
             <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 text-sm space-y-1">
               <div className="font-bold flex items-center gap-2 text-amber-950 text-xs uppercase tracking-wider">
                 <ShieldAlert className="w-4 h-4 text-amber-600" />
@@ -257,7 +312,7 @@ const JoinAssessment = () => {
                   const id = enrolledExam.enrollmentId || enrolledExam.id;
                   const examId = enrolledExam.examId;
                   setEnrolledExam(null);
-                  handleStartExam(id, examId);
+                  handleStartExam(id, examId, enrolledExam.deviceAccess);
                 }}
                 className="px-6 py-2.5 text-xs shadow-md"
               >

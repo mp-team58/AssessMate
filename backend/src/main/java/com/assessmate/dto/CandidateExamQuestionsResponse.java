@@ -1,5 +1,6 @@
 package com.assessmate.dto;
 
+import com.assessmate.entity.DeviceAccess;
 import lombok.Builder;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -11,4 +12,5 @@ public class CandidateExamQuestionsResponse {
     private List<CandidateQuestionDTO> questions;
     private LocalDateTime personalEndTime;
     private Long remainingSeconds;
+    private DeviceAccess deviceAccess;
 }

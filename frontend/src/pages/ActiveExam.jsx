@@ -8,6 +8,8 @@ import * as cocoSsd from '@tensorflow-models/coco-ssd';
 let globalBlazefaceModel = null;
 let globalCocoSsdModel = null;
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
+import MarkdownViewer from '../components/MarkdownViewer';
 import {
   Clock,
   Shield,
@@ -40,8 +42,12 @@ import {
   WifiOff,
   Loader2,
   Sparkles,
-  Maximize
+  Maximize,
+  Monitor,
+  Smartphone,
+  ShieldAlert
 } from 'lucide-react';
+import { checkDeviceAccess, getDetectedClientType } from '../utils/deviceDetection';
 import {
   getExamQuestions,
   getAssignedCodingProblems,
@@ -93,6 +99,7 @@ const ActiveExam = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // Load Exam Configuration
   const [examConfig] = useState(() => {
@@ -102,6 +109,21 @@ const ActiveExam = () => {
     } catch (_) {
       return null;
     }
+  });
+
+  // Defensive Device Restriction State
+  const [deviceRestriction, setDeviceRestriction] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem(`exam_config_${enrollmentId}`);
+      if (stored) {
+        const cfg = JSON.parse(stored);
+        if (cfg.deviceAccess) {
+          const check = checkDeviceAccess(cfg.deviceAccess);
+          if (!check.allowed) return check;
+        }
+      }
+    } catch (_) {}
+    return null;
   });
 
   // Flow Stages:
@@ -185,6 +207,8 @@ const ActiveExam = () => {
 
   const tabHiddenTimeRef = useRef(null);
   const hasSubmittedRef = useRef(false);
+  const proctoringWarmedUpRef = useRef(false);
+  const hasSeenFaceOnceRef = useRef(false);
 
   // Max Tab Switches Allowed
   const maxAllowedTabSwitches = examConfig?.maxTabSwitches ?? 3;
@@ -337,7 +361,7 @@ const ActiveExam = () => {
       // Anti-spam cooldown check (8 seconds per eventType)
       const now = Date.now();
       const lastTime = lastCooldownRef.current[eventType] || 0;
-      if (now - lastTime < 8000 && !['TAB_SWITCH', 'FULL_SCREEN_EXIT', 'NO_CAMERA', 'NO_MIC'].includes(eventType)) {
+      if (now - lastTime < 8000 && !['TAB_SWITCH', 'FULL_SCREEN_EXIT', 'NO_CAMERA', 'NO_MIC', 'AUDIO_DETECTED'].includes(eventType)) {
         return;
       }
       lastCooldownRef.current[eventType] = now;
@@ -364,31 +388,26 @@ const ActiveExam = () => {
     [enrollmentId]
   );
 
-  // Helper to Capture Current Frame from hidden video and upload as evidence
+  // Helper to Capture Current Frame from active video and upload as evidence
   const captureAndUploadEvidence = useCallback(async () => {
-    const video = hiddenVideoRef.current;
-    if (!video) return null;
+    const video = (previewVideoRef.current && previewVideoRef.current.readyState >= 2 && previewVideoRef.current.videoWidth > 0)
+      ? previewVideoRef.current
+      : hiddenVideoRef.current;
+    if (!video || video.readyState < 2) return null;
     try {
-      // Try a few times (up to ~0.75s) so we skip black start-up frames.
-      for (let attempt = 0; attempt < 4; attempt++) {
-        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
-          const scale = Math.min(1, EVIDENCE_MAX_WIDTH / video.videoWidth);
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.round(video.videoWidth * scale);
-          canvas.height = Math.round(video.videoHeight * scale);
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const vWidth = video.videoWidth || 640;
+      const vHeight = video.videoHeight || 480;
+      const scale = Math.min(1, EVIDENCE_MAX_WIDTH / vWidth);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(vWidth * scale);
+      canvas.height = Math.round(vHeight * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-          if (!isBlankFrame(canvas)) {
-            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', EVIDENCE_JPEG_QUALITY));
-            if (!blob) return null;
-            const uploadRes = await uploadProctorEvidence(blob, 'image');
-            return uploadRes?.data?.url || null;
-          }
-        }
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
-      return null;
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', EVIDENCE_JPEG_QUALITY));
+      if (!blob) return null;
+      const uploadRes = await uploadProctorEvidence(blob, 'image');
+      return uploadRes?.data?.url || null;
     } catch (err) {
       console.warn('[Proctor Evidence Upload Error]:', err);
       return null;
@@ -418,6 +437,9 @@ const ActiveExam = () => {
 
   // STEP A: Pre-Exam Permission Gate
   const requestMediaPermissions = useCallback(async () => {
+    if (deviceRestriction && !deviceRestriction.allowed) {
+      return;
+    }
     setPermissionState('CHECKING');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -482,8 +504,9 @@ const ActiveExam = () => {
 
   // Initial Permission Request on Mount
   useEffect(() => {
+    if (deviceRestriction && !deviceRestriction.allowed) return;
     requestMediaPermissions();
-  }, [requestMediaPermissions]);
+  }, [requestMediaPermissions, deviceRestriction]);
 
   // Ensure stream is attached to video elements once they render
   useEffect(() => {
@@ -562,12 +585,30 @@ const ActiveExam = () => {
       setIsLoading(true);
       setError('');
       try {
+        if (deviceRestriction && !deviceRestriction.allowed) {
+          setIsLoading(false);
+          return;
+        }
+
         // Fetch Primary Exam MCQ Questions
         const res = await getExamQuestions(enrollmentId);
         if (!isMounted) return;
 
         const data = res.data;
         setExamData(data);
+
+        // Defensive Device Access Policy Check
+        if (data?.deviceAccess) {
+          const check = checkDeviceAccess(data.deviceAccess);
+          if (!check.allowed) {
+            setDeviceRestriction(check);
+            setIsLoading(false);
+            if (mediaStreamRef.current) {
+              mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+            }
+            return;
+          }
+        }
 
         // Prepopulate saved MCQ answers
         const initialAnswers = {};
@@ -667,7 +708,27 @@ const ActiveExam = () => {
       } catch (err) {
         if (!isMounted) return;
         const msg = err.response?.data?.message || err.message || 'Failed to load assessment data.';
-        if (
+        if (msg.toLowerCase().includes('restricted to desktop')) {
+          setDeviceRestriction({
+            allowed: false,
+            required: 'DESKTOP',
+            detected: getDetectedClientType(),
+            message: 'This exam is restricted to Desktop devices only. Mobile phones and tablets are not permitted.'
+          });
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+          }
+        } else if (msg.toLowerCase().includes('restricted to mobile')) {
+          setDeviceRestriction({
+            allowed: false,
+            required: 'MOBILE',
+            detected: getDetectedClientType(),
+            message: 'This exam is restricted to Mobile devices only. Desktop and laptop computers are not permitted.'
+          });
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+          }
+        } else if (
           msg.toLowerCase().includes('already submitted') ||
           msg.toLowerCase().includes('expired') ||
           msg.toLowerCase().includes('no longer open')
@@ -803,7 +864,7 @@ const ActiveExam = () => {
         const stream = mediaStreamRef.current;
         const audioTracks = stream.getAudioTracks();
 
-        if (audioTracks.length > 0) {
+        if (audioTracks.length > 0 && examConfig?.enableAudioDetection !== false) {
           const AudioContextClass = window.AudioContext || window.webkitAudioContext;
           if (AudioContextClass) {
             const audioCtx = new AudioContextClass();
@@ -821,6 +882,9 @@ const ActiveExam = () => {
 
             audioIntervalRef.current = setInterval(async () => {
               if (!audioAnalyserRef.current || hasSubmittedRef.current) return;
+              if (audioCtx.state === 'suspended') {
+                try { await audioCtx.resume(); } catch (e) {}
+              }
               audioAnalyserRef.current.getByteTimeDomainData(timeDomainData);
 
               let sumSquares = 0;
@@ -831,8 +895,8 @@ const ActiveExam = () => {
               const rms = Math.sqrt(sumSquares / bufferLength);
               setAudioLevel(Math.min(100, Math.round(rms * 250)));
 
-              // RMS Threshold for Noise / Voice Activity (lowered to 0.05 to ensure normal speech is caught)
-              if (rms > 0.05 && !isRecordingAudioRef.current) {
+              // RMS Threshold for Noise / Voice Activity (lowered to 0.02 to ensure normal speech is caught)
+              if (rms > 0.02 && !isRecordingAudioRef.current) {
                 const now = Date.now();
                 const lastTime = lastCooldownRef.current['AUDIO_DETECTED'] || 0;
                 if (now - lastTime >= 8000) {
@@ -840,8 +904,12 @@ const ActiveExam = () => {
                   lastCooldownRef.current['AUDIO_DETECTED'] = now;
 
                   try {
+                    let options = { mimeType: 'audio/webm' };
+                    if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                      options = {}; // Let browser choose default format (e.g. Safari mp4)
+                    }
                     const audioStream = new MediaStream(audioTracks);
-                    const recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+                    const recorder = new MediaRecorder(audioStream, options);
                     const audioChunks = [];
 
                     recorder.ondataavailable = (e) => {
@@ -852,9 +920,9 @@ const ActiveExam = () => {
 
                     recorder.onstop = async () => {
                       isRecordingAudioRef.current = false;
-                      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                      const audioBlob = new Blob(audioChunks, { type: recorder.mimeType || 'audio/webm' });
                       try {
-                        const uploadRes = await uploadProctorEvidence(audioBlob, 'audio');
+                        const uploadRes = await uploadProctorEvidence(audioBlob, 'audio').catch(() => null);
                         const audioUrl = uploadRes?.data?.url || null;
 
                         sendProctorLog('AUDIO_DETECTED', 'Speech or elevated ambient noise detected', null, audioUrl);
@@ -869,6 +937,7 @@ const ActiveExam = () => {
                         ]);
                       } catch (err) {
                         console.warn('[Audio Evidence Upload Error]:', err);
+                        sendProctorLog('AUDIO_DETECTED', 'Speech or elevated ambient noise detected', null, null);
                       }
                     };
 
@@ -893,6 +962,12 @@ const ActiveExam = () => {
     }
 
     // 5.2 4-Second Camera Pipeline (Face + Object Detection)
+    proctoringWarmedUpRef.current = false;
+    hasSeenFaceOnceRef.current = false;
+    const warmupTimer = setTimeout(() => {
+      proctoringWarmedUpRef.current = true;
+    }, 6000);
+
     detectionIntervalRef.current = setInterval(async () => {
       if (isDetectingRef.current || hasSubmittedRef.current) return;
 
@@ -918,18 +993,21 @@ const ActiveExam = () => {
         if (examConfig?.enableFaceDetection !== false) {
           if (faces.length === 0) {
             setFaceStatus('STANDBY');
-            const evidenceUrl = await captureAndUploadEvidence();
-            sendProctorLog('NO_FACE', 'No face detected in camera viewport', evidenceUrl, null);
+            if (proctoringWarmedUpRef.current && hasSeenFaceOnceRef.current) {
+              const evidenceUrl = await captureAndUploadEvidence();
+              sendProctorLog('NO_FACE', 'No face detected in camera viewport', evidenceUrl, null);
 
-            setProctorWarnings((prev) => [
-              ...prev,
-              {
-                type: 'NO_FACE',
-                message: 'No face detected in camera view. Ensure your face is centered and clearly visible.',
-                timestamp: new Date()
-              }
-            ]);
+              setProctorWarnings((prev) => [
+                ...prev,
+                {
+                  type: 'NO_FACE',
+                  message: 'No face detected in camera view. Ensure your face is centered and clearly visible.',
+                  timestamp: new Date()
+                }
+              ]);
+            }
           } else if (faces.length > 1) {
+            hasSeenFaceOnceRef.current = true;
             setFaceStatus('VERIFIED');
             const evidenceUrl = await captureAndUploadEvidence();
             sendProctorLog('MULTIPLE_FACES', `Multiple faces detected in camera frame (${faces.length})`, evidenceUrl, null);
@@ -943,6 +1021,7 @@ const ActiveExam = () => {
               }
             ]);
           } else {
+            hasSeenFaceOnceRef.current = true;
             setFaceStatus('VERIFIED');
           }
         }
@@ -986,14 +1065,14 @@ const ActiveExam = () => {
     window.addEventListener('popstate', handlePopState);
 
     // 5.4 Tab Switch / Visibility Change Guard
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.hidden) {
         tabHiddenTimeRef.current = Date.now();
         tabSwitchCountRef.current += 1;
         const count = tabSwitchCountRef.current;
         setTabSwitchCount(count);
 
-        sendProctorLog('TAB_SWITCH', `Candidate switched away from exam tab (Violation #${count})`);
+        sendProctorLog('TAB_SWITCH', `Candidate switched away from exam tab (Violation #${count})`, null);
 
         const maxAllowed = examConfig?.maxTabSwitches ?? 3;
         if (count > maxAllowed) {
@@ -1015,7 +1094,7 @@ const ActiveExam = () => {
     };
 
     // 5.5 Fullscreen Exit Handler
-    const handleFullscreenChange = () => {
+    const handleFullscreenChange = async () => {
       const inFullscreen = !!document.fullscreenElement;
       setIsFullscreen(inFullscreen);
 
@@ -1024,7 +1103,7 @@ const ActiveExam = () => {
         const count = tabSwitchCountRef.current;
         setTabSwitchCount(count);
 
-        sendProctorLog('FULL_SCREEN_EXIT', `Candidate exited full screen mode (Violation #${count})`);
+        sendProctorLog('FULL_SCREEN_EXIT', `Candidate exited full screen mode (Violation #${count})`, null);
         
         const maxAllowed = examConfig?.maxTabSwitches ?? 3;
         if (count > maxAllowed) {
@@ -1102,6 +1181,7 @@ const ActiveExam = () => {
         clearInterval(detectionIntervalRef.current);
         detectionIntervalRef.current = null;
       }
+      clearTimeout(warmupTimer);
     };
   }, [permissionState, modelsLoading, backendTerminated, sendProctorLog, captureAndUploadEvidence, examConfig]);
 
@@ -1243,6 +1323,70 @@ const ActiveExam = () => {
       ? `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
       : `${pad(minutes)}:${pad(seconds)}`;
   };
+
+  // DEFENSIVE GATE: Device Restriction Gate Screen
+  if (deviceRestriction && !deviceRestriction.allowed) {
+    return (
+      <div className="min-h-screen bg-[#F1F4F2] flex items-center justify-center p-6 text-secondary-900 font-sans select-none">
+        <div className="max-w-lg w-full bg-white rounded-3xl p-8 border border-secondary-200 shadow-xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600 shadow-sm">
+            {deviceRestriction.required === 'DESKTOP' ? (
+              <Monitor className="w-8 h-8" />
+            ) : (
+              <Smartphone className="w-8 h-8" />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              Device Policy Enforcement
+            </div>
+            <h2 className="text-2xl font-extrabold text-secondary-900 tracking-tight">
+              {deviceRestriction.required === 'DESKTOP' ? 'Desktop Device Required' : 'Mobile Device Required'}
+            </h2>
+            <p className="text-secondary-600 text-sm leading-relaxed">
+              {deviceRestriction.message}
+            </p>
+          </div>
+
+          <div className="bg-secondary-50 rounded-2xl p-4 border border-secondary-100 text-left space-y-2.5 text-xs">
+            <div className="flex justify-between items-center py-1 border-b border-secondary-200/60">
+              <span className="text-secondary-500 font-medium">Required Device</span>
+              <span className="font-bold text-secondary-900">
+                {deviceRestriction.required === 'DESKTOP' ? 'Desktop / Laptop (Windows, macOS, Linux)' : 'Mobile Phone'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-1 border-b border-secondary-200/60">
+              <span className="text-secondary-500 font-medium">Your Current Device</span>
+              <span className="font-bold text-red-600 flex items-center gap-1">
+                {deviceRestriction.detected || 'Incompatible Client'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-1">
+              <span className="text-secondary-500 font-medium">Access Restriction</span>
+              <span className="font-medium text-secondary-700">Exam Proctoring & Hardware Integrity</span>
+            </div>
+          </div>
+
+          <div className="pt-2 space-y-3">
+            <button
+              onClick={() => navigate('/candidate/dashboard')}
+              className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-brand-600/20 active:scale-[0.99] flex items-center justify-center gap-2"
+            >
+              Return to Candidate Dashboard
+            </button>
+            <button
+              onClick={() => navigate('/candidate/assessments')}
+              className="w-full py-2.5 px-4 bg-transparent hover:bg-secondary-100 text-secondary-700 font-semibold rounded-xl text-sm transition-colors"
+            >
+              View My Assessments
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // STEP A: Permission Gate Screen (Blocking if Denied)
   if (permissionState === 'DENIED') {
@@ -1410,7 +1554,7 @@ const ActiveExam = () => {
       )}
 
       {/* Fullscreen Violation Overlay */}
-      {!isFullscreen && !backendTerminated && permissionState === 'GRANTED' && (
+      {!isFullscreen && !backendTerminated && !isSubmitting && !hasSubmittedRef.current && permissionState === 'GRANTED' && (
         <div className="fixed inset-0 z-[110] bg-red-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center">
           <div className="bg-white p-8 rounded-3xl max-w-lg w-full shadow-2xl border-4 border-red-500 animate-in zoom-in duration-300">
             <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1600,14 +1744,14 @@ const ActiveExam = () => {
             </div>
 
             {/* Question Statement */}
-            <div className="mb-6">
-              <h2 className="text-lg md:text-xl font-bold text-secondary-900 leading-relaxed">
-                {currentQuestion.questionText}
-              </h2>
+            <div className={`mb-6 ${currentQuestion.type === 'CODING' ? 'max-h-[35vh] overflow-y-auto pr-3 scrollbar-thin scrollbar-thumb-secondary-300' : ''}`}>
+              <div className="text-lg md:text-xl font-bold text-secondary-900 leading-relaxed">
+                <MarkdownViewer content={currentQuestion.questionText} />
+              </div>
 
               {currentQuestion.description && currentQuestion.type === 'CODING' && (
-                <div className="mt-3 text-secondary-700 text-sm leading-relaxed whitespace-pre-line bg-secondary-50/70 p-4 rounded-2xl border border-secondary-200">
-                  {currentQuestion.description}
+                <div className="mt-3 bg-secondary-50/70 p-4 rounded-2xl border border-secondary-200">
+                  <MarkdownViewer content={currentQuestion.description} />
                 </div>
               )}
 
@@ -1794,8 +1938,15 @@ const ActiveExam = () => {
                       {/* Coding Editor "Reset to Template" Button */}
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm('Reset code for this question back to the initial starter template? Your current edits will be replaced.')) {
+                        onClick={async () => {
+                          const isConfirmed = await confirm({
+                            title: 'Reset Code',
+                            message: 'Reset code for this question back to the initial starter template? Your current edits will be replaced.',
+                            confirmText: 'Reset Code',
+                            cancelText: 'Cancel',
+                            isDanger: true,
+                          });
+                          if (isConfirmed) {
                             const template = STARTER_CODE[codeLanguage] || '';
                             handleTextAnswerChange(currentQuestion.id, template);
                           }
@@ -2103,19 +2254,19 @@ const ActiveExam = () => {
             </div>
 
             {/* Questions Grid */}
-            <div className="grid grid-cols-5 gap-2.5 pt-2 max-h-64 overflow-y-auto pr-1">
+            <div className="grid grid-cols-5 gap-2 p-1.5 max-h-64 overflow-y-auto overflow-x-hidden rounded-xl">
               {questionsList.map((q, idx) => {
                 const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
                 const isFlagged = flaggedQuestions.has(q.id);
                 const isCurrent = currentIndex === idx;
 
-                let btnStyle = 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200';
+                let btnStyle = 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200 border border-transparent';
                 if (isCurrent) {
-                  btnStyle = 'ring-2 ring-brand-600 bg-brand-100 text-brand-900 font-black';
+                  btnStyle = 'ring-2 ring-inset ring-brand-600 bg-brand-100 text-brand-900 font-black border border-brand-300';
                 } else if (isFlagged) {
-                  btnStyle = 'bg-amber-500 text-white font-bold';
+                  btnStyle = 'bg-amber-500 text-white font-bold border border-amber-600';
                 } else if (isAnswered) {
-                  btnStyle = 'bg-green-600 text-white font-bold';
+                  btnStyle = 'bg-green-600 text-white font-bold border border-green-700';
                 }
 
                 return (
@@ -2123,7 +2274,7 @@ const ActiveExam = () => {
                     key={q.id}
                     type="button"
                     onClick={() => setCurrentIndex(idx)}
-                    className={`h-10 rounded-xl text-xs sm:text-sm transition-all relative flex items-center justify-center ${btnStyle}`}
+                    className={`min-w-0 w-full h-10 rounded-xl text-xs sm:text-sm transition-all relative flex items-center justify-center box-border select-none ${btnStyle}`}
                   >
                     <span>{idx + 1}</span>
                     {q.type === 'CODING' && (

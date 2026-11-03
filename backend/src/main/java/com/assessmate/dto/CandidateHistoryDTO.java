@@ -1,5 +1,6 @@
 package com.assessmate.dto;
 
+import com.assessmate.entity.DeviceAccess;
 import com.assessmate.entity.EnrollmentStatus;
 import lombok.Builder;
 import lombok.Data;
@@ -15,4 +16,5 @@ public class CandidateHistoryDTO {
     private EnrollmentStatus status;
     private Double totalScore;
     private Double percentage;
+    private DeviceAccess deviceAccess;
 }

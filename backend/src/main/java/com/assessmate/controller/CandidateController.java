@@ -1,8 +1,8 @@
 package com.assessmate.controller;
 
-
 import com.assessmate.dto.JoinExamResponse;
 import com.assessmate.service.CandidateService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,11 +12,9 @@ import org.springframework.http.MediaType;
 import java.security.Principal;
 import java.util.Map;
 
-
 @RestController
 @RequestMapping("/api/candidate")
 @RequiredArgsConstructor
-
 public class CandidateController {
 
     private final CandidateService candidateService;
@@ -28,15 +26,20 @@ public class CandidateController {
     public ResponseEntity<JoinExamResponse> joinExam(
             @PathVariable String code,
             @RequestHeader(value = "User-Agent", defaultValue = "") String userAgent,
+            @RequestHeader(value = "Sec-CH-UA-Mobile", defaultValue = "") String chMobile,
+            HttpServletRequest request,
             Principal principal) {
-        return ResponseEntity.ok(candidateService.joinExam(code, principal.getName(), userAgent));
+        String clientIp = clientIpResolver != null ? clientIpResolver.resolveClientIp(request) : (request != null ? request.getRemoteAddr() : null);
+        return ResponseEntity.ok(candidateService.joinExam(code, principal.getName(), userAgent, chMobile, clientIp));
     }
 
     @GetMapping("/exam/{enrollmentId}/questions")
     public ResponseEntity<com.assessmate.dto.CandidateExamQuestionsResponse> getExamQuestions(
             @PathVariable Long enrollmentId,
+            @RequestHeader(value = "User-Agent", defaultValue = "") String userAgent,
+            @RequestHeader(value = "Sec-CH-UA-Mobile", defaultValue = "") String chMobile,
             Principal principal) {
-        return ResponseEntity.ok(candidateService.getExamQuestions(enrollmentId, principal.getName()));
+        return ResponseEntity.ok(candidateService.getExamQuestions(enrollmentId, principal.getName(), userAgent, chMobile));
     }
 
     @PostMapping("/proctor/log")
@@ -71,7 +74,6 @@ public class CandidateController {
             Principal principal) {
         return ResponseEntity.ok(candidateService.getExamResult(enrollmentId, principal.getName()));
     }
-
 
     @PostMapping("/exam/{enrollmentId}/progress")
     public ResponseEntity<Void> saveProgress(

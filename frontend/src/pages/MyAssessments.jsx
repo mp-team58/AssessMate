@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCandidateHistory } from '../services/candidateService';
+import { checkDeviceAccess } from '../utils/deviceDetection';
 import Button from '../components/ui/Button';
+import { useToast } from '../contexts/ToastContext';
 import { prefetchRoute } from '../utils/prefetch';
 import {
   Search,
@@ -17,6 +19,7 @@ import {
 } from 'lucide-react';
 
 const MyAssessments = () => {
+  const { showToast } = useToast();
   const [assessments, setAssessments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,6 +38,7 @@ const MyAssessments = () => {
       setAssessments(list);
     } catch (err) {
       setError(err.message || 'Failed to fetch assessments.');
+      showToast(err.message || 'Failed to fetch assessments.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -44,7 +48,14 @@ const MyAssessments = () => {
     fetchAssessments();
   }, []);
 
-  const handleStartExam = async (enrollmentId, examId) => {
+  const handleStartExam = async (enrollmentId, examId, deviceAccess) => {
+    if (deviceAccess) {
+      const check = checkDeviceAccess(deviceAccess);
+      if (!check.allowed) {
+        showToast(check.message, 'error');
+        return;
+      }
+    }
     sessionStorage.setItem('currentEnrollmentId', enrollmentId);
     if (examId) {
       sessionStorage.setItem('currentExamId', String(examId));
@@ -109,20 +120,7 @@ const MyAssessments = () => {
         </Button>
       </header>
 
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
-            <span className="text-sm font-medium">{error}</span>
-          </div>
-          <button
-            onClick={fetchAssessments}
-            className="px-3 py-1 bg-white border border-red-200 text-xs font-bold rounded-lg text-red-700 hover:bg-red-50 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+
 
       {/* Filter and Search Bar matching Host UI */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
@@ -200,6 +198,20 @@ const MyAssessments = () => {
               <div className="h-10 w-full bg-secondary-100 rounded-xl" />
             </div>
           ))}
+        </div>
+      ) : error && filtered.length === 0 ? (
+        <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-secondary-200/80 max-w-xl mx-auto my-8 space-y-4">
+          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto text-red-600 border border-red-100">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h3 className="text-xl font-bold text-secondary-900">Unable to load assessments</h3>
+          <p className="text-secondary-500 text-sm max-w-sm mx-auto">
+            Something went wrong while fetching your assessments. Check your connection and try again.
+          </p>
+          <Button onClick={fetchAssessments} className="!w-auto px-6 py-2.5 text-sm mx-auto inline-flex items-center gap-2">
+            <RotateCw className="w-4 h-4" />
+            <span>Retry</span>
+          </Button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-secondary-200/80 max-w-xl mx-auto my-8 space-y-4">
@@ -304,7 +316,7 @@ const MyAssessments = () => {
                     </button>
                   ) : (
                     <button
-                      onClick={() => handleStartExam(exam.enrollmentId, exam.examId || exam.id)}
+                      onClick={() => handleStartExam(exam.enrollmentId, exam.examId || exam.id, exam.deviceAccess)}
                       className="flex-1 bg-secondary-900 hover:bg-secondary-800 text-[#F1F4F2] py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                     >
                       <Play className="w-4 h-4 fill-current" />

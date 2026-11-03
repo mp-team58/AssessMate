@@ -55,11 +55,84 @@ public class CandidateService {
         new org.springframework.transaction.support.TransactionTemplate(transactionManager)
                 .executeWithoutResult(status -> submitExam(enrollmentId, emptyRequest, candidateEmail));
     }
+    /**
+     * Determines whether the client request originates from a mobile/touch device.
+     * Heuristics prioritize Sec-CH-UA-Mobile client hints when present, then inspect
+     * User-Agent for mobile indicators (iPhones, Android phones/tablets, iPads, Windows Phone, Opera Mini),
+     * and classify Windows, macOS, Linux, and ChromeOS as desktop workstations.
+     */
+    public boolean isMobileDevice(String userAgent, String chMobile) {
+        String ua = userAgent != null ? userAgent.toLowerCase() : "";
+        String ch = chMobile != null ? chMobile.trim() : "";
+
+        // 1. Client Hints (Chromium browsers)
+        if ("?1".equals(ch)) {
+            return true;
+        }
+        if ("?0".equals(ch)) {
+            // Sec-CH-UA-Mobile explicitly states non-mobile (desktop or Android tablet)
+            // Still verify if UA contains unambiguous mobile phone identifiers
+            if (ua.contains("iphone") || ua.contains("ipod") || ua.contains("windows phone") || ua.contains("iemobile")) {
+                return true;
+            }
+            if (ua.contains("android")) {
+                return true;
+            }
+            return false;
+        }
+
+        // 2. iPhones, iPods, and mobile phones
+        if (ua.contains("iphone") || ua.contains("ipod") || ua.contains("windows phone") || ua.contains("iemobile") || ua.contains("blackberry")) {
+            return true;
+        }
+
+        // 3. Android devices (both phones and tablets)
+        if (ua.contains("android")) {
+            return true;
+        }
+
+        // 4. iPad (classic UA with ipad)
+        if (ua.contains("ipad")) {
+            return true;
+        }
+
+        // 5. Generic mobile indicators
+        if (ua.contains("mobile") || ua.contains("opera mini")) {
+            return true;
+        }
+
+        // Desktops: Windows, Macintosh, Linux, ChromeOS
+        return false;
+    }
+
+    /**
+     * Shared helper to validate device access policy against client headers.
+     * Throws BadRequestException (400) if the device type is not permitted.
+     */
+    public void validateDeviceAccess(com.assessmate.entity.DeviceAccess deviceAccess, String userAgent, String chMobile) {
+        if (deviceAccess == null || deviceAccess == com.assessmate.entity.DeviceAccess.BOTH) {
+            return;
+        }
+
+        boolean isMobile = isMobileDevice(userAgent, chMobile);
+
+        if (deviceAccess == com.assessmate.entity.DeviceAccess.DESKTOP && isMobile) {
+            throw new BadRequestException("This exam is restricted to Desktop devices only.");
+        }
+        if (deviceAccess == com.assessmate.entity.DeviceAccess.MOBILE && !isMobile) {
+            throw new BadRequestException("This exam is restricted to Mobile devices only.");
+        }
+    }
+
     public JoinExamResponse joinExam(String joinCode, String candidateEmail, String userAgent) {
-        return joinExam(joinCode, candidateEmail, userAgent, null);
+        return joinExam(joinCode, candidateEmail, userAgent, null, null);
     }
 
     public JoinExamResponse joinExam(String joinCode, String candidateEmail, String userAgent, String clientIp) {
+        return joinExam(joinCode, candidateEmail, userAgent, null, clientIp);
+    }
+
+    public JoinExamResponse joinExam(String joinCode, String candidateEmail, String userAgent, String chMobile, String clientIp) {
         if (joinCodeRateLimiterService != null) {
             joinCodeRateLimiterService.checkRateLimit(clientIp, candidateEmail);
         }
@@ -76,13 +149,7 @@ public class CandidateService {
         }
 
         // A3: Device Access Check
-        boolean isMobile = userAgent.toLowerCase().contains("mobi") || userAgent.toLowerCase().contains("android") || userAgent.toLowerCase().contains("iphone");
-        if (exam.getDeviceAccess() == com.assessmate.entity.DeviceAccess.DESKTOP && isMobile) {
-            throw new BadRequestException("This exam is restricted to Desktop devices only.");
-        }
-        if (exam.getDeviceAccess() == com.assessmate.entity.DeviceAccess.MOBILE && !isMobile) {
-            throw new BadRequestException("This exam is restricted to Mobile devices only.");
-        }
+        validateDeviceAccess(exam.getDeviceAccess(), userAgent, chMobile);
 
         // A4: Empty exam check
         long questionCount = questionRepository.countByExamId(exam.getId());
@@ -169,6 +236,10 @@ public class CandidateService {
     }
 
     public CandidateExamQuestionsResponse getExamQuestions(Long enrollmentId, String candidateEmail) {
+        return getExamQuestions(enrollmentId, candidateEmail, "", "");
+    }
+
+    public CandidateExamQuestionsResponse getExamQuestions(Long enrollmentId, String candidateEmail, String userAgent, String chMobile) {
         ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
 
@@ -180,9 +251,11 @@ public class CandidateService {
             throw new BadRequestException("You can only get questions for an ongoing exam.");
         }
 
+        Exam exam = enrollment.getExam();
+        validateDeviceAccess(exam.getDeviceAccess(), userAgent, chMobile);
+
         if (enrollment.getPersonalEndTime() == null) {
             LocalDateTime now = LocalDateTime.now();
-            Exam exam = enrollment.getExam();
             enrollment.setJoinedAt(now);
             
             if (exam.getTimerType() == TimerType.WHOLE_EXAM && exam.getDurationMinutes() != null) {
@@ -269,6 +342,7 @@ public class CandidateService {
                 .questions(candidateQuestions)
                 .personalEndTime(enrollment.getPersonalEndTime())
                 .remainingSeconds(remainingSeconds)
+                .deviceAccess(enrollment.getExam().getDeviceAccess())
                 .build();
     }
 
@@ -771,6 +845,7 @@ public class CandidateService {
                     .status(e.getStatus())
                     .totalScore(totalScore)
                     .percentage(percentage)
+                    .deviceAccess(e.getExam().getDeviceAccess())
                     .build();
         });
     }

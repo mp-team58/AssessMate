@@ -61,7 +61,10 @@ public class SecurityConfig {
                     "/api/auth/register/verify-otp",
                     "/api/auth/forgot-password/request-otp",
                     "/api/auth/forgot-password/reset",
-                    "/api/auth/login"
+                    "/api/auth/login",
+                    "/api/auth/admin/invitation/validate",
+                    "/api/auth/admin/setup-password",
+                    "/api/auth/admin/emergency-recovery"
                 ).permitAll()
                 .requestMatchers("/api/questions/excel/template").permitAll()
                 .requestMatchers("/api/coding/languages").permitAll()
@@ -118,7 +121,8 @@ public class SecurityConfig {
                 "Origin",
                 "X-Requested-With",
                 "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"
+                "Access-Control-Request-Headers",
+                "X-Admin-Password"
         ));
         config.setExposedHeaders(List.of(
                 "Retry-After",

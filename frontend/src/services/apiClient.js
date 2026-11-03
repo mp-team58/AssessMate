@@ -56,7 +56,7 @@ const buildErrorMessage = (status, data) => {
   if (data && typeof data === 'object' && Object.keys(data).length > 0) {
     return `Request failed (Status ${status}): ${JSON.stringify(data).substring(0, 100)}`;
   }
-  if (status === 403) return 'You do not have permission to do that, or your login session is invalid. Try logging out and logging in again.';
+  if (status === 403) return 'You do not have permission to access this resource.';
   if (status === 401) return 'Your session has expired or is invalid. Please log in again.';
   return `Request failed (Status ${status}). Please try again.`;
 };
@@ -68,7 +68,21 @@ const createApiClient = (baseUrl) => {
   const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   const client = async (endpoint, options = {}) => {
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+    if (options.params && typeof options.params === 'object') {
+      const searchParams = new URLSearchParams();
+      Object.entries(options.params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, value);
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) {
+        cleanEndpoint += (cleanEndpoint.includes('?') ? '&' : '?') + queryString;
+      }
+    }
+
     const url = `${cleanBase}${cleanEndpoint}`;
 
     // Initialize headers
@@ -153,18 +167,19 @@ const createApiClient = (baseUrl) => {
           data = isJson ? await response.json().catch(() => null) : await response.text();
         }
 
-        // Response Interceptor Logic: Handle 401 & 403 (Token expired / Session invalid / Unauthorized)
-        if (!isAuthEndpoint && (response.status === 401 || response.status === 403)) {
+        // Response Interceptor Logic: Handle 401 (Token expired / Session invalid)
+        // 403 is NOT session invalidation — it's an ordinary "not your resource" check
+        // (host viewing another host's exam, candidate hitting the wrong enrollment, IDOR
+        // guards, etc). Treating every 403 as a logout wipes a perfectly valid session.
+        if (!isAuthEndpoint && response.status === 401) {
           const msg = (data && typeof data === 'object' && data.message) ? data.message : (typeof data === 'string' ? data : '');
           let redirectMessage = 'Your session has expired or is invalid. Please log in again.';
           if (msg.includes('deactivated')) {
             redirectMessage = msg;
           } else if (msg.includes('another device')) {
             redirectMessage = 'Your session was ended because you logged in from another device.';
-          } else if (response.status === 401) {
-            redirectMessage = msg || 'Your session has expired. Please log in again.';
-          } else if (response.status === 403) {
-            redirectMessage = msg || 'You do not have permission to do that, or your login session is invalid. Please log in again.';
+          } else if (msg) {
+            redirectMessage = msg;
           }
           redirectToLogin(redirectMessage);
         }
@@ -210,7 +225,10 @@ const createApiClient = (baseUrl) => {
   client.post = (url, data, config) => client(url, { ...config, method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) });
   client.put = (url, data, config) => client(url, { ...config, method: 'PUT', body: data instanceof FormData ? data : JSON.stringify(data) });
   client.patch = (url, data, config) => client(url, { ...config, method: 'PATCH', body: data instanceof FormData ? data : JSON.stringify(data) });
-  client.delete = (url, config) => client(url, { ...config, method: 'DELETE' });
+  client.delete = (url, config = {}) => {
+    const body = config.body || (config.data !== undefined ? (config.data instanceof FormData ? config.data : JSON.stringify(config.data)) : undefined);
+    return client(url, { ...config, method: 'DELETE', ...(body !== undefined ? { body } : {}) });
+  };
 
   return client;
 };

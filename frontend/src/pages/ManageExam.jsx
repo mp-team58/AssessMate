@@ -4,9 +4,11 @@ import { getExamById, publishExam, endExam, duplicateExam } from '../services/ex
 import { getExamQuestionStats, getExamQuestions } from '../services/questionService';
 import { getExamCodingProblems } from '../services/codingQuestionService';
 import Button from '../components/ui/Button';
+import MarkdownViewer from '../components/MarkdownViewer';
 import QuestionCard from '../components/QuestionCard';
 import ShareExamModal from '../components/ShareExamModal';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import { Share2 } from 'lucide-react';
 
 const ManageExam = () => {
@@ -21,6 +23,7 @@ const ManageExam = () => {
   const [error, setError] = useState('');
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const fetchExam = async () => {
     setIsLoading(true);
@@ -75,6 +78,15 @@ const ManageExam = () => {
     }
     
     try {
+    const isConfirmed = await confirm({
+      title: 'Publish Assessment',
+      message: "Are you sure you want to publish this exam? You won't be able to edit questions after publishing.",
+      confirmText: 'Publish Exam',
+      cancelText: 'Cancel',
+      isDanger: false,
+    });
+    if (!isConfirmed) return;
+
       const response = await publishExam(id);
       setExam({ ...exam, status: 'LIVE', startedAt: response.data.startedAt || new Date().toISOString() });
       showToast('Exam published successfully!', 'success');
@@ -84,6 +96,14 @@ const ManageExam = () => {
   };
 
   const handleEnd = async () => {
+    const isConfirmed = await confirm({
+      title: 'End Assessment',
+      message: 'Are you sure you want to end this exam? Candidates will no longer be able to submit.',
+      confirmText: 'End Exam',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!isConfirmed) return;
     try {
       const response = await endExam(id);
       setExam({ ...exam, status: 'ENDED', endedAt: response.data.endedAt || new Date().toISOString() });
@@ -94,6 +114,14 @@ const ManageExam = () => {
   };
 
   const handleDuplicate = async () => {
+    const isConfirmed = await confirm({
+      title: 'Duplicate Assessment',
+      message: 'Are you sure you want to duplicate this exam? A draft copy will be created.',
+      confirmText: 'Duplicate',
+      cancelText: 'Cancel',
+      isDanger: false,
+    });
+    if (!isConfirmed) return;
     try {
       const response = await duplicateExam(id);
       showToast('Exam duplicated successfully! You can now edit the new copy.', 'success');
@@ -377,8 +405,8 @@ const ManageExam = () => {
                             Mem: {cq.memoryLimitMb}MB
                           </span>
                         </div>
-                        <div className="text-secondary-600 text-sm bg-secondary-50 p-3 rounded-xl border border-secondary-100 overflow-hidden line-clamp-2">
-                          {cq.description}
+                        <div className="bg-secondary-50 p-4 rounded-xl border border-secondary-100">
+                          <MarkdownViewer content={cq.description} />
                         </div>
                       </div>
                     </div>

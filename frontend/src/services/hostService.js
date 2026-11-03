@@ -18,6 +18,10 @@ export const getExamLiveMonitor = async (examId) => {
   return apiClient.get(`/results/exam/${examId}/live`);
 };
 
+export const toggleCandidateResult = async (examId, enrollmentId) => {
+  return apiClient.put(`/results/exam/${examId}/candidate/${enrollmentId}/toggle-result`);
+};
+
 export const getCandidateReport = async (examId, enrollmentId) => {
   return apiClient.get(`/results/exam/${examId}/candidate/${enrollmentId}`);
 };

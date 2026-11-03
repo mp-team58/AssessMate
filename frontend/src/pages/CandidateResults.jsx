@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCandidateHistory } from '../services/candidateService';
+import { useToast } from '../contexts/ToastContext';
 import Button from '../components/ui/Button';
 import {
   Award,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 
 const CandidateResults = () => {
+  const { showToast } = useToast();
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,6 +38,7 @@ const CandidateResults = () => {
       setResults(completedOnly);
     } catch (err) {
       setError(err.message || 'Failed to fetch assessment results.');
+      showToast(err.message || 'Failed to fetch assessment results.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -74,17 +77,7 @@ const CandidateResults = () => {
         </div>
       </header>
 
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-2xl shadow-sm border border-red-200 flex items-center justify-between gap-3">
-          <span className="text-sm font-medium">{error}</span>
-          <button
-            onClick={fetchResults}
-            className="px-3 py-1 bg-white border border-red-200 text-xs font-bold rounded-lg text-red-700 hover:bg-red-50"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+
 
       {/* Metric Cards Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -150,6 +143,20 @@ const CandidateResults = () => {
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div>
+        </div>
+      ) : error && filtered.length === 0 ? (
+        <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-secondary-200/80 max-w-xl mx-auto my-8 space-y-4">
+          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto text-red-600 border border-red-100">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+          </div>
+          <h3 className="text-xl font-bold text-secondary-900">Unable to load assessment results</h3>
+          <p className="text-secondary-500 text-sm max-w-sm mx-auto">
+            Something went wrong while retrieving your completed results. Please try again.
+          </p>
+          <Button onClick={fetchResults} className="!w-auto px-6 py-2.5 text-sm mx-auto inline-flex items-center gap-2">
+            <RotateCw className="w-4 h-4" />
+            <span>Retry</span>
+          </Button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-secondary-200/80 max-w-xl mx-auto my-8 space-y-4">

@@ -11,6 +11,16 @@ export const AuthProvider = ({ children }) => {
       : null
   );
 
+  const updateUser = (updates) => {
+    setUser((prev) => {
+      const updated = { ...prev, ...updates };
+      if (updates.name) localStorage.setItem('name', updates.name);
+      if (updates.role) localStorage.setItem('role', updates.role);
+      if (updates.id) localStorage.setItem('id', updates.id);
+      return updated;
+    });
+  };
+
   const login = (accessToken, role, name, id) => {
     clearApiCache();
     setUser({ role, name, id });
@@ -40,7 +50,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ user, token, login, logout, updateUser, isAuthenticated: !!token }}>
       {children}
     </AuthContext.Provider>
   );

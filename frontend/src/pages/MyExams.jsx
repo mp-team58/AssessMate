@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getMyExams, deleteExam } from '../services/examService';
 import ShareExamModal from '../components/ShareExamModal';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import { 
   Share2, PlusCircle, Sparkles, FileText, FileSpreadsheet, 
-  Trash2, Clock, Calendar, HelpCircle, Code2, KeyRound, BookOpenCheck 
+  Trash2, Clock, Calendar, HelpCircle, Code2, KeyRound, BookOpenCheck, MoreVertical 
 } from 'lucide-react';
 import { prefetchRoute } from '../utils/prefetch';
 
@@ -13,8 +14,21 @@ const MyExams = () => {
   const [exams, setExams] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [shareExamId, setShareExamId] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const handleClickOutside = (e) => {
+      if (!e.target.closest("[data-exam-menu]")) {
+        setActiveMenuId(null);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [activeMenuId]);
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const fetchExams = async () => {
     setIsLoading(true);
@@ -35,7 +49,14 @@ const MyExams = () => {
   }, []);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this exam?')) return;
+    const isConfirmed = await confirm({
+      title: 'Delete Exam',
+      message: 'Are you sure you want to delete this exam? This action cannot be undone.',
+      confirmText: 'Delete Exam',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (!isConfirmed) return;
     try {
       await deleteExam(id);
       setExams(exams.filter(exam => exam.id !== id));
@@ -100,7 +121,7 @@ const MyExams = () => {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
           {exams.map((exam) => (
             <div
               key={exam.id}
@@ -184,39 +205,103 @@ const MyExams = () => {
                 </div>
               </div>
 
-              <div className="mt-auto pt-4 border-t border-secondary-100 flex justify-between gap-2.5 relative z-10">
+              <div className="mt-auto pt-4 border-t border-secondary-100 flex items-center gap-1.5 sm:gap-2 relative z-10 flex-nowrap w-full">
                 <Link
                   to={`/host/exams/${exam.id}/manage`}
-                  className="flex-1 bg-white border border-brand-200 text-brand-700 text-center py-2.5 rounded-xl font-bold text-sm hover:bg-brand-50 hover:border-brand-300 transition-colors shadow-sm"
+                  className="flex-1 min-w-0 h-9 bg-white border border-brand-200 text-brand-700 hover:bg-brand-50 hover:border-brand-300 transition-colors shadow-sm rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap flex items-center justify-center px-2 sm:px-3 truncate"
+                  title="Manage Exam"
                 >
                   Manage Exam
                 </Link>
+
                 {(exam.status === 'ENDED' || exam.status === 'LIVE') && (
                   <Link
                     to={`/host/exams/${exam.id}/results`}
-                    className="flex-1 bg-emerald-50 border border-emerald-200/50 text-emerald-700 text-center py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-colors shadow-sm"
+                    className="flex-1 min-w-0 h-9 bg-emerald-50 border border-emerald-200/50 text-emerald-700 hover:bg-emerald-100 transition-colors shadow-sm rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap flex items-center justify-center px-2 sm:px-3 truncate"
+                    title="View Results"
                   >
                     View Results
                   </Link>
                 )}
-                {(exam.status === 'LIVE' || exam.status === 'SCHEDULED') && (
-                  <button
-                    onClick={() => setShareExamId(exam.id)}
-                    className="px-4 py-2.5 text-brand-600 hover:text-brand-700 hover:bg-brand-50 border border-transparent hover:border-brand-100 rounded-xl transition-colors shadow-sm bg-white"
-                    title="Share Exam"
-                  >
-                    <Share2 className="w-5 h-5" />
-                  </button>
+
+                {exam.status === 'LIVE' ? (
+                  <>
+                    <div className="sm:hidden relative shrink-0" data-exam-menu>
+                      <button
+                        type="button"
+                        onClick={() => setActiveMenuId(activeMenuId === exam.id ? null : exam.id)}
+                        className="w-9 h-9 flex items-center justify-center text-secondary-500 hover:text-secondary-800 hover:bg-secondary-100/80 border border-secondary-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                        title="More options"
+                        aria-label="More options"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {activeMenuId === exam.id && (
+                        <div className="absolute right-0 bottom-full mb-2 w-44 bg-white rounded-xl shadow-xl border border-secondary-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-150">
+                          <button
+                            type="button"
+                            onClick={() => { setActiveMenuId(null); setShareExamId(exam.id); }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-secondary-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left"
+                          >
+                            <Share2 className="w-4 h-4 text-brand-600 shrink-0" />
+                            Share Exam
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setActiveMenuId(null); handleDelete(exam.id); }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-secondary-100"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500 shrink-0" />
+                            Delete Exam
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShareExamId(exam.id)}
+                      className="hidden sm:flex w-9 h-9 items-center justify-center text-brand-600 hover:text-brand-700 hover:bg-brand-50 border border-secondary-200 hover:border-brand-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                      title="Share Exam"
+                      aria-label="Share Exam"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(exam.id)}
+                      className="hidden sm:flex w-9 h-9 items-center justify-center text-secondary-400 hover:text-red-600 hover:bg-red-50 border border-secondary-200 hover:border-red-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                      title="Delete Exam"
+                      aria-label="Delete Exam"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {exam.status === 'SCHEDULED' && (
+                      <button
+                        type="button"
+                        onClick={() => setShareExamId(exam.id)}
+                        className="w-9 h-9 flex items-center justify-center text-brand-600 hover:text-brand-700 hover:bg-brand-50 border border-secondary-200 hover:border-brand-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                        title="Share Exam"
+                        aria-label="Share Exam"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(exam.id)}
+                      className="w-9 h-9 flex items-center justify-center text-secondary-400 hover:text-red-600 hover:bg-red-50 border border-secondary-200 hover:border-red-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                      title="Delete Exam"
+                      aria-label="Delete Exam"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </>
                 )}
-                <button
-                  onClick={() => handleDelete(exam.id)}
-                  className="px-4 py-2.5 text-secondary-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-xl transition-colors shadow-sm bg-white"
-                  title="Delete Exam"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
               </div>
             </div>
           ))}

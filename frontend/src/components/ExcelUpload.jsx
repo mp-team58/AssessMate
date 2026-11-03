@@ -44,13 +44,15 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
       const result = await uploadExcel(examId, file);
       setUploadResult(result);
       if (result.savedCount > 0) {
+        showToast(`${result.savedCount} question${result.savedCount === 1 ? '' : 's'} imported successfully!`, 'success');
         onUploadSuccess(); // Refresh question list and stats in parent
         setFile(null); // Clear file selection
+      } else {
+        showToast('No valid questions could be imported from the Excel file.', 'warning');
       }
     } catch (err) {
-      setError(err.message || 'Failed to upload Excel file');
+      showToast(err.message || 'Failed to upload Excel file', 'error');
       if (err.response?.status === 403) {
-        // Handled by apiClient interceptor, but we can catch it here just in case
         console.error('Forbidden/Unauthorized');
       }
     } finally {
@@ -207,7 +209,7 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
                 />
               </div>
               
-              {error && <p className="text-red-500 text-sm mt-2 font-medium flex items-center gap-1"><AlertTriangle className="w-4 h-4"/> {error}</p>}
+              
             </div>
 
             <Button 

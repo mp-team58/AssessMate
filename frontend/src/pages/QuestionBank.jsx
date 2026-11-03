@@ -10,12 +10,14 @@ import QuestionCard from '../components/QuestionCard';
 import QuestionForm from '../components/QuestionForm';
 import CodingProblemModal from '../components/CodingProblemModal';
 import Button from '../components/ui/Button';
+import MarkdownViewer from '../components/MarkdownViewer';
 import Input from '../components/ui/Input';
 import {
   Plus, Search, Filter, X, Pencil, Trash2, ChevronDown, ChevronUp,
   Code2, HelpCircle, Clock, HardDrive, Eye, EyeOff, CheckCircle2
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 const BankQuestionRow = ({ question, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -282,12 +284,14 @@ const QuestionBank = () => {
   // Active Bank Tab: 'mcq' or 'coding'
   const [activeBankTab, setActiveBankTab] = useState('mcq');
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // MCQ State
   const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
+  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     topic: '',
@@ -393,7 +397,14 @@ const QuestionBank = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this question from the bank?')) {
+    const isConfirmed = await confirm({
+      title: 'Delete Question',
+      message: 'Are you sure you want to delete this question from the bank?',
+      confirmText: 'Delete Question',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (isConfirmed) {
       try {
         await deleteQuestion(id);
         fetchQuestions();
@@ -427,7 +438,14 @@ const QuestionBank = () => {
   };
 
   const handleDeleteCoding = async (id) => {
-    if (window.confirm('Are you sure you want to delete this coding problem from the global bank?')) {
+    const isConfirmed = await confirm({
+      title: 'Delete Coding Problem',
+      message: 'Are you sure you want to delete this coding problem from the global bank?',
+      confirmText: 'Delete Problem',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (isConfirmed) {
       try {
         await deleteCodingProblem(id);
         fetchCodingProblems();

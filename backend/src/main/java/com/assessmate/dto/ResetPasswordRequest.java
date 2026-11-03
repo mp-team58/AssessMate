@@ -26,4 +26,6 @@ public class ResetPasswordRequest {
         message = "Password must be at least 8 characters"
     )
     private String newPassword;
+
+    private String portal;
 }

@@ -68,14 +68,14 @@ const QuestionCard = ({
                 {question.topic}
               </span>
             )}
-            {showSource && question.source && (
+            {showSource && (question.addedBy || question.source) && (
               <span className={`px-2.5 py-0.5 rounded-md ${getSourceColor(question.source)}`}>
-                {question.source}
+                {question.addedBy || question.source}
               </span>
             )}
 
             <div className="ml-auto flex items-center gap-1">
-              {question.isVerified && question.source === 'AI' && (
+              {question.isVerified && (question.addedBy === 'AI' || question.source === 'AI') && (
                 <span className="flex items-center text-green-700 bg-green-50 px-2.5 py-0.5 rounded-md border border-green-200">
                   <CheckCircle className="w-3 h-3 mr-1" /> Verified
                 </span>

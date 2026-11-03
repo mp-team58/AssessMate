@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import apiClient from '../services/apiClient';
+import { useToast } from '../contexts/ToastContext';
 
 export default function AdminProtectedRoute() {
   const token = localStorage.getItem('token');
@@ -74,17 +75,7 @@ export default function AdminProtectedRoute() {
             Your administrator account was initialized with a temporary or bootstrap password. For security compliance, you must set a strong, personal password before accessing administrative tools.
           </p>
 
-          {error && (
-            <div className="p-3 mb-4 rounded-xl bg-red-50 text-red-700 text-xs font-medium border border-red-100">
-              {error}
-            </div>
-          )}
 
-          {success && (
-            <div className="p-3 mb-4 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-100">
-              {success}
-            </div>
-          )}
 
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>

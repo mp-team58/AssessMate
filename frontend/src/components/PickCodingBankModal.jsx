@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Library, Check, AlertCircle, Code2, Clock, HardDrive, Eye } from 'lucide-react';
 import { getCodingBank } from '../services/codingQuestionService';
+import MarkdownViewer from './MarkdownViewer';
 import Button from './ui/Button';
+import { useToast } from '../contexts/ToastContext';
 
 const PickCodingBankModal = ({
   isOpen,
@@ -44,7 +46,7 @@ const PickCodingBankModal = ({
       }) : []);
     } catch (err) {
       console.error('Failed to load coding bank', err);
-      setError('Failed to load problems from Global Coding Bank.');
+      showToast('Failed to load problems from Global Coding Bank.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -136,12 +138,7 @@ const PickCodingBankModal = ({
 
         {/* Problems List */}
         <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm font-medium">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+
 
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-secondary-400">
@@ -200,9 +197,9 @@ const PickCodingBankModal = ({
                       </div>
                     </div>
 
-                    <p className="text-xs text-secondary-600 line-clamp-2 mt-1 leading-relaxed">
-                      {problem.description}
-                    </p>
+                    <div className="text-xs text-secondary-600 mt-1 leading-relaxed bg-secondary-50/50 p-3 rounded-lg border border-secondary-100/50">
+                      <MarkdownViewer content={problem.description} className="text-xs" />
+                    </div>
 
                     <div className="flex flex-wrap items-center gap-3 mt-3 text-[11px] text-secondary-500">
                       {problem.allowedLanguages && problem.allowedLanguages.length > 0 && (

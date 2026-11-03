@@ -19,6 +19,7 @@ import ExcelUpload from '../components/ExcelUpload';
 import AIGeneration from '../components/AIGeneration';
 import CodingProblemModal from '../components/CodingProblemModal';
 import PickCodingBankModal from '../components/PickCodingBankModal';
+import MarkdownViewer from '../components/MarkdownViewer';
 import Button from '../components/ui/Button';
 import {
   Edit2, Trash2, Plus, Cpu, Library, Search, Filter, Rocket,
@@ -26,6 +27,7 @@ import {
   CheckCircle2, HelpCircle, Sparkles
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import AICodingProblemModal from '../components/AICodingProblemModal';
 import { scrollAppToTop } from '../utils/scroll';
 
@@ -38,6 +40,7 @@ const ExamQuestions = () => {
   const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   // Section Tab: 'mcq' or 'coding'
   const [sectionTab, setSectionTab] = useState('mcq');
@@ -45,6 +48,7 @@ const ExamQuestions = () => {
   // MCQ Tab Actions ('manual', 'bank', 'excel', 'ai')
   const [activeTab, setActiveTab] = useState(null);
   const [editingQuestion, setEditingQuestion] = useState(null);
+  const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
 
   // Bank Tab State for MCQ
   const [bankQuestions, setBankQuestions] = useState([]);
@@ -137,6 +141,8 @@ const ExamQuestions = () => {
 
   // MCQ Handlers
   const handleManualSubmit = async (formData) => {
+    if (isSubmittingQuestion) return;
+    setIsSubmittingQuestion(true);
     try {
       await addQuestionManually(examId, formData);
       setActiveTab(null);
@@ -145,10 +151,14 @@ const ExamQuestions = () => {
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to add question', 'error');
+    } finally {
+      setIsSubmittingQuestion(false);
     }
   };
 
   const handleEditSubmit = async (formData) => {
+    if (isSubmittingQuestion) return;
+    setIsSubmittingQuestion(true);
     try {
       await editQuestion(editingQuestion.id, formData);
       setEditingQuestion(null);
@@ -157,11 +167,20 @@ const ExamQuestions = () => {
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to edit question', 'error');
+    } finally {
+      setIsSubmittingQuestion(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this question?")) {
+    const isConfirmed = await confirm({
+      title: 'Delete Question',
+      message: 'Are you sure you want to delete this question from the exam pool?',
+      confirmText: 'Delete Question',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (isConfirmed) {
       try {
         await deleteQuestion(id);
         fetchExamData();
@@ -176,8 +195,13 @@ const ExamQuestions = () => {
   const handleVerify = async (id) => {
     try {
       await verifyQuestion(id);
-      fetchExamData();
+      setQuestions(prev => prev.map(q => q.id === id ? { ...q, isVerified: true } : q));
+      setStats(prev => prev ? {
+        ...prev,
+        unverifiedCount: Math.max(0, (prev.unverifiedCount || 0) - 1)
+      } : prev);
       showToast('Question verified', 'success');
+      fetchExamData();
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to verify question', 'error');
@@ -248,7 +272,14 @@ const ExamQuestions = () => {
   };
 
   const handleDeleteCodingProblem = async (problemId) => {
-    if (window.confirm("Are you sure you want to remove this coding problem from the exam pool?")) {
+    const isConfirmed = await confirm({
+      title: 'Remove Coding Problem',
+      message: 'Are you sure you want to remove this coding problem from the exam pool?',
+      confirmText: 'Remove Problem',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (isConfirmed) {
       try {
         await deleteCodingProblem(problemId);
         await fetchCodingData();
@@ -295,7 +326,14 @@ const ExamQuestions = () => {
       return;
     }
 
-    if (window.confirm("Are you sure you want to publish this exam? You won't be able to edit questions after publishing.")) {
+    const isConfirmed = await confirm({
+      title: 'Publish Assessment',
+      message: "Are you sure you want to publish this exam? You won't be able to edit questions after publishing.",
+      confirmText: 'Publish Exam',
+      cancelText: 'Cancel',
+      isDanger: false,
+    });
+    if (isConfirmed) {
       try {
         await publishExam(examId);
         showToast('Exam published successfully', 'success');
@@ -579,9 +617,9 @@ const ExamQuestions = () => {
                           )}
                         </div>
 
-                        <p className="text-xs text-secondary-600 line-clamp-2 leading-relaxed">
-                          {problem.description}
-                        </p>
+                        <div className="bg-secondary-50/50 p-3 rounded-lg mt-2 border border-secondary-100/50">
+                          <MarkdownViewer content={problem.description} className="text-xs" />
+                        </div>
 
                         <div className="flex flex-wrap items-center gap-3 mt-3 text-[11px] text-secondary-500">
                           {problem.allowedLanguages && problem.allowedLanguages.length > 0 && (
@@ -721,6 +759,7 @@ const ExamQuestions = () => {
                 onCancel={() => { setActiveTab(null); setEditingQuestion(null); }}
                 isExamContext={true}
                 examId={examId}
+                isLoading={isSubmittingQuestion}
               />
             </div>
           )}
@@ -836,6 +875,7 @@ const ExamQuestions = () => {
             <AIGeneration
               examId={examId}
               stats={stats}
+              questions={questions}
               onGenerationSuccess={fetchExamData}
               onEdit={(q) => { setEditingQuestion(q); setActiveTab(null); scrollAppToTop(); }}
               onDelete={handleDelete}

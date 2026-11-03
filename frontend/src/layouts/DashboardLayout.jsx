@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { LayoutDashboard, FileText, PlusCircle, User, LogOut, Menu, X, BookOpenCheck } from 'lucide-react';
 import { logout } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 import { prefetchRoute, prefetchCommonRoutes } from '../utils/prefetch';
 import ContentSkeleton from '../components/ui/ContentSkeleton';
 
@@ -10,6 +11,7 @@ const DashboardLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { confirm } = useConfirm();
 
   const { pathname } = useLocation();
 
@@ -27,9 +29,18 @@ const DashboardLayout = () => {
     prefetchCommonRoutes('HOST');
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    const isConfirmed = await confirm({
+      title: 'Confirm Logout',
+      message: 'Are you sure you want to sign out?',
+      confirmText: 'Logout',
+      cancelText: 'Cancel',
+      isDanger: true,
+    });
+    if (isConfirmed) {
+      logout();
+      navigate('/login');
+    }
   };
 
   const navItems = [
@@ -94,9 +105,9 @@ const DashboardLayout = () => {
         {/* Sidebar Footer with Host Profile & Sign Out */}
         <div className="p-4 border-t border-secondary-700/50 space-y-2">
           <NavLink 
-            to="/profile"
-            onMouseEnter={() => prefetchRoute('/profile')}
-            onFocus={() => prefetchRoute('/profile')}
+            to="/host/profile"
+            onMouseEnter={() => prefetchRoute('/host/profile')}
+            onFocus={() => prefetchRoute('/host/profile')}
             onClick={() => setIsMobileMenuOpen(false)}
             className={({ isActive }) => `
               px-4 py-3 rounded-xl border flex items-center gap-3 w-full text-left cursor-pointer transition-all duration-200

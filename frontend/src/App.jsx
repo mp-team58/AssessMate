@@ -40,6 +40,7 @@ const ActiveExam = React.lazy(() => import('./pages/ActiveExam'));
 const ExamResult = React.lazy(() => import('./pages/ExamResult'));
 
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin'));
+const AdminSetupPassword = React.lazy(() => import('./pages/admin/AdminSetupPassword'));
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminUsers = React.lazy(() => import('./pages/admin/AdminUsers'));
 const AdminHosts = React.lazy(() => import('./pages/admin/AdminHosts'));
@@ -77,6 +78,8 @@ function App() {
           
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLogin />} />
+          <Route path="/admin/forgot-password" element={<ForgotPassword />} />
+          <Route path="/admin/setup-password" element={<AdminSetupPassword />} />
           <Route element={<AdminProtectedRoute />}>
             <Route element={<AdminLayout />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
@@ -86,6 +89,7 @@ function App() {
               <Route path="/admin/exams" element={<AdminExams />} />
               <Route path="/admin/activity" element={<AdminActivity />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
+              <Route path="/admin/profile" element={<UserProfile />} />
             </Route>
           </Route>
 
@@ -104,6 +108,7 @@ function App() {
               <Route path="/host/generate-questions" element={<GenerateQuestions />} />
               <Route path="/host/question-bank" element={<QuestionBank />} />
               <Route path="/host/exams/:examId/questions" element={<ExamQuestions />} />
+              <Route path="/host/profile" element={<UserProfile />} />
             </Route>
           </Route>
 
@@ -114,7 +119,7 @@ function App() {
               <Route path="/candidate/my-assessments" element={<MyAssessments />} />
               <Route path="/candidate/results" element={<CandidateResults />} />
               <Route path="/candidate/performance" element={<CandidatePerformance />} />
-              <Route path="/candidate/profile" element={<Navigate to="/profile" replace />} />
+              <Route path="/candidate/profile" element={<UserProfile />} />
               <Route path="/candidate/join" element={<JoinAssessment />} />
               <Route path="/candidate/result/:enrollmentId" element={<ExamResult />} />
             </Route>

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import Button from './ui/Button';
 import QuestionCard from './QuestionCard';
+import { useToast } from '../contexts/ToastContext';
 import {
   generateQuestionsFromTopic,
   generateQuestionsFromText,
@@ -47,7 +48,8 @@ const getInputTypeLabel = (inputType) => {
   return labels[inputType] || inputType;
 };
 
-const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, onClose }) => {
+const AIGeneration = ({ examId, stats, questions = [], onGenerationSuccess, onEdit, onDelete, onClose }) => {
+  const { showToast } = useToast();
   const [aiMode, setAiMode] = useState("TOPIC");
   const [aiForm, setAiForm] = useState({
     topic: "",
@@ -60,8 +62,8 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
 
   const [selectedAiFile, setSelectedAiFile] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [generationResult, setGenerationResult] = useState(null);
-  const [generationError, setGenerationError] = useState("");
   const fileInputRef = useRef(null);
 
   const easyRemaining = Math.max(0, (stats?.easyRequired || 0) - (stats?.easyAdded || 0));
@@ -93,53 +95,51 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
     const extension = file.name.split(".").pop().toLowerCase();
 
     if (!ALLOWED_FILE_EXTENSIONS.includes(extension)) {
-      setGenerationError("Unsupported file type. Please upload PDF, PPTX, DOCX, JPG, JPEG, or PNG.");
+      showToast("Unsupported file type. Please upload PDF, PPTX, DOCX, JPG, JPEG, or PNG.", "error");
       setSelectedAiFile(null);
       return;
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      setGenerationError("File is too large. Maximum allowed file size is 50 MB.");
+      showToast("File is too large. Maximum allowed file size is 50 MB.", "error");
       setSelectedAiFile(null);
       return;
     }
 
-    setGenerationError("");
     setSelectedAiFile(file);
   };
 
   const validateForm = () => {
     if (!Number.isInteger(total) || total < 1 || total > 30) {
-      setGenerationError("Please enter a number of questions between 1 and 30.");
+      showToast("Please enter a number of questions between 1 and 30.", "warning");
       return false;
     }
 
     if (total > totalRemaining) {
-      setGenerationError(`Only ${totalRemaining} slots remaining. Please enter ${totalRemaining} or less.`);
+      showToast(`Only ${totalRemaining} slots remaining. Please enter ${totalRemaining} or less.`, "warning");
       return false;
     }
 
     if (otherTypeCount > total) {
-      setGenerationError("Multiple Select + Fill Blank + Numerical counts cannot exceed total questions.");
+      showToast("Multiple Select + Fill Blank + Numerical counts cannot exceed total questions.", "warning");
       return false;
     }
 
     if (aiMode === "TOPIC" && !aiForm.topic.trim()) {
-      setGenerationError("Topic is required for Topic-only generation.");
+      showToast("Topic is required for Topic-only generation.", "warning");
       return false;
     }
 
     if (aiMode === "TEXT" && pastedWordCount < 50) {
-      setGenerationError("At least 50 words are required for text generation.");
+      showToast("At least 50 words are required for text generation.", "warning");
       return false;
     }
 
     if (aiMode === "FILE" && !selectedAiFile) {
-      setGenerationError("Please upload a file.");
+      showToast("Please upload a file.", "warning");
       return false;
     }
 
-    setGenerationError("");
     return true;
   };
 
@@ -147,7 +147,6 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
     if (!validateForm()) return;
 
     setIsGenerating(true);
-    setGenerationError("");
     setGenerationResult(null);
 
     const commonPayload = {
@@ -169,28 +168,35 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           text: aiForm.text.trim(),
         });
       } else if (aiMode === "FILE") {
+        setUploadProgress(0);
         response = await generateQuestionsFromFile({
           ...commonPayload,
           file: selectedAiFile,
+          onUploadProgress: (percent) => setUploadProgress(percent),
         });
       }
 
       const responseData = response.data || response;
       setGenerationResult(responseData);
       onGenerationSuccess();
+      showToast("AI questions generated successfully!", "success");
     } catch (err) {
       const status = err?.response?.status;
+      let errorMsg = "Something went wrong. Please try again.";
       if (status === 401) {
         // apiClient handles 401 redirect
+        return;
       } else if (status === 403) {
-        setGenerationError("You do not have permission to generate questions for this exam.");
+        errorMsg = "You do not have permission to generate questions for this exam.";
       } else if (status === 500) {
-        setGenerationError(err?.response?.data?.message || "AI generation failed. Please try again in a moment.");
+        errorMsg = err?.response?.data?.message || "AI generation failed. Please try again in a moment.";
       } else {
-        setGenerationError(getErrorMessage(err));
+        errorMsg = getErrorMessage(err);
       }
+      showToast(errorMsg, "error");
     } finally {
       setIsGenerating(false);
+      setUploadProgress(0);
     }
   };
 
@@ -200,14 +206,29 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
     const {
       requestedCount,
       generatedCount,
-      verifiedCount,
-      unverifiedCount,
+
+
       inputType,
       stage,
       warning,
-      verifiedQuestions = [],
-      unverifiedQuestions = []
+      verifiedQuestions: apiVerified = [],
+      unverifiedQuestions: apiUnverified = []
     } = generationResult;
+
+    const latestQuestionsMap = (questions || []).reduce((acc, q) => {
+      acc[q.id] = q;
+      return acc;
+    }, {});
+
+    const allGeneratedIds = [...apiVerified, ...apiUnverified].map(q => q.id);
+    const currentGeneratedQuestions = allGeneratedIds
+      .map(id => latestQuestionsMap[id] || [...apiVerified, ...apiUnverified].find(q => q.id === id))
+      .filter(q => latestQuestionsMap[q.id] !== undefined);
+
+    const verifiedQuestions = currentGeneratedQuestions.filter(q => q.isVerified);
+    const unverifiedQuestions = currentGeneratedQuestions.filter(q => !q.isVerified);
+    const verifiedCount = verifiedQuestions.length;
+    const unverifiedCount = unverifiedQuestions.length;
 
     const allGenerated = [...verifiedQuestions, ...unverifiedQuestions];
     const generatedEasy = allGenerated.filter(q => q.difficulty === 'EASY').length;
@@ -235,11 +256,21 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           </div>
         </div>
 
+        {generatedCount > 0 && generatedCount < requestedCount && (
+          <div className="bg-amber-100 border-l-4 border-amber-500 rounded-r-xl p-4 flex gap-3 text-amber-900">
+            <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />
+            <div>
+              <h4 className="font-bold">Shortfall Notice</h4>
+              <p className="text-sm mt-1">Requested {requestedCount} questions, but only {generatedCount} were saved. See the warning below for details.</p>
+            </div>
+          </div>
+        )}
+
         {/* Warning Banner */}
         {warning && (
           <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex gap-3 text-amber-900">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-sm font-medium">{warning}</p>
+            <p className="text-sm font-medium whitespace-pre-line">{warning}</p>
           </div>
         )}
 
@@ -325,7 +356,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           ].map(mode => (
             <button
               key={mode.id}
-              onClick={() => { setAiMode(mode.id); setGenerationError(""); setGenerationResult(null); }}
+              onClick={() => { setAiMode(mode.id); setGenerationResult(null); }}
               disabled={isGenerating}
               className={`px-6 py-2.5 rounded-xl font-bold transition-all text-sm ${aiMode === mode.id
                   ? 'bg-white text-brand-700 shadow-sm border border-secondary-200/50 scale-100'
@@ -338,12 +369,7 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
         </div>
       </div>
 
-      {generationError && (
-        <div className="mb-6 bg-red-50 border border-red-300 rounded-lg p-4 flex gap-3 text-red-900">
-          <X className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-          <p className="text-sm font-medium">{generationError}</p>
-        </div>
-      )}
+
 
       {/* Form Area */}
       <div className="flex flex-col gap-6 relative w-full">
@@ -351,7 +377,18 @@ const AIGeneration = ({ examId, stats, onGenerationSuccess, onEdit, onDelete, on
           <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-xl">
             <Loader2 className="w-10 h-10 text-brand-600 animate-spin mb-4" />
             <p className="font-semibold text-brand-800">Generating questions with AI.</p>
-            <p className="text-sm text-brand-600 mt-1">This may take a moment...</p>
+            {aiMode === "FILE" ? (
+              <div className="mt-3 flex flex-col items-center w-64">
+                <div className="w-full bg-brand-100 rounded-full h-2 mb-2">
+                  <div className="bg-brand-600 h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                </div>
+                <p className="text-sm font-bold text-brand-700">
+                  {uploadProgress < 100 ? `Uploading file: ${uploadProgress}%` : 'File uploaded. Processing content...'}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-brand-600 mt-1">This may take a moment...</p>
+            )}
           </div>
         )}
 

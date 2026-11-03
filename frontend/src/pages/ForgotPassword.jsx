@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import AuthLayout from '../layouts/AuthLayout';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -10,6 +10,7 @@ import OtpInput from '../components/ui/OtpInput';
 import Countdown from '../components/ui/Countdown';
 import { requestPasswordResetOtp, resetPassword } from '../services/authService';
 import { useToast } from '../contexts/ToastContext';
+import { Shield, Lock, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const emailSchema = yup.object().shape({
   email: yup.string().trim().email('Must be a valid email').required('Email is required'),
@@ -23,6 +24,8 @@ const resetSchema = yup.object().shape({
 });
 
 const ForgotPassword = () => {
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith('/admin');
   const [step, setStep] = useState('EMAIL'); // 'EMAIL' | 'OTP'
   const [isLoading, setIsLoading] = useState(false);
   const [otp, setOtp] = useState('');
@@ -50,7 +53,10 @@ const ForgotPassword = () => {
   const onEmailSubmit = async (data) => {
     setIsLoading(true);
     try {
-      const response = await requestPasswordResetOtp({ email: data.email });
+      const payload = { email: data.email };
+      if (isAdmin) payload.portal = 'ADMIN';
+
+      const response = await requestPasswordResetOtp(payload);
       const msg = response.data?.message;
       if (msg && (msg.toLowerCase().includes('could not') || msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('error'))) {
         showToast(msg, 'error');
@@ -82,14 +88,17 @@ const ForgotPassword = () => {
 
     setIsLoading(true);
     try {
-      const response = await resetPassword({
+      const payload = {
         email: resetEmail,
         otp,
-        newPassword: data.newPassword
-      });
+        newPassword: data.newPassword,
+      };
+      if (isAdmin) payload.portal = 'ADMIN';
+
+      const response = await resetPassword(payload);
 
       showToast(response.data?.message || 'Password reset successfully. Please log in with your new password.', 'success');
-      navigate('/login');
+      navigate(isAdmin ? '/admin' : '/login');
     } catch (err) {
       showToast(err.response?.data?.message || err.message || 'Failed to reset password. Please try again.', 'error');
     } finally {
@@ -101,7 +110,10 @@ const ForgotPassword = () => {
     if (cooldown > 0 || isLoading) return;
     setIsLoading(true);
     try {
-      const response = await requestPasswordResetOtp({ email: resetEmail });
+      const payload = { email: resetEmail };
+      if (isAdmin) payload.portal = 'ADMIN';
+
+      const response = await requestPasswordResetOtp(payload);
       const msg = response.data?.message;
       if (msg && (msg.toLowerCase().includes('could not') || msg.toLowerCase().includes('fail') || msg.toLowerCase().includes('error'))) {
         showToast(msg, 'error');
@@ -123,6 +135,159 @@ const ForgotPassword = () => {
     }
   };
 
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#111915] flex items-center justify-center p-4 font-sans">
+        <div className="max-w-md w-full">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#2F6F4E] text-white shadow-lg mb-4">
+              <Shield size={28} />
+            </div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">AssessMate Admin</h1>
+            <p className="text-xs text-emerald-400/80 font-medium tracking-wide uppercase mt-1">
+              Master Password Recovery
+            </p>
+          </div>
+
+          <div className="bg-[#18231E] border border-emerald-900/40 rounded-2xl p-6 sm:p-8 shadow-2xl">
+            {step === 'EMAIL' ? (
+              <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-4">
+                <div>
+                  <h2 className="text-base font-bold text-white">Reset Administrator Password</h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Enter your registered administrator email to receive a secure recovery code.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1.5">
+                    Administrator Email
+                  </label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="admin@assessmate.com"
+                      {...registerEmail('email')}
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                    />
+                  </div>
+                  {emailErrors.email && (
+                    <p className="text-red-400 text-xs mt-1">{emailErrors.email.message}</p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full mt-2 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-emerald-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>{isLoading ? 'Sending Code...' : 'Send Recovery Code'}</span>
+                  {!isLoading && <ArrowRight size={16} />}
+                </button>
+
+                <div className="pt-2 text-center">
+                  <Link
+                    to="/admin"
+                    className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition"
+                  >
+                    <ArrowLeft size={14} />
+                    <span>Back to Admin Login</span>
+                  </Link>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-4">
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setStep('EMAIL')}
+                    className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white mb-3 transition cursor-pointer"
+                  >
+                    <ArrowLeft size={14} />
+                    <span>Back</span>
+                  </button>
+                  <h2 className="text-base font-bold text-white">Enter Verification Code</h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Code sent to <span className="font-semibold text-white">{maskEmail(resetEmail)}</span>
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-gray-300">6-Digit Code</label>
+                  <OtpInput value={otp} onChange={setOtp} length={6} disabled={isLoading} />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1.5">New Password</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="password"
+                      placeholder="••••••••••••"
+                      {...registerReset('newPassword')}
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                    />
+                  </div>
+                  {resetErrors.newPassword && (
+                    <p className="text-red-400 text-xs mt-1">{resetErrors.newPassword.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1.5">Confirm New Password</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="password"
+                      placeholder="••••••••••••"
+                      {...registerReset('confirmPassword')}
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                    />
+                  </div>
+                  {resetErrors.confirmPassword && (
+                    <p className="text-red-400 text-xs mt-1">{resetErrors.confirmPassword.message}</p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading || otp.length !== 6}
+                  className="w-full mt-2 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-emerald-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>{isLoading ? 'Resetting...' : 'Reset Master Password'}</span>
+                  {!isLoading && <ArrowRight size={16} />}
+                </button>
+
+                <div className="pt-2 text-center text-xs">
+                  {cooldown > 0 ? (
+                    <span className="text-gray-400">
+                      Resend code in <Countdown seconds={cooldown} onComplete={() => setCooldown(0)} />
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={isLoading}
+                      className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      Resend Code
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
+          </div>
+
+          <p className="text-center text-xs text-gray-500 mt-6">
+            Admin recovery requests are audited and rate-limited.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AuthLayout>
       {step === 'EMAIL' ? (
@@ -133,7 +298,6 @@ const ForgotPassword = () => {
           </div>
 
           <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-4">
-
             <Input
               label="Email"
               type="email"
@@ -178,7 +342,6 @@ const ForgotPassword = () => {
           </div>
 
           <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-6">
-
             <div className="space-y-3">
               <label className="block text-sm font-bold text-secondary-700">Verification Code</label>
               <OtpInput value={otp} onChange={setOtp} length={6} disabled={isLoading} />

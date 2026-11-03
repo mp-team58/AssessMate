@@ -131,6 +131,23 @@ const ExamResult = () => {
     );
   }
 
+  if (result.resultsPublished === false) {
+    return (
+      <div className="max-w-md mx-auto bg-white p-8 rounded-3xl border border-secondary-200 shadow-xl text-center space-y-4 my-12 animate-in fade-in duration-200">
+        <Clock className="w-12 h-12 text-brand-500 mx-auto" />
+        <h2 className="text-xl font-bold text-secondary-900">Results Not Yet Published</h2>
+        <p className="text-secondary-600 text-sm">
+          You have successfully submitted your assessment. Please wait for the host to publish the results.
+        </p>
+        <div className="pt-2">
+          <Button onClick={() => navigate('/candidate/dashboard')} className="w-full">
+            Return to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const weakTopics = parseWeakTopics(result.weakTopicsJson);
   const percentage = result.percentage !== undefined && result.percentage !== null ? Number(result.percentage).toFixed(1) : 0;
   const isPassed = !!result.passed || Number(percentage) >= 50;
@@ -348,6 +365,49 @@ const ExamResult = () => {
       </div>
 
 
+
+      {/* Detailed Answers Section */}
+      {result.answers && result.answers.length > 0 && (
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-6">
+          <div className="flex items-center gap-2 border-b border-secondary-100 pb-4">
+            <FileCheck2 className="w-5 h-5 text-brand-600" />
+            <h2 className="text-xl font-bold text-secondary-900">Detailed Answer Review</h2>
+          </div>
+          <div className="space-y-6">
+            {result.answers.map((ans, idx) => (
+              <div key={idx} className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200 flex flex-col gap-3">
+                <div className="flex justify-between items-start gap-4">
+                  <h4 className="font-bold text-secondary-900 flex-1">
+                    <span className="text-secondary-500 mr-2">Q{idx + 1}.</span>
+                    {ans.questionText}
+                  </h4>
+                  <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${ans.isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {ans.isCorrect ? 'Correct' : 'Incorrect'}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                  <div className="p-3 bg-white rounded-xl border border-secondary-200">
+                    <p className="text-[10px] font-bold text-secondary-500 uppercase tracking-wider mb-1">Your Answer</p>
+                    <p className="text-sm font-medium text-secondary-800">{ans.candidateAnswer || 'Not answered'}</p>
+                  </div>
+                  <div className="p-3 bg-brand-50 rounded-xl border border-brand-200">
+                    <p className="text-[10px] font-bold text-brand-600 uppercase tracking-wider mb-1">Correct Answer</p>
+                    <p className="text-sm font-bold text-brand-900">{ans.correctAnswer}</p>
+                  </div>
+                </div>
+
+                {ans.explanation && (
+                  <div className="mt-2 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Explanation</p>
+                    <p className="text-xs text-blue-900 leading-relaxed">{ans.explanation}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bottom Actions */}
       <div className="flex items-center gap-4 pt-2">

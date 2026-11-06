@@ -49,7 +49,7 @@ export default {
           800: '#622a15',
           900: '#4a200f',
         },
-        surface: '#F1F4F2',
+        surface: 'var(--app-bg, #F8F9FA)',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

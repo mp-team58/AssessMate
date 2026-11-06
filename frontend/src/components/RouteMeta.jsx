@@ -22,6 +22,7 @@ const META = [
   ['/host/exams/:id/live', 'Live monitor' + SUFFIX, 'Watch candidates and flagged events in real time during a live exam.'],
   ['/host/generate-questions', 'Generate questions' + SUFFIX, 'Generate exam questions from a topic, pasted notes or an uploaded document.'],
   ['/host/question-bank', 'Question bank' + SUFFIX, 'Your reusable library of MCQ and coding questions.'],
+  ['/host/profile', 'My profile' + SUFFIX, 'Your AssessMate host account details.'],
 
   ['/candidate/dashboard', 'Dashboard' + SUFFIX, 'Your upcoming exams, recent results and progress.'],
   ['/candidate/my-assessments', 'My assessments' + SUFFIX, 'All exams you have joined, in progress or completed.'],
@@ -43,6 +44,7 @@ const META = [
   ['/admin/exams', 'Assessments Oversight' + SUFFIX, 'Monitor and suspend platform assessments.'],
   ['/admin/activity', 'Audit Trail' + SUFFIX, 'Immutable record of administrative operations.'],
   ['/admin/settings', 'Admin Governance' + SUFFIX, 'Delegate administrative roles and manage system administrator accounts.'],
+  ['/admin/profile', 'My profile' + SUFFIX, 'Your AssessMate administrator account details.'],
 ];
 
 const NOT_FOUND = ['Page not found' + SUFFIX, 'The page you are looking for does not exist.'];

@@ -34,12 +34,13 @@ const Toast = ({ id, message, type, onClose }) => {
   };
 
   return (
-    <div className={`flex items-start gap-3 p-4 rounded-2xl border backdrop-blur-md shadow-xl ${colors[type]} animate-in slide-in-from-right-8 fade-in duration-300 max-w-sm w-full pointer-events-auto transition-all`}>
+    <div className={`flex items-start gap-3 p-4 rounded-2xl border backdrop-blur-md shadow-xl ${colors[type]} animate-in slide-in-from-top-4 sm:slide-in-from-bottom-4 fade-in duration-300 max-w-sm w-full pointer-events-auto transition-all`}>
       <div className="shrink-0 mt-0.5">{icons[type]}</div>
       <div className="flex-1 text-sm font-semibold leading-tight">{message}</div>
       <button 
         onClick={() => onClose(id)} 
-        className="shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity"
+        className="shrink-0 text-current opacity-50 hover:opacity-100 transition-opacity cursor-pointer"
+        aria-label="Close notification"
       >
         <X className="w-4 h-4" />
       </button>
@@ -90,7 +91,7 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-[100] flex flex-col items-end gap-3 pointer-events-none" aria-live="polite" role="status">
+      <div className="fixed top-4 left-4 right-4 sm:top-auto sm:left-auto sm:bottom-6 sm:right-6 z-[100] flex flex-col items-center sm:items-end gap-2.5 pointer-events-none" aria-live="polite" role="status">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}

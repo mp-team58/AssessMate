@@ -69,10 +69,8 @@ export const adminService = {
   resendInvitation: (adminId) => apiClient.post(`/admin/admins/${adminId}/resend-invitation`),
 
   deleteAdmin: (adminId, currentPassword) => {
-    const encoded = encodeURIComponent(currentPassword);
-    return apiClient.delete(`/admin/admins/${adminId}?currentPassword=${encoded}`, {
-      data: { currentPassword },
-      body: JSON.stringify({ currentPassword })
+    return apiClient.delete(`/admin/admins/${adminId}`, {
+      data: { currentPassword }
     });
   },
 

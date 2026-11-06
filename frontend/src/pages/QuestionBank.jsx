@@ -1,3 +1,6 @@
+﻿import { createPortal } from 'react-dom';
+import useModalScrollLock from '../hooks/useModalScrollLock';
+import useModalAccessibility from '../hooks/useModalAccessibility';
 import React, { useState, useEffect } from 'react';
 import { getBankQuestions, addQuestionToBank, editQuestion, deleteQuestion } from '../services/questionService';
 import {
@@ -14,6 +17,7 @@ import MarkdownViewer from '../components/MarkdownViewer';
 import Input from '../components/ui/Input';
 import {
   Plus, Search, Filter, X, Pencil, Trash2, ChevronDown, ChevronUp,
+  AlertTriangle,
   Code2, HelpCircle, Clock, HardDrive, Eye, EyeOff, CheckCircle2
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
@@ -280,6 +284,45 @@ const CodingBankProblemRow = ({ problem, onEdit, onDelete }) => {
   );
 };
 
+
+/**
+ * Safely extracts question/problem lists from various backend response formats:
+ * - Raw arrays: [...] or res.data: [...]
+ * - Spring Page: { content: [...] } or res.data: { content: [...] }
+ * - Named property: { questions: [...] } / { problems: [...] }
+ * - Nested wrapper: { data: { questions: [...] } } / { data: { content: [...] } }
+ * Returns { list: Array, isMalformed: boolean, errorMessage: string|null }
+ */
+export const extractQuestionList = (res, itemKey = 'questions') => {
+  if (!res) return { list: [], isMalformed: true, errorMessage: 'Empty or missing response from server.' };
+  
+  const root = res.data !== undefined ? res.data : res;
+  
+  if (Array.isArray(root)) return { list: root, isMalformed: false, errorMessage: null };
+  if (!root || typeof root !== 'object') return { list: [], isMalformed: true, errorMessage: 'Server response is not a valid object.' };
+
+  // 1. Direct array properties
+  if (Array.isArray(root[itemKey])) return { list: root[itemKey], isMalformed: false, errorMessage: null };
+  if (Array.isArray(root.content)) return { list: root.content, isMalformed: false, errorMessage: null };
+  if (Array.isArray(root.data)) return { list: root.data, isMalformed: false, errorMessage: null };
+  if (Array.isArray(root.items)) return { list: root.items, isMalformed: false, errorMessage: null };
+
+  // 2. Nested data wrappers
+  if (root.data && typeof root.data === 'object') {
+    if (Array.isArray(root.data[itemKey])) return { list: root.data[itemKey], isMalformed: false, errorMessage: null };
+    if (Array.isArray(root.data.content)) return { list: root.data.content, isMalformed: false, errorMessage: null };
+    if (Array.isArray(root.data.items)) return { list: root.data.items, isMalformed: false, errorMessage: null };
+  }
+
+  // 3. Error structures returned with 200 status
+  if (root.error || root.message) {
+    return { list: [], isMalformed: true, errorMessage: root.message || root.error };
+  }
+
+  // 4. Malformed non-array object
+  return { list: [], isMalformed: true, errorMessage: 'Received an unexpected response format from the server.' };
+};
+
 const QuestionBank = () => {
   // Active Bank Tab: 'mcq' or 'coding'
   const [activeBankTab, setActiveBankTab] = useState('mcq');
@@ -289,8 +332,18 @@ const QuestionBank = () => {
   // MCQ State
   const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
+  useModalScrollLock(Boolean(isModalOpen || editingQuestion));
+  const mcqModalRef = useModalAccessibility({
+    isOpen: Boolean(isModalOpen || editingQuestion),
+    onClose: () => {
+      setIsModalOpen(false);
+      setEditingQuestion(null);
+    },
+    defaultFocusCancel: false,
+  });
   const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
@@ -302,6 +355,7 @@ const QuestionBank = () => {
   // Coding Bank State
   const [codingProblems, setCodingProblems] = useState([]);
   const [isCodingLoading, setIsCodingLoading] = useState(false);
+  const [codingError, setCodingError] = useState('');
   const [isCodingModalOpen, setIsCodingModalOpen] = useState(false);
   const [editingCodingProblem, setEditingCodingProblem] = useState(null);
   const [isSubmittingCoding, setIsSubmittingCoding] = useState(false);
@@ -310,43 +364,68 @@ const QuestionBank = () => {
     language: ''
   });
 
-  // Fetch MCQ Questions
+    // Fetch MCQ Questions
   const fetchQuestions = async () => {
     setIsLoading(true);
+    setError('');
     try {
       const activeFilters = Object.fromEntries(
         Object.entries(filters).filter(([_, v]) => v !== '')
       );
       const res = await getBankQuestions(activeFilters);
-      setQuestions(res.data || res || []);
-    } catch (error) {
-      console.error('Failed to fetch questions', error);
-      showToast(error.message || 'Unable to load your questions. Please try again.', 'error');
+      const { list, isMalformed, errorMessage } = extractQuestionList(res, 'questions');
+      if (isMalformed) {
+        setQuestions([]);
+        setError(errorMessage || 'Unable to parse questions from server response.');
+        showToast(errorMessage || 'Unable to parse questions from server response.', 'error');
+      } else {
+        setQuestions(list);
+      }
+    } catch (err) {
+      console.error('Failed to fetch questions', err);
+      setQuestions([]);
+      const msg = err?.response?.data?.message || err?.message || 'Unable to load your questions. Please try again.';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fetch Coding Problems
+    // Fetch Coding Problems
   const fetchCodingProblems = async () => {
     setIsCodingLoading(true);
+    setCodingError('');
     try {
       const res = await getCodingBank();
-      const list = res.data || res || [];
-      setCodingProblems(Array.isArray(list) ? list.map(p => {
-        let langs = p.allowedLanguages;
-        if (typeof langs === 'string') {
-          try { langs = JSON.parse(langs); } catch(e) { langs = langs.split(',').map(s=>s.trim()); }
-        }
-        let tcs = p.testCases;
-        if (typeof tcs === 'string') {
-          try { tcs = JSON.parse(tcs); } catch(e) { tcs = []; }
-        }
-        return { ...p, allowedLanguages: Array.isArray(langs) ? langs : [], testCases: Array.isArray(tcs) ? tcs : [] };
-      }) : []);
-    } catch (error) {
-      console.error('Failed to fetch coding bank', error);
-      showToast(error.message || 'Unable to load coding problems. Please try again.', 'error');
+      const { list, isMalformed, errorMessage } = extractQuestionList(res, 'problems');
+      if (isMalformed) {
+        setCodingProblems([]);
+        setCodingError(errorMessage || 'Unable to parse coding problems from server response.');
+        showToast(errorMessage || 'Unable to parse coding problems from server response.', 'error');
+      } else {
+        setCodingProblems(list.map(p => {
+          let langs = p.allowedLanguages;
+          if (typeof langs === 'string') {
+            try { langs = JSON.parse(langs); } catch(e) { langs = langs.split(',').map(s=>s.trim()); }
+          }
+          let tcs = p.testCases;
+          if (typeof tcs === 'string') {
+            try { tcs = JSON.parse(tcs); } catch(e) { tcs = []; }
+          }
+          return {
+            ...p,
+            allowedLanguages: Array.isArray(langs) ? langs : [],
+            testCases: Array.isArray(tcs) ? tcs : []
+          };
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch coding bank', err);
+      setCodingProblems([]);
+      const msg = err?.response?.data?.message || err?.message || 'Unable to load coding problems. Please try again.';
+      setCodingError(msg);
+      showToast(msg, 'error');
     } finally {
       setIsCodingLoading(false);
     }
@@ -458,7 +537,8 @@ const QuestionBank = () => {
   };
 
   // Filtered Coding Problems
-  const filteredCodingProblems = codingProblems.filter(p => {
+  const safeCodingList = Array.isArray(codingProblems) ? codingProblems : [];
+  const filteredCodingProblems = safeCodingList.filter(p => {
     if (codingFilters.search) {
       const q = codingFilters.search.toLowerCase();
       const matchesTitle = p.title?.toLowerCase().includes(q);
@@ -514,7 +594,7 @@ const QuestionBank = () => {
           <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
             activeBankTab === 'mcq' ? 'bg-amber-400/20 text-amber-300' : 'bg-secondary-100 text-secondary-600'
           }`}>
-            {questions.length}
+            {Array.isArray(questions) ? questions.length : 0}
           </span>
         </button>
 
@@ -531,7 +611,7 @@ const QuestionBank = () => {
           <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
             activeBankTab === 'coding' ? 'bg-amber-400/20 text-amber-300' : 'bg-secondary-100 text-secondary-600'
           }`}>
-            {codingProblems.length}
+            {Array.isArray(codingProblems) ? codingProblems.length : 0}
           </span>
         </button>
       </div>
@@ -606,7 +686,7 @@ const QuestionBank = () => {
                   <div key={i} className="h-24 bg-white rounded-2xl border border-secondary-200 p-4 shadow-sm" />
                 ))}
               </div>
-            ) : questions.length === 0 ? (
+            ) : (!Array.isArray(questions) || questions.length === 0) ? (
               <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border-2 border-dashed border-secondary-200 shadow-sm max-w-2xl mx-auto mt-4">
                 <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Filter className="w-8 h-8 text-brand-500" />
@@ -621,7 +701,7 @@ const QuestionBank = () => {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {questions.map(q => (
+                {(Array.isArray(questions) ? questions : []).map(q => (
                   <BankQuestionRow
                     key={q.id}
                     question={q}
@@ -719,23 +799,37 @@ const QuestionBank = () => {
         </div>
       )}
 
-      {/* MCQ Add / Edit Modal */}
-      {(isModalOpen || editingQuestion) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-xl font-bold text-secondary-800">
-                {editingQuestion ? 'Edit MCQ Question' : 'Add MCQ to Question Bank'}
-              </h2>
+            {/* MCQ Add / Edit Modal rendered via portal */}
+      {(isModalOpen || editingQuestion) && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 w-screen h-screen supports-[height:100dvh]:h-dvh z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div ref={mcqModalRef} role="dialog" aria-modal="true" aria-labelledby="qb-mcq-modal-title" tabIndex={-1} className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col my-auto border border-secondary-200 animate-in fade-in zoom-in-95 duration-200 outline-none">
+            {/* Standard Header */}
+            <div className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-secondary-200 bg-white rounded-t-3xl shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#16241F] text-amber-300 flex items-center justify-center shadow-sm">
+                  <HelpCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 id="qb-mcq-modal-title" className="text-xl font-bold text-[#16241F]">
+                    {editingQuestion ? 'Edit MCQ Question' : 'Add MCQ to Question Bank'}
+                  </h2>
+                  <p className="text-xs text-secondary-600">
+                    Configure question text, multiple choice options, correct answers, and explanation.
+                  </p>
+                </div>
+              </div>
               <button
+                type="button"
                 onClick={() => { setIsModalOpen(false); setEditingQuestion(null); }}
-                className="p-2 hover:bg-secondary-100 rounded-full transition-colors text-secondary-500"
+                className="p-2 hover:bg-secondary-100 rounded-xl transition text-secondary-400 hover:text-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                aria-label="Close question dialog"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto">
+            {/* Form Body */}
+            <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1">
               <QuestionForm
                 key={editingQuestion?.id || 'new'}
                 initialData={editingQuestion}
@@ -745,7 +839,8 @@ const QuestionBank = () => {
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Coding Add / Edit Modal */}

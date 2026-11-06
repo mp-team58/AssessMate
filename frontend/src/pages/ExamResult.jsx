@@ -12,8 +12,6 @@ import {
   XCircle,
   Clock,
   ShieldCheck,
-  ChevronDown,
-  ChevronUp,
   FileCheck2,
   Award
 } from 'lucide-react';
@@ -88,25 +86,101 @@ const ExamResult = () => {
     ];
 
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center select-none min-h-[450px] animate-in fade-in duration-300">
-        <div className="relative mb-6">
-          <div className="w-20 h-20 rounded-2xl bg-brand-500/15 border-2 border-brand-500/30 flex items-center justify-center animate-pulse">
-            <BrainCircuit className="w-10 h-10 text-brand-600 animate-spin" style={{ animationDuration: '4s' }} />
+      <div
+        className="w-full max-w-6xl mx-auto space-y-7 animate-in fade-in duration-300 pb-12 font-sans select-none"
+        role="status"
+        aria-live="polite"
+      >
+        {/* Active AI Processing Banner */}
+        <div className="bg-white/90 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-brand-200/70 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-5 relative overflow-hidden">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-200 flex items-center justify-center shrink-0 shadow-sm">
+              <BrainCircuit className="w-7 h-7 text-brand-600 animate-pulse motion-reduce:animate-none" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-brand-700 uppercase tracking-wider">AI Diagnostic Engine</span>
+                <Sparkles className="w-3.5 h-3.5 text-brand-500 animate-bounce motion-reduce:animate-none" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold text-secondary-900 tracking-tight mt-0.5">
+                Generating Assessment Report
+              </h2>
+              <p className="text-secondary-600 text-xs sm:text-sm font-medium mt-1">
+                {loadingMessages[loadingStep]}
+              </p>
+            </div>
           </div>
-          <div className="absolute -bottom-1 -right-1 p-1.5 bg-brand-600 rounded-lg text-white shadow-md">
-            <Sparkles className="w-3.5 h-3.5 animate-bounce" />
+
+          {/* Indeterminate progress bar */}
+          <div className="w-full sm:w-64 space-y-1.5 self-center">
+            <div className="w-full h-2.5 bg-secondary-100 rounded-full overflow-hidden border border-secondary-200/60">
+              <div className="h-full bg-gradient-to-r from-brand-400 via-brand-600 to-brand-400 rounded-full animate-pulse motion-reduce:animate-none w-full" />
+            </div>
+            <p className="text-[11px] text-secondary-400 text-right font-medium">Synthesizing insights...</p>
           </div>
         </div>
 
-        <h2 className="text-2xl font-extrabold text-secondary-900 tracking-tight mb-2">
-          Generating AI Assessment Report
-        </h2>
-        <p className="text-secondary-600 text-sm max-w-md transition-all duration-300 min-h-[40px] flex items-center justify-center font-medium">
-          {loadingMessages[loadingStep]}
-        </p>
+        {/* 1. Page Header Card Skeleton */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-pulse motion-reduce:animate-none">
+          <div className="space-y-2.5 w-full max-w-md">
+            <div className="flex items-center gap-3">
+              <div className="h-7 sm:h-8 w-56 sm:w-72 bg-secondary-200/80 rounded-xl" />
+              <div className="h-6 w-20 bg-secondary-200/70 rounded-full" />
+            </div>
+            <div className="h-4 w-64 bg-secondary-100 rounded-lg" />
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="h-9 w-24 bg-secondary-100 rounded-xl" />
+            <div className="h-9 w-24 bg-secondary-100 rounded-xl" />
+          </div>
+        </div>
 
-        <div className="w-56 h-2 bg-secondary-200 rounded-full overflow-hidden mt-4">
-          <div className="h-full bg-brand-500 animate-pulse rounded-full w-4/5" />
+        {/* 2. Score Summary Metrics Skeleton */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-6 animate-pulse motion-reduce:animate-none">
+          <div className="flex items-center justify-between border-b border-secondary-100 pb-4">
+            <div className="h-6 w-36 bg-secondary-200/80 rounded-lg" />
+            <div className="h-4 w-28 bg-secondary-100 rounded-lg" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200/60 space-y-3">
+              <div className="h-3.5 w-20 bg-secondary-200/80 rounded" />
+              <div className="h-8 w-28 bg-secondary-200 rounded-lg" />
+              <div className="h-2 w-full bg-secondary-200 rounded-full" />
+            </div>
+            <div className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200/60 space-y-3">
+              <div className="h-3.5 w-24 bg-secondary-200/80 rounded" />
+              <div className="h-8 w-24 bg-secondary-200 rounded-lg" />
+              <div className="h-2 w-full bg-secondary-200 rounded-full" />
+            </div>
+            <div className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200/60 space-y-3">
+              <div className="h-3.5 w-28 bg-secondary-200/80 rounded" />
+              <div className="h-8 w-32 bg-secondary-200 rounded-lg" />
+              <div className="h-2 w-full bg-secondary-200 rounded-full" />
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Diagnostic Insight Skeleton */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-5 animate-pulse motion-reduce:animate-none">
+          <div className="flex items-center justify-between border-b border-secondary-100 pb-4">
+            <div className="h-6 w-48 bg-secondary-200/80 rounded-lg" />
+            <div className="h-4 w-20 bg-secondary-100 rounded-lg" />
+          </div>
+          <div className="space-y-2.5">
+            <div className="h-4 w-full bg-secondary-100 rounded" />
+            <div className="h-4 w-11/12 bg-secondary-100 rounded" />
+            <div className="h-4 w-4/5 bg-secondary-100 rounded" />
+            <div className="h-4 w-3/4 bg-secondary-100 rounded" />
+          </div>
+        </div>
+
+        {/* 4. Recommendations List Skeleton */}
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-5 animate-pulse motion-reduce:animate-none">
+          <div className="h-6 w-44 bg-secondary-200/80 rounded-lg" />
+          <div className="space-y-3">
+            <div className="h-16 w-full bg-secondary-50 border border-secondary-200/60 rounded-2xl" />
+            <div className="h-16 w-full bg-secondary-50 border border-secondary-200/60 rounded-2xl" />
+          </div>
         </div>
       </div>
     );
@@ -153,7 +227,7 @@ const ExamResult = () => {
   const isPassed = !!result.passed || Number(percentage) >= 50;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300 pb-12">
+    <div className="w-full max-w-6xl mx-auto space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300 pb-12">
       {/* Top Banner Header Card */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200">
         <div className="space-y-1">
@@ -186,7 +260,7 @@ const ExamResult = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-start sm:justify-end">
           <Button
             onClick={() => navigate('/candidate/my-assessments')}
             variant="outline"
@@ -220,50 +294,64 @@ const ExamResult = () => {
         {/* Big Highlights Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Total Score */}
-          <div className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200">
-            <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Total Score</p>
-            <p className="text-3xl font-black text-secondary-900 mt-1">
-              {result.totalScore ?? '—'}{' '}
-              <span className="text-base text-secondary-500 font-normal">/ {result.maxScore ?? '—'}</span>
-            </p>
-            <div className="w-full bg-secondary-200 h-2 rounded-full overflow-hidden mt-3">
-              <div
-                className="bg-brand-600 h-full rounded-full transition-all duration-700"
-                style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
-              />
+          <div className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200 flex flex-col justify-between h-full">
+            <div>
+              <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Total Score</p>
+              <p className="text-3xl font-black text-secondary-900 mt-1">
+                {result.totalScore ?? '—'}{' '}
+                <span className="text-base text-secondary-500 font-normal">/ {result.maxScore ?? '—'}</span>
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-secondary-200/60">
+              <div className="w-full bg-secondary-200 h-2 rounded-full overflow-hidden">
+                <div
+                  className="bg-brand-600 h-full rounded-full transition-all duration-700"
+                  style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-secondary-500 mt-1.5 font-medium text-right">
+                {percentage}% of maximum
+              </p>
             </div>
           </div>
 
           {/* Percentage */}
-          <div className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200">
-            <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Percentage</p>
-            <p className="text-3xl font-black text-brand-600 mt-1">{percentage}%</p>
-            <p className="text-xs text-secondary-500 mt-3 font-medium">Overall calculated grade</p>
+          <div className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200 flex flex-col justify-between h-full">
+            <div>
+              <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Percentage</p>
+              <p className="text-3xl font-black text-brand-600 mt-1">{percentage}%</p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-secondary-200/60 flex items-center justify-between text-xs text-secondary-500 font-medium">
+              <span>Overall calculated grade</span>
+              <span className="font-semibold text-brand-700">Calculated</span>
+            </div>
           </div>
 
           {/* Evaluation Status */}
-          <div className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200">
-            <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Evaluation Status</p>
-            <p
-              className={`text-2xl font-black mt-1 flex items-center gap-2 ${
-                isPassed ? 'text-green-600' : 'text-amber-600'
-              }`}
-            >
-              {isPassed ? (
-                <>
-                  <CheckCircle2 className="w-6 h-6 flex-shrink-0" />
-                  <span>Qualified</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="w-6 h-6 flex-shrink-0" />
-                  <span>Review Required</span>
-                </>
-              )}
-            </p>
-            <p className="text-xs text-secondary-500 mt-3 font-medium">
+          <div className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200 flex flex-col justify-between h-full">
+            <div>
+              <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Evaluation Status</p>
+              <p
+                className={`text-2xl font-black mt-1 flex items-center gap-2 ${
+                  isPassed ? 'text-green-600' : 'text-amber-600'
+                }`}
+              >
+                {isPassed ? (
+                  <>
+                    <CheckCircle2 className="w-6 h-6 flex-shrink-0" />
+                    <span>Qualified</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-6 h-6 flex-shrink-0" />
+                    <span>Review Required</span>
+                  </>
+                )}
+              </p>
+            </div>
+            <div className="mt-4 pt-3 border-t border-secondary-200/60 text-xs text-secondary-500 font-medium">
               {isPassed ? 'Successfully met passing standards' : 'Additional practice recommended'}
-            </p>
+            </div>
           </div>
         </div>
 

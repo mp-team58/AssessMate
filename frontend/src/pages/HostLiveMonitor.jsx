@@ -1,4 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import useModalScrollLock from '../hooks/useModalScrollLock';
+import useModalAccessibility from '../hooks/useModalAccessibility';
 import { useParams, Link } from 'react-router-dom';
 import { getExamLiveMonitor } from '../services/hostService';
 import { endExam } from '../services/examService';
@@ -25,8 +28,17 @@ const HostLiveMonitor = () => {
   const [isError, setIsError] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const [showEndModal, setShowEndModal] = useState(false);
+  useModalScrollLock(showEndModal);
+  const endExamModalRef = useModalAccessibility({
+    isOpen: showEndModal,
+    onClose: () => setShowEndModal(false),
+    preventEscape: isEnding,
+    defaultFocusCancel: true,
+  });
   
   const intervalRef = useRef(null);
+  const hasShownPollingErrorRef = useRef(false);
+  const consecutiveErrorsRef = useRef(0);
 
   const fetchLiveData = async (isBackground = false) => {
     try {
@@ -34,15 +46,25 @@ const HostLiveMonitor = () => {
       const response = await getExamLiveMonitor(id);
       setData(response.data);
       setIsError(false);
-      
+
+      if (hasShownPollingErrorRef.current) {
+        hasShownPollingErrorRef.current = false;
+        showToast("Live sync restored.", "success");
+      }
+      consecutiveErrorsRef.current = 0;
+
       if (response.data.examStatus === 'ENDED') {
         stopPolling();
       }
     } catch (err) {
       console.error("Failed to fetch live monitor data", err);
+      consecutiveErrorsRef.current += 1;
       if (!isBackground) setIsError(true);
       if (isBackground && data) {
-        showToast("Live sync interrupted. Showing last known state.", "warning");
+        if (!hasShownPollingErrorRef.current) {
+          hasShownPollingErrorRef.current = true;
+          showToast("Live sync interrupted. Showing last known state.", "warning");
+        }
       }
     } finally {
       setIsLoading(false);
@@ -69,6 +91,8 @@ const HostLiveMonitor = () => {
     
     return () => {
       stopPolling();
+      hasShownPollingErrorRef.current = false;
+      consecutiveErrorsRef.current = 0;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -112,7 +136,7 @@ const HostLiveMonitor = () => {
   const isLive = data?.examStatus === 'LIVE';
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-12 animate-in fade-in duration-300">
+    <div className="w-full space-y-6 pb-12 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -292,15 +316,15 @@ const HostLiveMonitor = () => {
       </div>
 
       {/* End Exam Modal */}
-      {showEndModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-secondary-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+      {showEndModal && createPortal(
+        <div className="fixed inset-0 w-screen h-screen supports-[height:100dvh]:h-dvh z-[9999] flex items-center justify-center p-4 bg-[#16241F]/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+          <div ref={endExamModalRef} role="alertdialog" aria-modal="true" aria-labelledby="host-end-exam-title" aria-describedby="host-end-exam-desc" tabIndex={-1} className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 outline-none">
             <div className="p-6 sm:p-8">
               <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-6">
                 <Power className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-extrabold text-secondary-900 mb-2">End Exam Now?</h3>
-              <p className="text-secondary-600 text-[15px] leading-relaxed mb-6">
+              <h3 id="host-end-exam-title" className="text-xl font-extrabold text-secondary-900 mb-2">End Exam Now?</h3>
+              <p id="host-end-exam-desc" className="text-secondary-600 text-[15px] leading-relaxed mb-6">
                 This action will permanently close the exam. Candidates currently taking the test will be auto-submitted. This cannot be undone.
               </p>
               
@@ -324,7 +348,8 @@ const HostLiveMonitor = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

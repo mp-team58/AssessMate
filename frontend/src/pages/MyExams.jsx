@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { getMyExams, deleteExam } from '../services/examService';
 import ShareExamModal from '../components/ShareExamModal';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
+import StatusBadge from '../components/ui/StatusBadge';
+import EmptyState from '../components/ui/EmptyState';
 import { 
-  Share2, PlusCircle, Sparkles, FileText, FileSpreadsheet, 
-  Trash2, Clock, Calendar, HelpCircle, Code2, KeyRound, BookOpenCheck, MoreVertical 
+  Share2, PlusCircle, Trash2, BookOpenCheck, MoreVertical, 
+  Search, X, ArrowUpDown, Filter 
 } from 'lucide-react';
 import { prefetchRoute } from '../utils/prefetch';
 
@@ -15,6 +17,11 @@ const MyExams = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [shareExamId, setShareExamId] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
+
+  // Search, filter, and sorting state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'DRAFT' | 'LIVE' | 'ENDED'
+  const [sortBy, setSortBy] = useState('NEWEST'); // 'NEWEST' | 'OLDEST' | 'TITLE_AZ' | 'TITLE_ZA'
 
   useEffect(() => {
     if (!activeMenuId) return;
@@ -26,7 +33,7 @@ const MyExams = () => {
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
   }, [activeMenuId]);
-  const navigate = useNavigate();
+
   const { showToast } = useToast();
   const { confirm } = useConfirm();
 
@@ -59,11 +66,70 @@ const MyExams = () => {
     if (!isConfirmed) return;
     try {
       await deleteExam(id);
-      setExams(exams.filter(exam => exam.id !== id));
+      setExams((prev) => prev.filter(exam => exam.id !== id));
       showToast('Exam deleted successfully', 'success');
     } catch (err) {
       showToast(err.response?.data?.message || err.message || 'Failed to delete exam.', 'error');
     }
+  };
+
+  // Filter & sort memoization
+  const filteredAndSortedExams = useMemo(() => {
+    let result = exams;
+
+    // Status filtering
+    if (statusFilter !== 'ALL') {
+      result = result.filter((exam) => (exam.status || '').toUpperCase() === statusFilter);
+    }
+
+    // Search query matching (title or subject)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((exam) => {
+        const titleMatch = (exam.title || '').toLowerCase().includes(q);
+        const subjectMatch = (exam.subject || '').toLowerCase().includes(q);
+        return titleMatch || subjectMatch;
+      });
+    }
+
+    // Sorting (pure immutable array sort)
+    return [...result].sort((a, b) => {
+      if (sortBy === 'NEWEST') {
+        const dateA = new Date(a.scheduledStart || a.createdAt || 0).getTime();
+        const dateB = new Date(b.scheduledStart || b.createdAt || 0).getTime();
+        return dateB - dateA;
+      }
+      if (sortBy === 'OLDEST') {
+        const dateA = new Date(a.scheduledStart || a.createdAt || 0).getTime();
+        const dateB = new Date(b.scheduledStart || b.createdAt || 0).getTime();
+        return dateA - dateB;
+      }
+      if (sortBy === 'TITLE_AZ') {
+        return (a.title || '').localeCompare(b.title || '');
+      }
+      if (sortBy === 'TITLE_ZA') {
+        return (b.title || '').localeCompare(a.title || '');
+      }
+      return 0;
+    });
+  }, [exams, statusFilter, searchQuery, sortBy]);
+
+  // Status counts for badge tabs
+  const statusCounts = useMemo(() => {
+    const counts = { ALL: exams.length, DRAFT: 0, LIVE: 0, ENDED: 0 };
+    exams.forEach((exam) => {
+      const s = (exam.status || '').toUpperCase();
+      if (counts[s] !== undefined) {
+        counts[s] += 1;
+      }
+    });
+    return counts;
+  }, [exams]);
+
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('ALL');
+    setSortBy('NEWEST');
   };
 
   return (
@@ -86,6 +152,89 @@ const MyExams = () => {
         )}
       </header>
 
+      {/* Search, Filter Tabs, and Sorting Controls */}
+      {exams.length > 0 && (
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-secondary-200/80 p-3 sm:p-4 shadow-sm flex flex-col lg:flex-row gap-3.5 lg:items-center lg:justify-between">
+          {/* Search Bar */}
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="w-4 h-4 text-secondary-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search exams by title or subject..."
+              aria-label="Search exams by title or subject"
+              className="w-full pl-10 pr-9 py-2 bg-secondary-50/70 hover:bg-white focus:bg-white border border-secondary-200 rounded-xl text-xs sm:text-sm text-secondary-900 placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-secondary-400 hover:text-secondary-700 p-1 rounded-md cursor-pointer transition-colors"
+                aria-label="Clear search query"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3 justify-between sm:justify-start">
+            {/* Status Filter Pills */}
+            <div className="flex items-center gap-1 bg-secondary-100/70 p-1 rounded-xl overflow-x-auto max-w-full" role="tablist" aria-label="Filter exams by status">
+              {['ALL', 'DRAFT', 'LIVE', 'ENDED'].map((status) => {
+                const isActive = statusFilter === status;
+                const count = statusCounts[status] ?? 0;
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-white text-brand-700 shadow-sm border border-secondary-200/50'
+                        : 'text-secondary-600 hover:text-secondary-900 hover:bg-white/50'
+                    }`}
+                  >
+                    <span>{status === 'ALL' ? 'All' : status}</span>
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      isActive ? 'bg-brand-50 text-brand-700' : 'bg-secondary-200/70 text-secondary-600'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sorting Dropdown */}
+            <div className="flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0">
+              <label htmlFor="exam-sort-select" className="sr-only">Sort exams by</label>
+              <div className="relative flex items-center">
+                <ArrowUpDown className="w-3.5 h-3.5 text-secondary-500 absolute left-3 pointer-events-none" />
+                <select
+                  id="exam-sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="pl-8 pr-8 py-2 bg-secondary-50/70 hover:bg-white focus:bg-white border border-secondary-200 rounded-xl text-xs sm:text-sm font-semibold text-secondary-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer appearance-none"
+                >
+                  <option value="NEWEST">Newest First</option>
+                  <option value="OLDEST">Oldest First</option>
+                  <option value="TITLE_AZ">Title A–Z</option>
+                  <option value="TITLE_ZA">Title Z–A</option>
+                </select>
+                <div className="absolute right-2.5 pointer-events-none text-secondary-400">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="space-y-4 animate-pulse">
           {[1, 2, 3].map((i) => (
@@ -102,34 +251,46 @@ const MyExams = () => {
           ))}
         </div>
       ) : exams.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-white border border-secondary-200/80 shadow-sm flex items-center justify-center text-brand-600 mb-4">
-            <BookOpenCheck className="w-8 h-8 text-brand-600" />
-          </div>
-          <h2 className="text-xl font-bold text-secondary-900 mb-2">
-            No exams created yet
-          </h2>
-          <p className="text-secondary-500 text-sm max-w-sm mb-6 leading-relaxed">
-            Get started by creating your first assessment. It only takes a few minutes to set up.
-          </p>
-          <Link
-            to="/host/create-exam"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-md shadow-brand-600/20 hover:shadow-lg transition-all text-sm"
-          >
-            <PlusCircle className="w-4 h-4" />
-            Create First Exam
-          </Link>
-        </div>
+        <EmptyState
+          icon={BookOpenCheck}
+          title="No assessments created yet"
+          description="Get started by creating your first assessment. It only takes a few minutes to configure questions and start inviting candidates."
+          actionText="Create Assessment"
+          actionIcon={PlusCircle}
+          actionTo="/host/create-exam"
+          className="my-12 py-16"
+        />
+      ) : filteredAndSortedExams.length === 0 ? (
+        searchQuery ? (
+          <EmptyState
+            icon={Search}
+            iconVariant="secondary"
+            title="No matching assessments found"
+            description={`No examinations matching "${searchQuery}" were found${statusFilter !== 'ALL' ? ` in ${statusFilter} status` : ''}.`}
+            actionText="Clear Search"
+            onAction={() => setSearchQuery('')}
+            secondaryActionText="Reset All Filters"
+            onSecondaryAction={clearAllFilters}
+            className="my-12 py-14"
+          />
+        ) : (
+          <EmptyState
+            icon={Filter}
+            iconVariant="secondary"
+            title={`No ${statusFilter.toLowerCase()} assessments`}
+            description={`You do not have any assessments currently categorized as ${statusFilter}.`}
+            actionText="View All Exams"
+            onAction={clearAllFilters}
+            className="my-12 py-14"
+          />
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
-          {exams.map((exam) => (
+          {filteredAndSortedExams.map((exam) => (
             <div
               key={exam.id}
-              className="bg-white/80 backdrop-blur-xl rounded-[1.25rem] p-6 shadow-sm border border-secondary-200/60 hover:border-brand-200 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 flex flex-col h-full group relative overflow-hidden"
+              className="bg-white rounded-[1.25rem] p-6 shadow-sm border border-secondary-200/60 hover:border-brand-200 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 flex flex-col h-full group relative overflow-hidden"
             >
-              {/* Decorative accent blob */}
-              <div className="absolute -top-12 -right-12 w-40 h-40 bg-brand-100 rounded-full blur-[40px] opacity-30 group-hover:opacity-60 transition-opacity duration-500 pointer-events-none"></div>
-
               {/* Top soft gradient bar */}
               <div className={`absolute top-0 left-0 right-0 h-1.5 opacity-90 ${exam.status === 'LIVE' ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' :
                   exam.status === 'DRAFT' ? 'bg-gradient-to-r from-amber-400 to-amber-500' :
@@ -137,18 +298,7 @@ const MyExams = () => {
                 }`}></div>
 
               <div className="flex justify-between items-start mb-5 mt-2 relative z-10">
-                <span className={`px-3 py-1.5 text-[11px] font-black rounded-lg uppercase tracking-widest flex items-center gap-2 shadow-sm
-                    ${exam.status === 'LIVE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/50' :
-                    exam.status === 'DRAFT' ? 'bg-amber-50 text-amber-700 border border-amber-200/50' :
-                      'bg-secondary-50 text-secondary-600 border border-secondary-200/50'}`}>
-                  {exam.status === 'LIVE' && (
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                  )}
-                  {exam.status}
-                </span>
+                <StatusBadge status={exam.status} size="sm" />
 
                 <div className="bg-white text-secondary-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm border border-secondary-200/60 hover:text-brand-600 hover:border-brand-200 transition-colors cursor-default">
                   <svg className="w-4 h-4 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -230,7 +380,7 @@ const MyExams = () => {
                       <button
                         type="button"
                         onClick={() => setActiveMenuId(activeMenuId === exam.id ? null : exam.id)}
-                        className="w-9 h-9 flex items-center justify-center text-secondary-500 hover:text-secondary-800 hover:bg-secondary-100/80 border border-secondary-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                        className="w-9 h-9 flex items-center justify-center text-secondary-500 hover:text-secondary-800 hover:bg-secondary-100/80 border border-secondary-200 rounded-xl transition-colors shadow-sm bg-white shrink-0 cursor-pointer"
                         title="More options"
                         aria-label="More options"
                       >
@@ -241,7 +391,7 @@ const MyExams = () => {
                           <button
                             type="button"
                             onClick={() => { setActiveMenuId(null); setShareExamId(exam.id); }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-secondary-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left"
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-secondary-700 hover:bg-brand-50 hover:text-brand-700 transition-colors text-left cursor-pointer"
                           >
                             <Share2 className="w-4 h-4 text-brand-600 shrink-0" />
                             Share Exam
@@ -249,7 +399,7 @@ const MyExams = () => {
                           <button
                             type="button"
                             onClick={() => { setActiveMenuId(null); handleDelete(exam.id); }}
-                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-secondary-100"
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-secondary-100 cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4 text-red-500 shrink-0" />
                             Delete Exam
@@ -261,7 +411,7 @@ const MyExams = () => {
                     <button
                       type="button"
                       onClick={() => setShareExamId(exam.id)}
-                      className="hidden sm:flex w-9 h-9 items-center justify-center text-brand-600 hover:text-brand-700 hover:bg-brand-50 border border-secondary-200 hover:border-brand-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                      className="hidden sm:flex w-9 h-9 items-center justify-center text-brand-600 hover:text-brand-700 hover:bg-brand-50 border border-secondary-200 hover:border-brand-200 rounded-xl transition-colors shadow-sm bg-white shrink-0 cursor-pointer"
                       title="Share Exam"
                       aria-label="Share Exam"
                     >
@@ -271,7 +421,7 @@ const MyExams = () => {
                     <button
                       type="button"
                       onClick={() => handleDelete(exam.id)}
-                      className="hidden sm:flex w-9 h-9 items-center justify-center text-secondary-400 hover:text-red-600 hover:bg-red-50 border border-secondary-200 hover:border-red-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                      className="hidden sm:flex w-9 h-9 items-center justify-center text-secondary-400 hover:text-red-600 hover:bg-red-50 border border-secondary-200 hover:border-red-200 rounded-xl transition-colors shadow-sm bg-white shrink-0 cursor-pointer"
                       title="Delete Exam"
                       aria-label="Delete Exam"
                     >
@@ -284,7 +434,7 @@ const MyExams = () => {
                       <button
                         type="button"
                         onClick={() => setShareExamId(exam.id)}
-                        className="w-9 h-9 flex items-center justify-center text-brand-600 hover:text-brand-700 hover:bg-brand-50 border border-secondary-200 hover:border-brand-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                        className="w-9 h-9 flex items-center justify-center text-brand-600 hover:text-brand-700 hover:bg-brand-50 border border-secondary-200 hover:border-brand-200 rounded-xl transition-colors shadow-sm bg-white shrink-0 cursor-pointer"
                         title="Share Exam"
                         aria-label="Share Exam"
                       >
@@ -294,7 +444,7 @@ const MyExams = () => {
                     <button
                       type="button"
                       onClick={() => handleDelete(exam.id)}
-                      className="w-9 h-9 flex items-center justify-center text-secondary-400 hover:text-red-600 hover:bg-red-50 border border-secondary-200 hover:border-red-200 rounded-xl transition-colors shadow-sm bg-white shrink-0"
+                      className="w-9 h-9 flex items-center justify-center text-secondary-400 hover:text-red-600 hover:bg-red-50 border border-secondary-200 hover:border-red-200 rounded-xl transition-colors shadow-sm bg-white shrink-0 cursor-pointer"
                       title="Delete Exam"
                       aria-label="Delete Exam"
                     >

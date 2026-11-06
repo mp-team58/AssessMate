@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import useModalScrollLock from '../../hooks/useModalScrollLock';
+import useModalAccessibility from '../../hooks/useModalAccessibility';
 import adminService from '../../services/adminService';
 import { useToast } from '../../contexts/ToastContext';
 import {
@@ -18,6 +21,11 @@ import {
 } from 'lucide-react';
 
 function ActivityDetailsModal({ log, onClose }) {
+  useModalScrollLock(Boolean(log));
+  const detailsModalRef = useModalAccessibility({
+    isOpen: Boolean(log),
+    onClose,
+  });
   const [copied, setCopied] = useState(false);
 
   if (!log) return null;
@@ -55,9 +63,9 @@ function ActivityDetailsModal({ log, onClose }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#16241F]/60 backdrop-blur-sm animate-in fade-in duration-200 font-sans">
-      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-secondary-200 overflow-hidden flex flex-col max-h-[90vh]">
+  return createPortal(
+    <div className="fixed inset-0 w-screen h-screen supports-[height:100dvh]:h-dvh z-[9999] flex items-center justify-center p-4 bg-[#16241F]/60 backdrop-blur-sm animate-in fade-in duration-200 font-sans overflow-y-auto">
+      <div ref={detailsModalRef} role="dialog" aria-modal="true" aria-labelledby="audit-log-details-title" tabIndex={-1} className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-secondary-200 overflow-hidden flex flex-col max-h-[90vh] outline-none">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-secondary-100 bg-secondary-50/50">
           <div className="flex items-center gap-3">
@@ -65,7 +73,7 @@ function ActivityDetailsModal({ log, onClose }) {
               <History className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-secondary-900">Audit Log Event Details</h2>
+              <h2 id="audit-log-details-title" className="text-lg font-bold text-secondary-900">Audit Log Event Details</h2>
               <p className="text-xs text-secondary-500 font-mono">Event ID: {log.id}</p>
             </div>
           </div>
@@ -179,7 +187,8 @@ function ActivityDetailsModal({ log, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -193,16 +202,24 @@ export default function AdminActivity() {
   const [totalElements, setTotalElements] = useState(0);
   const [selectedLog, setSelectedLog] = useState(null);
 
-  const fetchLogs = async () => {
+    const fetchLogs = async () => {
     try {
       setLoading(true);
       setError('');
       const res = await adminService.getActivityLogs({ page, size: 20 });
-      setLogs(res.data.content || []);
-      setTotalPages(res.data.totalPages || 1);
-      setTotalElements(res.data.totalElements || 0);
+      const root = res?.data !== undefined ? res.data : res;
+      if (!root || (typeof root === 'object' && !Array.isArray(root) && !Array.isArray(root.content))) {
+        setError('Received an unexpected response structure from the server.');
+        setLogs([]);
+      } else {
+        const raw = Array.isArray(root) ? root : (root.content || []);
+        setLogs(raw);
+        setTotalPages(root.totalPages || 1);
+        setTotalElements(root.totalElements !== undefined ? root.totalElements : raw.length);
+      }
     } catch (err) {
       setError(err?.response?.data?.message || err?.message || 'Failed to fetch audit logs.');
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -234,10 +251,10 @@ export default function AdminActivity() {
     <div className="space-y-6 animate-in fade-in duration-300 font-sans pb-16">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-secondary-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-secondary-900 tracking-tight leading-tight">
             Security &amp; System Audit Log
           </h1>
-          <p className="text-secondary-600 mt-1 text-sm font-medium">
+          <p className="text-secondary-600 mt-1 text-xs sm:text-sm font-medium">
             Immutable, append-only record of administrative operations and critical platform events
           </p>
         </div>
@@ -245,9 +262,9 @@ export default function AdminActivity() {
 
 
 
-      <div className="bg-white rounded-3xl border border-secondary-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-secondary-600">
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-secondary-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full text-left text-xs text-secondary-600 min-w-[750px]">
             <thead className="bg-secondary-50 text-secondary-600 text-xs uppercase tracking-wider border-b border-secondary-200 font-bold">
               <tr>
                 <th className="py-3.5 px-5">Timestamp</th>

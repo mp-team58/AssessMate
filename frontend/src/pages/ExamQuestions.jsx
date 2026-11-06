@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getExamQuestions, getExamQuestionStats, addQuestionManually,
@@ -15,6 +15,7 @@ import {
 } from '../services/codingQuestionService';
 import QuestionForm from '../components/QuestionForm';
 import QuestionCard from '../components/QuestionCard';
+import ReviewQueue from '../components/ReviewQueue';
 import ExcelUpload from '../components/ExcelUpload';
 import AIGeneration from '../components/AIGeneration';
 import CodingProblemModal from '../components/CodingProblemModal';
@@ -24,7 +25,7 @@ import Button from '../components/ui/Button';
 import {
   Edit2, Trash2, Plus, Cpu, Library, Search, Filter, Rocket,
   FileSpreadsheet, Code2, AlertTriangle, Clock, HardDrive, Eye,
-  CheckCircle2, HelpCircle, Sparkles
+  CheckCircle2, HelpCircle, Sparkles, X
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
@@ -47,6 +48,8 @@ const ExamQuestions = () => {
 
   // MCQ Tab Actions ('manual', 'bank', 'excel', 'ai')
   const [activeTab, setActiveTab] = useState(null);
+  const reviewRef = useRef(null);
+  const [listFilter, setListFilter] = useState('all'); // 'all' | 'review' | 'verified'
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [isSubmittingQuestion, setIsSubmittingQuestion] = useState(false);
 
@@ -195,17 +198,29 @@ const ExamQuestions = () => {
   const handleVerify = async (id) => {
     try {
       await verifyQuestion(id);
-      setQuestions(prev => prev.map(q => q.id === id ? { ...q, isVerified: true } : q));
-      setStats(prev => prev ? {
-        ...prev,
-        unverifiedCount: Math.max(0, (prev.unverifiedCount || 0) - 1)
-      } : prev);
-      showToast('Question verified', 'success');
-      fetchExamData();
+      setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, isVerified: true } : q)));
+      setStats((prev) => (prev ? { ...prev, unverifiedCount: Math.max(0, (prev.unverifiedCount || 0) - 1) } : prev));
+      getExamQuestionStats(examId).then((r) => setStats(r.data || r)).catch(() => {});
     } catch (error) {
       console.error(error);
       showToast(error.message || 'Failed to verify question', 'error');
     }
+  };
+
+  const handleVerifyAll = async (ids) => {
+    const ok = await confirm({
+      title: 'Mark all as verified',
+      message: `Mark ${ids.length} question(s) as verified without reviewing them one by one?`,
+      confirmText: 'Mark all verified',
+      cancelText: 'Keep reviewing',
+      isDanger: false,
+    });
+    if (!ok) return;
+    const results = await Promise.allSettled(ids.map((id) => verifyQuestion(id)));
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    await fetchExamData();
+    if (failed) showToast(`${ids.length - failed} verified, ${failed} failed. Try again.`, 'warning');
+    else showToast(`${ids.length} questions verified`, 'success');
   };
 
   const handleBankSubmit = async () => {
@@ -307,6 +322,8 @@ const ExamQuestions = () => {
   };
 
   // Publish Guard Evaluation
+  const unverifiedQuestions = questions.filter((q) => q.isVerified === false);
+  const scrollToReview = () => reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const requiredCodingCount = examInfo?.codingQuestionsCount || 1;
   const codingPoolCount = codingProblems.length;
   const isCodingSufficient = !examInfo?.hasCodingSection || codingPoolCount >= requiredCodingCount;
@@ -382,8 +399,7 @@ const ExamQuestions = () => {
 
       {/* Top Header Section */}
       <div className="relative bg-white rounded-3xl shadow-sm border border-secondary-200 overflow-hidden p-6 md:p-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-50 rounded-full blur-3xl opacity-50 -mr-20 -mt-20 pointer-events-none"></div>
-        
+
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-secondary-800 tracking-tight">{examInfo?.title || `Exam #${examId}`}</h1>
@@ -691,9 +707,13 @@ const ExamQuestions = () => {
               </div>
 
               {stats?.unverifiedCount > 0 && (
-                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3 text-amber-900">
-                  <span className="text-xl">⚠️</span>
-                  <p className="font-semibold text-xs pt-0.5">{stats.unverifiedCount} question(s) need review before publish.</p>
+                <div className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-amber-900">
+                  <p className="font-semibold text-sm">
+                    {stats.unverifiedCount} question{stats.unverifiedCount > 1 ? 's' : ''} need review before you can publish.
+                  </p>
+                  <button type="button" onClick={scrollToReview} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition">
+                    Start review
+                  </button>
                 </div>
               )}
 
@@ -739,18 +759,43 @@ const ExamQuestions = () => {
             </div>
           )}
 
+          {unverifiedQuestions.length > 0 && (
+            <ReviewQueue
+              sectionRef={reviewRef}
+              questions={unverifiedQuestions}
+              onVerify={handleVerify}
+              onVerifyAll={handleVerifyAll}
+              onEdit={(q) => { setEditingQuestion(q); setActiveTab(null); scrollAppToTop(); }}
+              onDelete={handleDelete}
+            />
+          )}
+
           {/* Editing / Adding Manual Section */}
           {(activeTab === 'manual' || editingQuestion) && (
             <div className="bg-white rounded-3xl shadow-sm border border-brand-200 p-6 md:p-8 relative">
-              <button
-                onClick={() => { setActiveTab(null); setEditingQuestion(null); }}
-                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
-              >
-                Close
-              </button>
-              <h2 className="text-xl font-bold text-secondary-900 mb-6 flex items-center gap-2">
-                {editingQuestion ? <><Edit2 className="text-brand-600 w-6 h-6" /> Edit Question</> : <><Plus className="text-brand-600 w-6 h-6" /> Add New Question</>}
-              </h2>
+              <div className="flex items-center justify-between pb-6 mb-6 border-b border-secondary-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#16241F] text-amber-300 flex items-center justify-center shadow-sm">
+                    {editingQuestion ? <Edit2 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#16241F]">
+                      {editingQuestion ? 'Edit Question' : 'Add New Question'}
+                    </h2>
+                    <p className="text-xs text-secondary-600">
+                      {editingQuestion ? 'Modify question text, options, answers, and scoring.' : 'Manually configure question content, answer options, and difficulty.'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab(null); setEditingQuestion(null); }}
+                  className="p-2 hover:bg-secondary-100 rounded-xl transition-colors text-secondary-400 hover:text-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                  aria-label="Close question editor"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
               <QuestionForm
                 key={editingQuestion?.id || 'new'}
@@ -767,15 +812,29 @@ const ExamQuestions = () => {
           {/* Excel Upload Section */}
           {activeTab === 'excel' && (
             <div className="bg-white rounded-3xl shadow-sm border border-brand-200 p-6 md:p-8 relative">
-              <button
-                onClick={() => setActiveTab(null)}
-                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
-              >
-                Close
-              </button>
-              <h2 className="text-xl font-bold text-secondary-900 mb-6 flex items-center gap-2">
-                <FileSpreadsheet className="text-brand-600 w-6 h-6" /> Upload Questions via Excel
-              </h2>
+              <div className="flex items-center justify-between pb-6 mb-6 border-b border-secondary-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#16241F] text-emerald-400 flex items-center justify-center shadow-sm">
+                    <FileSpreadsheet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#16241F]">
+                      Upload Questions via Excel
+                    </h2>
+                    <p className="text-xs text-secondary-600">
+                      Import multiple questions at once using the structured spreadsheet template.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(null)}
+                  className="p-2 hover:bg-secondary-100 rounded-xl transition-colors text-secondary-400 hover:text-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                  aria-label="Close Excel upload"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
               <ExcelUpload
                 examId={examId}
@@ -790,15 +849,29 @@ const ExamQuestions = () => {
           {/* Add From Bank Section */}
           {activeTab === 'bank' && !editingQuestion && (
             <div className="bg-white rounded-3xl shadow-sm border border-purple-200 p-6 md:p-8 relative">
-              <button
-                onClick={() => setActiveTab(null)}
-                className="absolute top-6 right-6 text-gray-400 hover:text-gray-600"
-              >
-                Close
-              </button>
-              <h2 className="text-xl font-bold text-secondary-900 mb-6 flex items-center gap-2">
-                <Library className="text-purple-600 w-6 h-6" /> Select from Question Bank
-              </h2>
+              <div className="flex items-center justify-between pb-6 mb-6 border-b border-secondary-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#16241F] text-purple-300 flex items-center justify-center shadow-sm">
+                    <Library className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-[#16241F]">
+                      Select from Question Bank
+                    </h2>
+                    <p className="text-xs text-secondary-600">
+                      Browse and reuse previously saved questions in your current assessment.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(null)}
+                  className="p-2 hover:bg-secondary-100 rounded-xl transition-colors text-secondary-400 hover:text-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                  aria-label="Close Question Bank selector"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
               <div className="flex flex-wrap gap-4 mb-6">
                 <div className="flex-1 min-w-[200px]">
@@ -880,14 +953,37 @@ const ExamQuestions = () => {
               onEdit={(q) => { setEditingQuestion(q); setActiveTab(null); scrollAppToTop(); }}
               onDelete={handleDelete}
               onClose={() => setActiveTab(null)}
+              onVerify={handleVerify}
+              onReview={() => { setActiveTab(null); scrollToReview(); }}
             />
           )}
 
           {/* MCQ Questions List */}
           <div className="space-y-4 pt-2">
-            <h3 className="text-xl font-bold text-secondary-900">
-              Exam Questions ({questions.length + codingProblems.length})
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h3 className="text-xl font-bold text-secondary-900">
+                Exam Questions ({questions.length + codingProblems.length})
+              </h3>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Filter questions">
+                {[
+                  { key: 'all', label: `All (${questions.length})` },
+                  { key: 'review', label: `Needs review (${unverifiedQuestions.length})` },
+                  { key: 'verified', label: `Verified (${questions.length - unverifiedQuestions.length})` },
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    aria-pressed={listFilter === f.key}
+                    onClick={() => setListFilter(f.key)}
+                    className={`px-3.5 py-1.5 rounded-full text-sm font-semibold border transition ${
+                      listFilter === f.key ? 'bg-[#16241F] text-white border-[#16241F]' : 'bg-white text-secondary-700 border-secondary-200 hover:bg-secondary-50'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {questions.length === 0 && codingProblems.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-300">
@@ -895,20 +991,19 @@ const ExamQuestions = () => {
               </div>
             ) : (
               <div className="grid gap-4">
-                {[...questions].sort((a, b) => {
-                  if (a.isVerified === b.isVerified) return 0;
-                  return a.isVerified ? 1 : -1;
-                }).map((q, index) => (
-                  <QuestionCard
-                    key={q.id}
-                    question={q}
-                    showSource={true}
-                    onEdit={() => { setEditingQuestion(q); setActiveTab(null); scrollAppToTop(); }}
-                    onDelete={handleDelete}
-                    onVerify={handleVerify}
-                    index={index + 1}
-                  />
-                ))}
+                {questions
+                  .filter((q) => listFilter === 'all' || (listFilter === 'review' ? q.isVerified === false : q.isVerified !== false))
+                  .map((q) => (
+                    <QuestionCard
+                      key={q.id}
+                      question={q}
+                      showSource={true}
+                      onEdit={() => { setEditingQuestion(q); setActiveTab(null); scrollAppToTop(); }}
+                      onDelete={handleDelete}
+                      onVerify={handleVerify}
+                      index={questions.indexOf(q) + 1}
+                    />
+                  ))}
 
                 {codingProblems.map((cq, index) => (
                   <div key={`coding-mcq-${cq.id}`} className="bg-white rounded-2xl border border-secondary-200 shadow-sm hover:shadow-md transition-shadow duration-200 p-5 group relative">
@@ -988,7 +1083,7 @@ const ExamQuestions = () => {
 
       {/* Bottom Publish Bar */}
       <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 shadow-[0_-4px_12px_-1px_rgba(0,0,0,0.08)] z-40">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs font-semibold">
             {canPublishFinal ? (
               <span className="text-green-700 flex items-center gap-1.5">
@@ -999,6 +1094,9 @@ const ExamQuestions = () => {
               <span className="text-amber-700 flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-amber-600" />
                 {stats?.message || 'MCQ requirements incomplete or unverified questions remain.'}
+                {stats?.unverifiedCount > 0 && (
+                  <button type="button" onClick={scrollToReview} className="ml-3 underline font-bold cursor-pointer">Review now</button>
+                )}
               </span>
             ) : (
               <span className="text-amber-700 flex items-center gap-1.5">

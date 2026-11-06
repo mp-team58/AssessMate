@@ -1,27 +1,80 @@
 import apiClient from './apiClient';
 
 /**
+ * Get the status of an asynchronous AI generation job.
+ */
+export const getAIJobStatus = async (examId, jobId) => {
+  return apiClient.get(`/exams/${examId}/questions/ai/jobs/${jobId}`);
+};
+
+/**
+ * Helper to poll an AI job until completion or failure.
+ */
+const pollAIJob = async (examId, jobId, intervalMs = 1500, maxAttempts = 80) => {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    const res = await getAIJobStatus(examId, jobId);
+    const job = res.data;
+
+    if (job.status === 'COMPLETED') {
+      return { data: job.result, status: 200 };
+    }
+    if (job.status === 'FAILED') {
+      const error = new Error(job.errorMessage || 'AI question generation failed');
+      error.response = { status: 500, data: { message: job.errorMessage } };
+      throw error;
+    }
+  }
+  const timeoutError = new Error('AI question generation timed out. Please check again in a moment.');
+  timeoutError.response = { status: 504, data: { message: 'Generation timed out' } };
+  throw timeoutError;
+};
+
+/**
  * Generate AI questions from a topic only.
+ * Dispatches an asynchronous job and polls until completion.
  */
 export const generateQuestionsFromTopic = async ({ examId, ...payload }) => {
-  return apiClient.post(`/exams/${examId}/questions/ai/topic`, {
+  const initialRes = await apiClient.post(`/exams/${examId}/questions/ai/topic`, {
     ...payload,
     inputType: 'TOPIC',
   });
+
+  if (initialRes.data?.status === 'COMPLETED') {
+    return { data: initialRes.data.result, status: 200 };
+  }
+
+  if (initialRes.data?.jobId) {
+    return pollAIJob(examId, initialRes.data.jobId);
+  }
+
+  return initialRes;
 };
 
 /**
  * Generate AI questions from pasted text.
+ * Dispatches an asynchronous job and polls until completion.
  */
 export const generateQuestionsFromText = async ({ examId, ...payload }) => {
-  return apiClient.post(`/exams/${examId}/questions/ai/text`, {
+  const initialRes = await apiClient.post(`/exams/${examId}/questions/ai/text`, {
     ...payload,
     inputType: 'TEXT',
   });
+
+  if (initialRes.data?.status === 'COMPLETED') {
+    return { data: initialRes.data.result, status: 200 };
+  }
+
+  if (initialRes.data?.jobId) {
+    return pollAIJob(examId, initialRes.data.jobId);
+  }
+
+  return initialRes;
 };
 
 /**
  * Generate AI questions from uploaded PDF, PPTX, DOCX, JPG, JPEG, or PNG.
+ * Uploads file, dispatches an asynchronous job and polls until completion.
  */
 export const generateQuestionsFromFile = async ({
   examId,
@@ -53,7 +106,7 @@ export const generateQuestionsFromFile = async ({
   const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
   const url = `${BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL}/exams/${examId}/questions/ai/file`;
 
-  return new Promise((resolve, reject) => {
+  const initialResponse = await new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const token = localStorage.getItem('token');
 
@@ -78,7 +131,7 @@ export const generateQuestionsFromFile = async ({
       } catch (e) {
         responseData = xhr.responseText;
       }
-      
+
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve({ data: responseData, status: xhr.status });
       } else {
@@ -96,4 +149,14 @@ export const generateQuestionsFromFile = async ({
 
     xhr.send(formData);
   });
+
+  if (initialResponse.data?.status === 'COMPLETED') {
+    return { data: initialResponse.data.result, status: 200 };
+  }
+
+  if (initialResponse.data?.jobId) {
+    return pollAIJob(examId, initialResponse.data.jobId);
+  }
+
+  return initialResponse;
 };

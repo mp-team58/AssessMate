@@ -3,43 +3,76 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   PlusCircle, Library, Users, TrendingUp, Calendar, 
   ArrowRight, Activity, FileText, CheckCircle2, Clock,
-  Shield, Zap, Sparkles, FileSpreadsheet, HardDrive, BarChart3, Target, Code
+  Shield, Zap, Sparkles, FileSpreadsheet, HardDrive, BarChart3, Target, Code,
+  BookOpenCheck
 } from 'lucide-react';
 import { getMyExams } from '../services/examService';
 import { getHostAnalytics } from '../services/hostService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import StatusBadge from '../components/ui/StatusBadge';
+import EmptyState from '../components/ui/EmptyState';
 import ContentSkeleton from '../components/ui/ContentSkeleton';
 import { prefetchRoute } from '../utils/prefetch';
 
-const StatCard = ({ title, value, icon: Icon, color, trend }) => {
+const StatCard = ({ title, value, icon: Icon, color = 'brand', trend, link }) => {
+  const navigate = useNavigate();
   const colorMap = {
-    brand: 'bg-brand-50 text-brand-600 border-brand-100',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    amber: 'bg-amber-50 text-amber-600 border-amber-100',
-    blue: 'bg-blue-50 text-blue-600 border-blue-100',
-    purple: 'bg-purple-50 text-purple-600 border-purple-100',
+    brand: 'bg-brand-50 text-brand-600 border-brand-200/80',
+    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200/80',
+    amber: 'bg-amber-50 text-amber-600 border-amber-200/80',
+    blue: 'bg-blue-50 text-blue-600 border-blue-200/80',
+    purple: 'bg-purple-50 text-purple-600 border-purple-200/80',
+  };
+
+  const handleKeyDown = (e) => {
+    if (link && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      navigate(link);
+    }
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-sm border border-secondary-200/60 flex flex-col hover:shadow-xl transition-all duration-300 group">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3.5 rounded-2xl border ${colorMap[color]} group-hover:scale-110 transition-transform duration-300 shadow-sm`}>
-          <Icon className="w-6 h-6" />
+    <div
+      role={link ? 'link' : undefined}
+      tabIndex={link ? 0 : undefined}
+      onClick={() => link && navigate(link)}
+      onKeyDown={handleKeyDown}
+      className={`bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm border border-secondary-200/70 flex flex-col justify-between h-full transition-all duration-200 group ${
+        link
+          ? 'cursor-pointer hover:border-brand-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2'
+          : ''
+      }`}
+    >
+      <div>
+        <div className="flex items-start justify-between mb-4">
+          <div className={`p-3 sm:p-3.5 rounded-2xl border ${colorMap[color] || colorMap.brand} group-hover:scale-105 transition-transform duration-200 shadow-sm flex items-center justify-center flex-shrink-0`}>
+            <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
+          {link && (
+            <div className="w-8 h-8 rounded-full bg-secondary-100/70 flex items-center justify-center group-hover:bg-brand-50 group-hover:scale-105 transition-all duration-200 flex-shrink-0">
+              <ArrowRight className="w-4 h-4 text-secondary-400 group-hover:text-brand-600 transition-colors" />
+            </div>
+          )}
+        </div>
+        <div>
+          <h3 className="text-3xl sm:text-4xl font-black text-secondary-900 mb-1 tracking-tight leading-tight">{value}</h3>
+          <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">{title}</p>
         </div>
       </div>
-      <div>
-        <h3 className="text-4xl font-black text-secondary-900 mb-1 tracking-tight">{value}</h3>
-        <p className="text-sm font-bold text-secondary-500 uppercase tracking-wider">{title}</p>
-        <p className={`text-[11px] font-bold mt-4 inline-block px-2.5 py-1 rounded-lg bg-secondary-100 text-secondary-600 border border-secondary-200`}>
-          {trend}
-        </p>
-      </div>
+
+      {trend && (
+        <div className="mt-4 pt-3 border-t border-secondary-100/80">
+          <p className="text-[11px] font-semibold text-secondary-600 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary-50 border border-secondary-200/60">
+            {trend}
+          </p>
+        </div>
+      )}
     </div>
   );
 };
 
-const ActionCard = ({ title, desc, icon: Icon, color, link, onClick }) => {
+const ActionCard = ({ title, desc, icon: Icon, color = 'emerald', link, onClick }) => {
   const navigate = useNavigate();
   const colorMap = {
     purple: 'bg-purple-50 text-purple-600 group-hover:bg-purple-100 group-hover:border-purple-200',
@@ -47,19 +80,34 @@ const ActionCard = ({ title, desc, icon: Icon, color, link, onClick }) => {
     blue: 'bg-blue-50 text-blue-600 group-hover:bg-blue-100 group-hover:border-blue-200',
   };
 
+  const handleAction = () => {
+    if (link) navigate(link);
+    else if (onClick) onClick();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleAction();
+    }
+  };
+
   return (
     <div 
-      onClick={() => link ? navigate(link) : onClick()}
-      className="bg-white/80 backdrop-blur-md border border-secondary-200 p-5 rounded-3xl flex items-center gap-4 cursor-pointer hover:border-brand-300 hover:shadow-lg transition-all duration-300 group"
+      role="link"
+      tabIndex={0}
+      onClick={handleAction}
+      onKeyDown={handleKeyDown}
+      className="bg-white/80 backdrop-blur-md border border-secondary-200 p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center gap-3.5 sm:gap-4 cursor-pointer hover:border-brand-300 hover:shadow-md transition-all duration-200 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
     >
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 border border-transparent ${colorMap[color]}`}>
-        <Icon className="w-6 h-6" />
+      <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-all duration-200 border border-transparent flex-shrink-0 ${colorMap[color] || colorMap.emerald}`}>
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
       </div>
-      <div className="flex-1">
-        <h4 className="font-extrabold text-secondary-900 text-[15px] group-hover:text-brand-600 transition-colors">{title}</h4>
-        <p className="text-xs font-medium text-secondary-500 mt-1 leading-relaxed">{desc}</p>
+      <div className="flex-1 min-w-0">
+        <h4 className="font-extrabold text-secondary-900 text-sm sm:text-[15px] group-hover:text-brand-600 transition-colors truncate">{title}</h4>
+        <p className="text-xs font-medium text-secondary-500 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2">{desc}</p>
       </div>
-      <div className="w-8 h-8 rounded-full bg-secondary-50 flex items-center justify-center group-hover:bg-brand-50 group-hover:scale-110 transition-all duration-300">
+      <div className="w-8 h-8 rounded-full bg-secondary-100/70 flex items-center justify-center group-hover:bg-brand-50 group-hover:scale-105 transition-all duration-200 flex-shrink-0">
         <ArrowRight className="w-4 h-4 text-secondary-400 group-hover:text-brand-600 transition-colors" />
       </div>
     </div>
@@ -129,10 +177,7 @@ const HostDashboard = () => {
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300 relative z-10 font-sans pb-12 w-full">
       {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-secondary-900 via-[#0c1410] to-[#11281c] p-8 md:p-12 text-white shadow-2xl border border-secondary-800">
-        <div className="absolute top-0 right-0 -mr-32 -mt-32 w-[500px] h-[500px] rounded-full bg-brand-500 blur-[120px] opacity-20 animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[400px] h-[400px] rounded-full bg-purple-600 blur-[100px] opacity-20"></div>
-        
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl lg:rounded-[2.5rem] bg-gradient-to-br from-secondary-900 via-[#111915] to-[#111915] p-6 sm:p-8 md:p-10 lg:p-12 text-white shadow-2xl border border-secondary-800">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
           <div className="max-w-2xl">
             <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-5 text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-secondary-400">
@@ -167,7 +212,7 @@ const HostDashboard = () => {
 
           {hasAnyExams && (
             <div className="flex flex-col sm:flex-row lg:flex-col gap-4">
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 w-full sm:w-64 flex items-center gap-5 hover:bg-white/10 transition-colors">
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 w-full sm:w-64 flex items-center gap-4 sm:gap-5 hover:bg-white/10 transition-colors">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30">
                   <Activity className="w-7 h-7" />
                 </div>
@@ -193,13 +238,14 @@ const HostDashboard = () => {
       {hasAnyExams ? (
       <>
       {/* Dynamic Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 w-full">
         <StatCard 
           title="Total Assessments" 
           value={exams.length} 
           icon={FileText} 
           color="brand"
           trend="Lifetime created"
+          link="/host/my-exams"
         />
         <StatCard 
           title="Avg. Performance" 
@@ -214,6 +260,7 @@ const HostDashboard = () => {
           icon={Clock} 
           color="amber"
           trend="Pending review"
+          link="/host/my-exams"
         />
         <StatCard 
           title="Completed" 
@@ -221,6 +268,7 @@ const HostDashboard = () => {
           icon={Shield} 
           color="blue"
           trend="Ready for grading"
+          link="/host/my-exams"
         />
       </div>
 
@@ -232,7 +280,7 @@ const HostDashboard = () => {
           {/* Analytics: Performance & Difficulty Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
             {/* Exam Performance */}
-            <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-sm border border-secondary-200/60 flex flex-col h-full hover:shadow-md transition-shadow">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 shadow-sm border border-secondary-200/60 flex flex-col h-full hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-black text-secondary-900 flex items-center gap-3">
                   <div className="p-2 bg-brand-50 text-brand-600 rounded-xl">
@@ -320,7 +368,7 @@ const HostDashboard = () => {
           </div>
 
           {/* Recent Assessments List */}
-          <div className="bg-white/80 backdrop-blur-xl border border-secondary-200/60 rounded-[2rem] shadow-sm overflow-hidden flex flex-col w-full hover:shadow-md transition-shadow">
+          <div className="bg-white/80 backdrop-blur-xl border border-secondary-200/60 rounded-2xl sm:rounded-3xl shadow-sm overflow-hidden flex flex-col w-full hover:shadow-md transition-shadow">
             <div className="p-6 md:p-8 border-b border-secondary-100/80 flex items-center justify-between">
               <h2 className="text-xl font-black text-secondary-900 flex items-center gap-3">
                 <div className="p-2 bg-amber-50 text-amber-500 rounded-xl">
@@ -334,15 +382,15 @@ const HostDashboard = () => {
             </div>
 
             {exams.length === 0 ? (
-              <div className="p-12 text-center flex flex-col items-center">
-                <div className="w-20 h-20 bg-secondary-50 rounded-[2rem] flex items-center justify-center mb-5 rotate-3 shadow-inner">
-                  <FileText className="w-10 h-10 text-secondary-300 -rotate-3" />
-                </div>
-                <h3 className="text-xl font-black text-secondary-900 mb-2">No assessments yet</h3>
-                <p className="text-secondary-500 mb-8 max-w-sm mx-auto font-medium">Create your first exam to start evaluating candidates and building your talent pool.</p>
-                <Link to="/host/create-exam" className="px-8 py-3.5 bg-brand-50 text-brand-700 font-bold rounded-xl hover:bg-brand-100 transition-all shadow-sm">
-                  Create First Exam
-                </Link>
+              <div className="p-6 sm:p-10">
+                <EmptyState
+                  icon={BookOpenCheck}
+                  title="Ready to create your first assessment?"
+                  description="Set up your examination questions, configure proctoring security, and invite candidates to evaluate their skills."
+                  actionText="Create Assessment"
+                  actionIcon={PlusCircle}
+                  actionTo="/host/create-exam"
+                />
               </div>
             ) : (
               <div className="divide-y divide-secondary-100/50">
@@ -374,13 +422,7 @@ const HostDashboard = () => {
                       </div>
                     </div>
                     <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-5">
-                      <span className={`px-4 py-1.5 text-[11px] font-black rounded-xl uppercase tracking-widest ${
-                        exam.status === 'LIVE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm' :
-                        exam.status === 'DRAFT' ? 'bg-amber-50 text-amber-700 border border-amber-200 shadow-sm' :
-                        'bg-blue-50 text-blue-700 border border-blue-200 shadow-sm'
-                      }`}>
-                        {exam.status}
-                      </span>
+                      <StatusBadge status={exam.status} size="sm" />
                       <button onClick={() => navigate(`/host/exams/${exam.id}/manage`)} className="p-2.5 text-secondary-400 hover:text-white hover:bg-brand-500 rounded-xl transition-all shadow-sm sm:opacity-0 sm:group-hover:opacity-100 sm:-translate-x-2 sm:group-hover:translate-x-0">
                         <ArrowRight className="w-5 h-5" />
                       </button>
@@ -396,7 +438,7 @@ const HostDashboard = () => {
         <div className="space-y-6 w-full">
           
           {/* Weak Topics Box */}
-          <div className="bg-white/80 backdrop-blur-xl border border-secondary-200/60 rounded-[2rem] p-8 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-white/80 backdrop-blur-xl border border-secondary-200/60 rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 shadow-sm hover:shadow-md transition-shadow">
             <h2 className="text-xl font-black text-secondary-900 mb-6 flex items-center gap-3">
               <div className="p-2 bg-red-50 text-red-500 rounded-xl">
                 <TrendingUp className="w-5 h-5 rotate-180" />
@@ -440,9 +482,7 @@ const HostDashboard = () => {
             />
           </div>
             
-          <div className="bg-gradient-to-br from-secondary-900 via-[#0c1410] to-[#11281c] rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden group">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-brand-500/30 rounded-full blur-[60px] group-hover:bg-brand-500/50 transition-all duration-700"></div>
-            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/30 rounded-full blur-[60px] group-hover:bg-purple-500/50 transition-all duration-700"></div>
+          <div className="bg-gradient-to-br from-secondary-900 via-[#111915] to-[#111915] rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-2xl relative overflow-hidden group">
             <h3 className="font-black text-xl mb-3 text-brand-300 flex items-center gap-2 relative z-10 tracking-tight">
               <Sparkles className="w-5 h-5" /> Pro Tip
             </h3>
@@ -456,7 +496,7 @@ const HostDashboard = () => {
       ) : (
         /* New host: one focused getting-started panel instead of a
            dashboard full of empty "no data yet" boxes. */
-        <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-10 md:p-14 shadow-sm border border-secondary-200/60 flex flex-col items-center text-center">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-6 sm:p-10 md:p-14 shadow-sm border border-secondary-200/60 flex flex-col items-center text-center">
           <div className="w-16 h-16 bg-brand-50 text-brand-600 rounded-2xl flex items-center justify-center mb-6">
             <Sparkles className="w-8 h-8" />
           </div>

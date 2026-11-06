@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -8,6 +8,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import { ToastProvider } from './contexts/ToastContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import CandidateLayout from './layouts/CandidateLayout';
 import DynamicLayout from './layouts/DynamicLayout';
@@ -70,9 +71,10 @@ function App() {
         <ScrollToTop />
         <RouteMeta />
         <React.Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           
@@ -137,9 +139,10 @@ function App() {
             </Route>
           </Route>
 
-          {/* Anything that doesn't match above */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+              {/* Anything that doesn't match above */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ErrorBoundary>
         </React.Suspense>
       </ToastProvider>
     </ConfirmProvider>

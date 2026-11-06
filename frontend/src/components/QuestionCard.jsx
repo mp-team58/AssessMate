@@ -1,6 +1,8 @@
-import React from 'react';
-import { Pencil, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
+﻿import React, { useState } from 'react';
+import { Pencil, Trash2, CheckCircle2, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { getMediaUrl } from '../services/apiClient';
+
+const OPTION_KEYS = ['A', 'B', 'C', 'D'];
 
 const getDifficultyColor = (difficulty) => {
   switch (difficulty) {
@@ -13,9 +15,9 @@ const getDifficultyColor = (difficulty) => {
 
 const getTypeLabel = (type) => {
   switch (type) {
-    case 'SINGLE_CHOICE': return 'Single Choice';
-    case 'MULTIPLE_SELECT': return 'Multiple Select';
-    case 'FILL_BLANK': return 'Fill Blank';
+    case 'SINGLE_CHOICE': return 'Single choice';
+    case 'MULTIPLE_SELECT': return 'Multiple select';
+    case 'FILL_BLANK': return 'Fill in the blank';
     case 'NUMERICAL': return 'Numerical';
     default: return type;
   }
@@ -31,6 +33,8 @@ const getSourceColor = (source) => {
   }
 };
 
+const titleCase = (s) => (s ? s.charAt(0) + s.slice(1).toLowerCase() : '');
+
 const QuestionCard = ({
   question,
   onEdit,
@@ -41,13 +45,27 @@ const QuestionCard = ({
   onSelect,
   onVerify,
   index = null,
+  reviewNote = null, // optional sentence explaining why this question was flagged
 }) => {
+  const [verifying, setVerifying] = useState(false);
+  const isAI = question.addedBy === 'AI' || question.source === 'AI';
+  const needsReview = question.isVerified === false;
+  const showVerified = question.isVerified === true && isAI;
+
+  const handleVerify = async () => {
+    if (verifying) return;
+    setVerifying(true);
+    try { await onVerify(question.id); } finally { setVerifying(false); }
+  };
+
   return (
-    <div className={`p-5 bg-white border rounded-2xl shadow-sm hover:shadow-md transition-all relative flex flex-col md:flex-row gap-4 ${selectable && selected ? 'ring-2 ring-brand-500 border-transparent bg-brand-50/10' : 'border-secondary-200'}`}>
-
-      {/* Main Content Area */}
+    <div
+      className={`p-5 bg-white border rounded-2xl shadow-sm hover:shadow-md transition-all relative flex flex-col md:flex-row gap-4 ${
+        selectable && selected ? 'ring-2 ring-brand-500 border-transparent bg-brand-50/10' : needsReview ? 'border-amber-200' : 'border-secondary-200'
+      }`}
+    >
+      {/* Main content */}
       <div className={`flex items-start gap-3.5 flex-1 min-w-0 ${selectable ? 'pr-8' : ''}`}>
-
         {index !== null && (
           <div className="w-8 h-8 rounded-xl bg-[#16241F] text-amber-300 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 shadow-sm">
             {index}
@@ -55,84 +73,97 @@ const QuestionCard = ({
         )}
 
         <div className="flex-1 min-w-0 flex flex-col">
-          {/* Header Badges */}
-          <div className="flex flex-wrap items-center gap-2 mb-2 text-[10px] font-bold uppercase tracking-wider">
+          {/* Badges and review status */}
+          <div className="flex flex-wrap items-center gap-2 mb-2 text-xs font-semibold">
             <span className={`px-2.5 py-0.5 rounded-md border ${getDifficultyColor(question.difficulty)}`}>
-              {question.difficulty}
+              {titleCase(question.difficulty)}
             </span>
             <span className="px-2.5 py-0.5 rounded-md border bg-secondary-50 text-secondary-600 border-secondary-200">
               {getTypeLabel(question.type)}
             </span>
             {question.topic && (
-              <span className="px-2.5 py-0.5 rounded-md border bg-blue-50 text-blue-700 border-blue-100">
-                {question.topic}
-              </span>
+              <span className="px-2.5 py-0.5 rounded-md border bg-blue-50 text-blue-700 border-blue-100">{question.topic}</span>
             )}
             {showSource && (question.addedBy || question.source) && (
-              <span className={`px-2.5 py-0.5 rounded-md ${getSourceColor(question.source)}`}>
-                {question.addedBy || question.source}
-              </span>
+              <span className={`px-2.5 py-0.5 rounded-md ${getSourceColor(question.source)}`}>{question.addedBy || question.source}</span>
             )}
 
-            <div className="ml-auto flex items-center gap-1">
-              {question.isVerified && (question.addedBy === 'AI' || question.source === 'AI') && (
-                <span className="flex items-center text-green-700 bg-green-50 px-2.5 py-0.5 rounded-md border border-green-200">
-                  <CheckCircle className="w-3 h-3 mr-1" /> Verified
+            <div className="ml-auto flex items-center gap-2">
+              {showVerified && (
+                <span className="flex items-center gap-1 text-green-700 bg-green-50 px-2.5 py-0.5 rounded-md border border-green-200">
+                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> Verified
                 </span>
               )}
-              {question.isVerified === false && (
-                <span className="flex items-center text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
-                  <AlertTriangle className="w-3 h-3 mr-1" /> Needs Review
+              {needsReview && (
+                <span className="flex items-center gap-1 text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
+                  <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" /> Needs review
                 </span>
+              )}
+              {needsReview && onVerify && (
+                <button
+                  type="button"
+                  onClick={handleVerify}
+                  disabled={verifying}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white transition"
+                >
+                  {verifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <Check className="w-3.5 h-3.5" aria-hidden="true" />}
+                  Mark verified
+                </button>
               )}
             </div>
           </div>
 
-          {/* Question Text */}
+          {reviewNote && (
+            <p className="mb-3 flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-900">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
+              <span>{reviewNote}</span>
+            </p>
+          )}
+
+          {/* Question text */}
           <h4 className="text-[15px] font-bold text-[#16241F] mb-3 leading-relaxed break-words whitespace-pre-wrap">
             {question.questionText}
           </h4>
 
-          {/* Optional Image */}
           {question.imageUrl && (
             <div className="mt-2 mb-1 border-2 border-gray-100 rounded-xl overflow-hidden bg-gray-50 flex justify-center max-h-[300px]">
-              <img
-                src={getMediaUrl(question.imageUrl)}
-                alt="Question Context"
-                className="max-w-full max-h-[300px] object-contain p-2"
-              />
+              <img src={getMediaUrl(question.imageUrl)} alt="Question context" className="max-w-full max-h-[300px] object-contain p-2" />
             </div>
           )}
 
-          {/* Options / Answers */}
+          {/* Options and answer */}
           <div className="mt-2">
             {(question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_SELECT') && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                {question.optionA && (
-                  <div className={`flex items-center text-sm p-3 rounded-xl border transition-colors ${question.correctAnswer?.includes('A') ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm' : 'bg-secondary-50/50 border-secondary-200 text-secondary-800'}`}>
-                    <span className={`flex items-center justify-center shrink-0 w-6 h-6 rounded border mr-3 font-bold text-[11px] ${question.correctAnswer?.includes('A') ? 'bg-emerald-200 border-emerald-300 text-emerald-800' : 'bg-white border-secondary-200 text-secondary-500 shadow-sm'}`}>A</span>
-                    <span>{question.optionA}</span>
-                  </div>
-                )}
-                {question.optionB && (
-                  <div className={`flex items-center text-sm p-3 rounded-xl border transition-colors ${question.correctAnswer?.includes('B') ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm' : 'bg-secondary-50/50 border-secondary-200 text-secondary-800'}`}>
-                    <span className={`flex items-center justify-center shrink-0 w-6 h-6 rounded border mr-3 font-bold text-[11px] ${question.correctAnswer?.includes('B') ? 'bg-emerald-200 border-emerald-300 text-emerald-800' : 'bg-white border-secondary-200 text-secondary-500 shadow-sm'}`}>B</span>
-                    <span>{question.optionB}</span>
-                  </div>
-                )}
-                {question.optionC && (
-                  <div className={`flex items-center text-sm p-3 rounded-xl border transition-colors ${question.correctAnswer?.includes('C') ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm' : 'bg-secondary-50/50 border-secondary-200 text-secondary-800'}`}>
-                    <span className={`flex items-center justify-center shrink-0 w-6 h-6 rounded border mr-3 font-bold text-[11px] ${question.correctAnswer?.includes('C') ? 'bg-emerald-200 border-emerald-300 text-emerald-800' : 'bg-white border-secondary-200 text-secondary-500 shadow-sm'}`}>C</span>
-                    <span>{question.optionC}</span>
-                  </div>
-                )}
-                {question.optionD && (
-                  <div className={`flex items-center text-sm p-3 rounded-xl border transition-colors ${question.correctAnswer?.includes('D') ? 'bg-emerald-50 border-emerald-200 text-emerald-900 shadow-sm' : 'bg-secondary-50/50 border-secondary-200 text-secondary-800'}`}>
-                    <span className={`flex items-center justify-center shrink-0 w-6 h-6 rounded border mr-3 font-bold text-[11px] ${question.correctAnswer?.includes('D') ? 'bg-emerald-200 border-emerald-300 text-emerald-800' : 'bg-white border-secondary-200 text-secondary-500 shadow-sm'}`}>D</span>
-                    <span>{question.optionD}</span>
-                  </div>
-                )}
-              </div>
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                {OPTION_KEYS.map((k) => {
+                  const text = question[`option${k}`];
+                  if (!text) return null;
+                  const correct = Boolean(question.correctAnswer?.includes(k));
+                  return (
+                    <li
+                      key={k}
+                      className={`flex items-center text-sm p-3 rounded-xl border ${
+                        correct ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-sm' : 'bg-secondary-50/50 border-secondary-200 text-secondary-800'
+                      }`}
+                    >
+                      <span
+                        className={`flex items-center justify-center shrink-0 w-6 h-6 rounded border mr-3 font-bold text-xs ${
+                          correct ? 'bg-emerald-200 border-emerald-300 text-emerald-800' : 'bg-white border-secondary-200 text-secondary-500'
+                        }`}
+                      >
+                        {k}
+                      </span>
+                      <span className="flex-1">{text}</span>
+                      {correct && (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-700 shrink-0 ml-2" aria-hidden="true" />
+                          <span className="sr-only">Correct answer</span>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             )}
 
             {(question.type === 'FILL_BLANK' || question.type === 'NUMERICAL') && (
@@ -145,57 +176,36 @@ const QuestionCard = ({
               </div>
             )}
           </div>
-
-          {/* Verification Banner */}
-          {question.isVerified === false && onVerify && (
-            <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
-                <p className="text-[13px] text-amber-800 font-medium">
-                  {question.source === 'AI'
-                    ? 'This question was AI generated and needs your review.'
-                    : 'This question needs review before publishing.'}
-                </p>
-              </div>
-              <button
-                onClick={() => onVerify(question.id)}
-                className="shrink-0 px-4 py-1.5 text-xs font-bold text-amber-700 bg-amber-100/80 hover:bg-amber-200 border border-amber-200 rounded-md transition-colors shadow-sm flex items-center gap-2"
-              >
-                <CheckCircle className="w-3.5 h-3.5" />
-                Mark as Verified
-              </button>
-            </div>
-          )}
-        </div> {/* Closes flex-1 min-w-0 flex flex-col */}
+        </div>
       </div>
 
-      {/* Right Side Actions Panel */}
+      {/* Right-side actions */}
       {selectable ? (
         <div className="flex flex-col justify-start ml-4 pl-4 border-l border-gray-100 shrink-0">
           <input
             type="checkbox"
             checked={selected}
             onChange={() => onSelect(question.id)}
+            aria-label="Select this question"
             className="w-5 h-5 mt-1 text-brand-600 rounded border-gray-300 focus:ring-brand-500 cursor-pointer"
           />
         </div>
-      ) : (onEdit || onDelete) ? (
+      ) : onEdit || onDelete ? (
         <div className="flex items-center gap-2 self-end md:self-center shrink-0 mt-4 md:mt-0 md:ml-4">
           {onEdit && (
             <button
               onClick={() => onEdit(question)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-secondary-600 bg-white hover:bg-secondary-50 border border-secondary-200 hover:border-secondary-300 rounded-xl transition-all"
             >
-              <Pencil className="w-3.5 h-3.5" /> Edit
+              <Pencil className="w-3.5 h-3.5" aria-hidden="true" /> Edit
             </button>
           )}
-
           {onDelete && (
             <button
               onClick={() => onDelete(question.id)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 rounded-xl transition-all"
             >
-              <Trash2 className="w-3.5 h-3.5" /> Remove
+              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Remove
             </button>
           )}
         </div>

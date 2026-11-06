@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getCandidateHistory } from '../services/candidateService';
 import { useToast } from '../contexts/ToastContext';
 import Button from '../components/ui/Button';
+import EmptyState from '../components/ui/EmptyState';
 import {
   Award,
   Sparkles,
@@ -13,7 +14,8 @@ import {
   Calendar,
   ArrowRight,
   TrendingUp,
-  FileText
+  FileText,
+  AlertCircle
 } from 'lucide-react';
 
 const CandidateResults = () => {
@@ -66,7 +68,7 @@ const CandidateResults = () => {
   const passedCount = scoredList.filter((r) => Number(r.percentage) >= 50).length;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
+    <div className="w-full space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -81,37 +83,57 @@ const CandidateResults = () => {
 
       {/* Metric Cards Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 flex items-center gap-4">
-          <div className="p-3.5 bg-brand-50 text-brand-700 border border-brand-100 rounded-xl flex-shrink-0">
-            <FileText className="w-6 h-6" />
+        <div className="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-secondary-200/80 hover:shadow-md transition-all flex flex-col justify-between h-full">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Completed Tests</span>
+            <div className="p-2.5 bg-brand-50 text-brand-700 border border-brand-100 rounded-xl">
+              <FileText className="w-5 h-5 text-brand-600" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Completed Tests</p>
-            <h3 className="text-2xl font-extrabold text-secondary-900 mt-0.5">{totalCompleted}</h3>
+          <div className="mt-4">
+            <h3 className="text-3xl font-extrabold text-secondary-900 tracking-tight">{totalCompleted}</h3>
+          </div>
+          <div className="mt-4 pt-3 border-t border-secondary-100 flex items-center justify-between text-xs text-secondary-500 font-medium">
+            <span>Submitted or evaluated</span>
+            <span className="font-semibold text-brand-700">All Time</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 flex items-center gap-4">
-          <div className="p-3.5 bg-brand-50 text-brand-700 border border-brand-100 rounded-xl flex-shrink-0">
-            <Award className="w-6 h-6" />
+        <div className="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-secondary-200/80 hover:shadow-md transition-all flex flex-col justify-between h-full">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Average Performance</span>
+            <div className="p-2.5 bg-brand-50 text-brand-700 border border-brand-100 rounded-xl">
+              <Award className="w-5 h-5 text-brand-600" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Average Performance</p>
-            <h3 className="text-2xl font-extrabold text-secondary-900 mt-0.5">
+          <div className="mt-4">
+            <h3 className="text-3xl font-extrabold text-secondary-900 tracking-tight">
               {averagePercentage !== null ? `${averagePercentage}%` : '—'}
             </h3>
           </div>
+          <div className="mt-4 pt-3 border-t border-secondary-100 flex items-center justify-between text-xs text-secondary-500 font-medium">
+            <span>Cumulative mean score</span>
+            <span className="font-semibold text-brand-700">{scoredList.length} graded</span>
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 flex items-center gap-4">
-          <div className="p-3.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl flex-shrink-0">
-            <TrendingUp className="w-6 h-6" />
+        <div className="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-secondary-200/80 hover:shadow-md transition-all flex flex-col justify-between h-full">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Qualified Assessments</span>
+            <div className="p-2.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Qualified Assessments</p>
-            <h3 className="text-2xl font-extrabold text-secondary-900 mt-0.5">
+          <div className="mt-4">
+            <h3 className="text-3xl font-extrabold text-secondary-900 tracking-tight">
               {passedCount} <span className="text-sm text-secondary-400 font-normal">/ {totalCompleted}</span>
             </h3>
+          </div>
+          <div className="mt-4 pt-3 border-t border-secondary-100 flex items-center justify-between text-xs text-secondary-500 font-medium">
+            <span>Passing threshold ≥ 50%</span>
+            <span className="font-semibold text-emerald-700">
+              {totalCompleted > 0 ? `${Math.round((passedCount / totalCompleted) * 100)}% pass rate` : 'N/A'}
+            </span>
           </div>
         </div>
       </div>
@@ -159,21 +181,27 @@ const CandidateResults = () => {
           </Button>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center shadow-sm border border-secondary-200/80 max-w-xl mx-auto my-8 space-y-4">
-          <div className="w-16 h-16 bg-brand-50 rounded-2xl flex items-center justify-center mx-auto text-brand-600 border border-brand-100">
-            <Award className="w-8 h-8" />
-          </div>
-          <h3 className="text-xl font-bold text-secondary-900">No assessment results yet</h3>
-          <p className="text-secondary-500 text-sm max-w-sm mx-auto">
-            {searchQuery
-              ? 'No completed results match your search query.'
-              : 'Complete your enrolled assessments to receive comprehensive AI diagnostic feedback and score reports.'}
-          </p>
-          <Button onClick={() => navigate('/candidate/my-assessments')} className="!w-auto px-6 py-2.5 text-sm mx-auto">
-            <span>View Active Assessments</span>
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </div>
+        searchQuery ? (
+          <EmptyState
+            icon={Search}
+            iconVariant="secondary"
+            title="No matching results found"
+            description={`No completed assessment results match "${searchQuery}".`}
+            actionText="Clear Search"
+            onAction={() => setSearchQuery('')}
+            className="my-8"
+          />
+        ) : (
+          <EmptyState
+            icon={Award}
+            title="No published assessment results yet"
+            description="Complete your enrolled assessments to receive comprehensive AI diagnostic feedback and score reports once evaluated."
+            actionText="View Enrolled Assessments"
+            actionIcon={ArrowRight}
+            actionTo="/candidate/my-assessments"
+            className="my-8"
+          />
+        )
       ) : (
         <div className="space-y-4">
           {filtered.map((item) => {
@@ -184,15 +212,15 @@ const CandidateResults = () => {
             return (
               <div
                 key={item.enrollmentId}
-                className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 hover:border-brand-400 hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 group"
+                className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-secondary-200 hover:border-brand-300 hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-5 group"
               >
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="text-xl font-bold text-secondary-900 group-hover:text-brand-700 transition-colors">
+                <div className="space-y-2.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h3 className="text-lg sm:text-xl font-bold text-secondary-900 group-hover:text-brand-700 transition-colors break-words">
                       {item.examTitle}
                     </h3>
                     <span
-                      className={`px-3 py-1 text-xs font-bold rounded-lg uppercase tracking-wider flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 text-xs font-bold rounded-lg uppercase tracking-wider inline-flex items-center gap-1.5 flex-shrink-0 ${
                         isQualified
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -200,23 +228,23 @@ const CandidateResults = () => {
                     >
                       {isQualified ? (
                         <>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                           <span>Qualified</span>
                         </>
                       ) : (
                         <>
-                          <XCircle className="w-3.5 h-3.5 text-amber-600" />
+                          <XCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                           <span>Needs Improvement</span>
                         </>
                       )}
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-secondary-500 font-medium">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-secondary-500 font-medium">
                     <span className="text-brand-600 font-semibold">{item.subject || 'General Assessment'}</span>
-                    <span>•</span>
+                    <span className="hidden sm:inline">•</span>
                     <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-brand-500" />
+                      <Calendar className="w-3.5 h-3.5 text-brand-500 shrink-0" />
                       Completed on{' '}
                       {new Date(item.joinedAt || Date.now()).toLocaleDateString('en-US', {
                         month: 'short',
@@ -228,19 +256,19 @@ const CandidateResults = () => {
                 </div>
 
                 {/* Score and Action */}
-                <div className="flex items-center gap-4 flex-shrink-0 self-start md:self-auto">
+                <div className="flex items-center justify-between md:justify-end gap-3 sm:gap-4 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-secondary-100 flex-shrink-0">
                   {hasScore && (
-                    <div className="bg-secondary-50 border border-secondary-200 px-4 py-2 rounded-xl text-center">
+                    <div className="bg-secondary-50 border border-secondary-200/80 px-3.5 py-2 rounded-xl text-center min-w-[70px]">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-secondary-400">Score</p>
-                      <p className="text-xl font-black text-brand-600">{score}%</p>
+                      <p className="text-lg font-black text-brand-700">{score}%</p>
                     </div>
                   )}
 
                   <Button
                     onClick={() => navigate(`/candidate/result/${item.enrollmentId}`)}
-                    className="!w-auto px-5 py-2.5 text-xs shadow-md"
+                    className="!w-auto px-4 sm:px-5 py-2.5 text-xs shadow-sm inline-flex items-center gap-1.5"
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkles className="w-4 h-4 text-amber-300" />
                     <span>View AI Report</span>
                   </Button>
                 </div>

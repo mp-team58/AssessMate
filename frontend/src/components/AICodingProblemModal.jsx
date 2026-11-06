@@ -1,3 +1,6 @@
+﻿import { createPortal } from 'react-dom';
+import useModalScrollLock from '../hooks/useModalScrollLock';
+import useModalAccessibility from '../hooks/useModalAccessibility';
 import React, { useState } from 'react';
 import { 
   X, Sparkles, Settings, Wand2, Plus, Trash2, 
@@ -17,10 +20,19 @@ const AVAILABLE_LANGUAGES = [
 ];
 
 const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
+  // lock
+  // acc
   const { showToast } = useToast();
   
   // Step Management: 1 = Input, 2 = Generating, 3 = Review
   const [step, setStep] = useState(1);
+
+  useModalScrollLock(isOpen);
+  const modalRef = useModalAccessibility({
+    isOpen,
+    onClose,
+    preventEscape: step === 2,
+  });
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   // --- Step 1: Input State ---
@@ -144,9 +156,9 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
     onSave(generatedProblem);
   };
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+  return typeof document !== 'undefined' ? createPortal(
+    <div className="fixed inset-0 w-screen h-screen supports-[height:100dvh]:h-dvh z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="ai-coding-title" tabIndex={-1} className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200 outline-none">
         
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-secondary-200 bg-gradient-to-r from-purple-50 to-white rounded-t-3xl">
@@ -155,7 +167,7 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
               <Sparkles className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-secondary-900 tracking-tight">
+              <h2 id="ai-coding-title" className="text-xl font-extrabold text-secondary-900 tracking-tight">
                 {step === 3 ? 'Review AI Generated Problem' : 'Generate with AI'}
               </h2>
               <p className="text-sm text-secondary-500 font-medium">
@@ -163,8 +175,13 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100 rounded-full transition-colors">
-            <X className="w-6 h-6" />
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-secondary-100 rounded-xl transition text-secondary-400 hover:text-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+            aria-label="Close AI coding challenge generator"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -203,7 +220,7 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
                 </button>
                 
                 {isAdvancedOpen && (
-                  <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-[#d3d9d6] bg-[#f4f6f5]">
+                  <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-[#d3d9d6] bg-surface">
                     <div>
                       <label className="block text-sm font-semibold text-secondary-700 mb-1.5">Difficulty</label>
                       <select 
@@ -494,8 +511,9 @@ const AICodingProblemModal = ({ isOpen, onClose, onSave, examId }) => {
           )}
         </div>
       </div>
-    </div>
-  );
+    </div>,
+    document.body
+  ) : null;
 };
 
 export default AICodingProblemModal;

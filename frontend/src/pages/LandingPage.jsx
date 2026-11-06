@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState, useRef } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   Sparkles,
@@ -59,10 +59,65 @@ function RoleFeatureRow({ icon: Icon, title, description, accent, reverse }) {
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef(null);
+  const menuRef = useRef(null);
+  const isClosingViaKeyboard = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Mobile menu keyboard accessibility & outside click handling
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+
+    // Focus first link in mobile menu when opened
+    const timer = setTimeout(() => {
+      const firstLink = menuRef.current?.querySelector('a, button');
+      if (firstLink && typeof firstLink.focus === 'function') {
+        firstLink.focus();
+      }
+    }, 40);
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        isClosingViaKeyboard.current = true;
+        setMenuOpen(false);
+        menuTriggerRef.current?.focus();
+      }
+    };
+
+    const handleClickOutside = (e) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target) &&
+        menuTriggerRef.current &&
+        !menuTriggerRef.current.contains(e.target)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [menuOpen]);
 
   // Logged-in users land straight in their dashboard, never on
   // the marketing page.
@@ -118,10 +173,13 @@ export default function LandingPage() {
             Sign up
           </Link>
           <button
+            ref={menuTriggerRef}
             type="button"
-            onClick={() => setMenuOpen((o) => !o)}
-            className="p-2 rounded-md text-secondary-900 hover:bg-secondary-900/5"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            onClick={() => {
+              setMenuOpen((o) => !o);
+            }}
+            className="p-2 rounded-lg text-secondary-900 hover:bg-secondary-900/5 focus:outline-none focus:ring-2 focus:ring-secondary-900/20 transition-colors"
+            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={menuOpen}
             aria-controls="mobile-menu"
           >
@@ -132,24 +190,31 @@ export default function LandingPage() {
         {/* Mobile menu panel */}
         {menuOpen && (
           <nav
+            ref={menuRef}
             id="mobile-menu"
-            aria-label="Mobile"
-            className="md:hidden absolute left-4 right-4 top-full z-50 bg-white rounded-2xl border border-secondary-900/10 shadow-xl p-3 flex flex-col"
+            aria-label="Mobile navigation"
+            className="md:hidden absolute left-4 right-4 top-full z-50 bg-white rounded-2xl border border-secondary-900/10 shadow-2xl p-3 flex flex-col gap-1 animate-in fade-in slide-in-from-top-2 duration-200 motion-reduce:animate-none"
           >
             {NAV_LINKS.map((l) => (
               <a
                 key={l.href}
                 href={l.href}
-                onClick={() => setMenuOpen(false)}
-                className="px-4 py-3 rounded-lg text-secondary-900 hover:bg-secondary-900/5"
+                onClick={() => {
+                  setMenuOpen(false);
+                  menuTriggerRef.current?.focus();
+                }}
+                className="px-4 py-3 rounded-xl font-medium text-secondary-900 hover:bg-secondary-50 focus:bg-secondary-100 focus:outline-none focus:ring-2 focus:ring-secondary-900/15 transition-colors"
               >
                 {l.label}
               </a>
             ))}
             <Link
               to="/login"
-              onClick={() => setMenuOpen(false)}
-              className="px-4 py-3 rounded-lg text-secondary-900 hover:bg-secondary-900/5"
+              onClick={() => {
+                setMenuOpen(false);
+                menuTriggerRef.current?.focus();
+              }}
+              className="px-4 py-3 rounded-xl font-medium text-secondary-900 hover:bg-secondary-50 focus:bg-secondary-100 focus:outline-none focus:ring-2 focus:ring-secondary-900/15 transition-colors"
             >
               Log in
             </Link>

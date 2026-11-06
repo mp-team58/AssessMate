@@ -1,3 +1,6 @@
+﻿import { createPortal } from 'react-dom';
+import useModalScrollLock from '../hooks/useModalScrollLock';
+import useModalAccessibility from '../hooks/useModalAccessibility';
 import React, { useState, useEffect } from 'react';
 import { X, Search, Library, Check, AlertCircle, Code2, Clock, HardDrive, Eye } from 'lucide-react';
 import { getCodingBank } from '../services/codingQuestionService';
@@ -12,6 +15,13 @@ const PickCodingBankModal = ({
   alreadyInPoolIds = [],
   isSubmitting = false
 }) => {
+  useModalScrollLock(isOpen);
+  const modalRef = useModalAccessibility({
+    isOpen,
+    onClose,
+    preventEscape: isSubmitting,
+  });
+  const { showToast } = useToast();
   const [bankProblems, setBankProblems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -83,18 +93,18 @@ const PickCodingBankModal = ({
     onAdd(selectedIds);
   };
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-secondary-200 animate-in fade-in zoom-in-95 duration-200">
+  return typeof document !== 'undefined' ? createPortal(
+    <div className="fixed inset-0 w-screen h-screen supports-[height:100dvh]:h-dvh z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="pick-coding-title" tabIndex={-1} className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-secondary-200 animate-in fade-in zoom-in-95 duration-200 outline-none">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-secondary-200 bg-secondary-50/50 rounded-t-3xl">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-secondary-200 bg-white rounded-t-3xl shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-[#16241F] text-amber-300 flex items-center justify-center shadow-sm">
               <Library className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-[#16241F]">
+              <h2 id="pick-coding-title" className="text-xl font-bold text-[#16241F]">
                 Select from Coding Question Bank
               </h2>
               <p className="text-xs text-secondary-600">
@@ -103,8 +113,10 @@ const PickCodingBankModal = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 hover:bg-secondary-200/60 rounded-full transition-colors text-secondary-500"
+            className="p-2 hover:bg-secondary-100 rounded-xl transition text-secondary-400 hover:text-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+            aria-label="Close Question Bank selector"
           >
             <X className="w-5 h-5" />
           </button>
@@ -229,7 +241,7 @@ const PickCodingBankModal = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-secondary-200 bg-secondary-50/50 flex justify-between items-center rounded-b-3xl">
+        <div className="px-6 py-4 border-t border-secondary-200 bg-white flex justify-between items-center rounded-b-3xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
           <div className="text-xs font-medium text-secondary-600">
             {selectedIds.length} problem(s) selected
           </div>
@@ -238,14 +250,14 @@ const PickCodingBankModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2 font-bold rounded-xl text-xs bg-secondary-100 hover:bg-secondary-200 text-secondary-800 border border-secondary-200 transition-colors shadow-none hover:shadow-sm"
+              className="px-5 py-2.5 font-bold rounded-xl text-sm bg-secondary-100 hover:bg-secondary-200 text-secondary-800 border border-secondary-200 transition-colors shadow-none hover:shadow-sm"
             >
               Cancel
             </button>
             <Button
               onClick={handleConfirm}
               disabled={selectedIds.length === 0 || isSubmitting}
-              className="px-5 py-2 text-xs flex items-center gap-2"
+              className="px-6 py-2.5 text-sm flex items-center gap-2"
             >
               {isSubmitting ? (
                 <>
@@ -263,8 +275,9 @@ const PickCodingBankModal = ({
         </div>
 
       </div>
-    </div>
-  );
+    </div>,
+    document.body
+  ) : null;
 };
 
 export default PickCodingBankModal;

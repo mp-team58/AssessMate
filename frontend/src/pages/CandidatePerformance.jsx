@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getCandidateHistory } from '../services/candidateService';
 import { useToast } from '../contexts/ToastContext';
 import Button from '../components/ui/Button';
+import EmptyState from '../components/ui/EmptyState';
 import {
   TrendingUp,
   Award,
@@ -94,7 +95,7 @@ const CandidatePerformance = () => {
   const scoreTrend = [...scoredExams].reverse();
 
   return (
-    <div className="max-w-7xl mx-auto space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
+    <div className="w-full space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -116,7 +117,17 @@ const CandidatePerformance = () => {
 
 
 
-      {/* Primary Key Metrics Grid */}
+      {assessments.length === 0 && !isLoading ? (
+        <EmptyState
+          icon={BarChart3}
+          title="No Performance Metrics Available"
+          description="You haven't completed any assessments on AssessMate yet. Join an assessment using your instructor's access code to start tracking your performance."
+          actionText="Join an Assessment"
+          onAction={() => navigate('/candidate/join')}
+        />
+      ) : (
+        <>
+          {/* Primary Key Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 flex items-start gap-4">
           <div className="p-3.5 bg-brand-50 text-brand-700 border border-brand-100 rounded-xl flex-shrink-0">
@@ -130,6 +141,21 @@ const CandidatePerformance = () => {
             <p className="text-xs text-secondary-500 mt-1.5 font-medium">
               {scoredExams.length > 0 ? `Across ${scoredExams.length} tests` : 'No score data yet'}
             </p>
+            {averageScore !== null && (
+              <div
+                role="progressbar"
+                aria-label="Overall assessment average score"
+                aria-valuenow={Math.round(Math.min(100, Math.max(0, Number(averageScore))))}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="w-full bg-secondary-100 h-1.5 rounded-full overflow-hidden mt-3"
+              >
+                <div
+                  className="bg-brand-600 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, Math.max(0, Number(averageScore)))}%` }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -158,6 +184,21 @@ const CandidatePerformance = () => {
             <p className="text-xs text-secondary-500 mt-1.5 font-medium">
               {passedCount} of {completedCount} qualified
             </p>
+            {passRate !== null && (
+              <div
+                role="progressbar"
+                aria-label="Overall assessment pass rate"
+                aria-valuenow={Math.round(Math.min(100, Math.max(0, passRate)))}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="w-full bg-secondary-100 h-1.5 rounded-full overflow-hidden mt-3"
+              >
+                <div
+                  className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, Math.max(0, passRate))}%` }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -171,6 +212,19 @@ const CandidatePerformance = () => {
             <p className="text-xs text-secondary-500 mt-1.5 font-medium">
               {completedCount} of {totalCount} finished
             </p>
+            <div
+              role="progressbar"
+              aria-label="Overall assessment completion rate"
+              aria-valuenow={Math.round(Math.min(100, Math.max(0, completionRate)))}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              className="w-full bg-secondary-100 h-1.5 rounded-full overflow-hidden mt-3"
+            >
+              <div
+                className="bg-brand-600 h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, Math.max(0, completionRate))}%` }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -247,12 +301,17 @@ const CandidatePerformance = () => {
                           {score}%
                         </span>
                         <div
+                          role="progressbar"
+                          aria-label={`${exam.examTitle} score`}
+                          aria-valuenow={Math.round(Math.min(100, Math.max(0, isNaN(score) ? 0 : score)))}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
                           className={`w-full max-w-[48px] rounded-t-xl transition-all duration-500 ${
                             isPassed
                               ? 'bg-gradient-to-t from-brand-600 to-brand-400 group-hover:from-brand-700 group-hover:to-brand-500 shadow-md'
                               : 'bg-gradient-to-t from-amber-600 to-amber-400 group-hover:from-amber-700 group-hover:to-amber-500'
                           }`}
-                          style={{ height: `${Math.max(12, Math.min(100, score))}%` }}
+                          style={{ height: `${Math.max(12, Math.min(100, isNaN(score) ? 0 : score))}%` }}
                         />
                       </div>
                     );
@@ -365,10 +424,17 @@ const CandidatePerformance = () => {
                           <span className="font-bold text-secondary-900">{item.subject}</span>
                           <span className="font-black text-brand-600">{item.avg}%</span>
                         </div>
-                        <div className="w-full bg-secondary-100 h-2 rounded-full overflow-hidden">
+                        <div
+                          role="progressbar"
+                          aria-label={`${item.subject} proficiency average score`}
+                          aria-valuenow={Math.round(Math.min(100, Math.max(0, isNaN(avgNum) ? 0 : avgNum)))}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          className="w-full bg-secondary-100 h-2 rounded-full overflow-hidden"
+                        >
                           <div
                             className="bg-brand-600 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, Math.max(0, avgNum))}%` }}
+                            style={{ width: `${Math.min(100, Math.max(0, isNaN(avgNum) ? 0 : avgNum))}%` }}
                           />
                         </div>
                         <div className="flex justify-between text-[10px] text-secondary-400 font-medium">
@@ -402,6 +468,8 @@ const CandidatePerformance = () => {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

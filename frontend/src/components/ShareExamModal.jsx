@@ -1,3 +1,6 @@
+import { createPortal } from 'react-dom';
+import useModalScrollLock from '../hooks/useModalScrollLock';
+import useModalAccessibility from '../hooks/useModalAccessibility';
 import React, { useState, useEffect } from 'react';
 import { getShareExamInfo } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
@@ -5,6 +8,11 @@ import Button from './ui/Button';
 import { Share2, Copy, CheckCircle, Clock, Smartphone, Code2, AlertTriangle } from 'lucide-react';
 
 const ShareExamModal = ({ examId, isOpen, onClose }) => {
+  useModalScrollLock(isOpen);
+  const modalRef = useModalAccessibility({
+    isOpen,
+    onClose,
+  });
   const [shareData, setShareData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,15 +59,15 @@ const ShareExamModal = ({ examId, isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-secondary-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+  return typeof document !== 'undefined' ? createPortal(
+    <div className="fixed inset-0 w-screen h-screen supports-[height:100dvh]:h-dvh z-[9999] flex items-center justify-center p-4 bg-secondary-900/60 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="share-exam-title" tabIndex={-1} className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] outline-none">
         <div className="p-6 border-b border-secondary-100 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-secondary-900 flex items-center gap-2">
+          <h2 id="share-exam-title" className="text-xl font-bold text-secondary-900 flex items-center gap-2">
             <Share2 className="w-5 h-5 text-brand-600" />
             Share Exam
           </h2>
-          <button onClick={onClose} className="text-secondary-400 hover:text-secondary-600 transition-colors p-1 rounded-md hover:bg-secondary-50">
+          <button type="button" onClick={onClose} aria-label="Close share dialog" className="text-secondary-400 hover:text-secondary-600 transition-colors p-1 rounded-md hover:bg-secondary-50 cursor-pointer">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -151,8 +159,9 @@ const ShareExamModal = ({ examId, isOpen, onClose }) => {
           ) : null}
         </div>
       </div>
-    </div>
-  );
+    </div>,
+    document.body
+  ) : null;
 };
 
 export default ShareExamModal;

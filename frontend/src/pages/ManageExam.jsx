@@ -9,7 +9,7 @@ import QuestionCard from '../components/QuestionCard';
 import ShareExamModal from '../components/ShareExamModal';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
-import { Share2 } from 'lucide-react';
+import { Share2, AlertCircle, RotateCw } from 'lucide-react';
 
 const ManageExam = () => {
   const { id } = useParams();
@@ -139,15 +139,26 @@ const ManageExam = () => {
     );
   }
 
-  if (error) {
+  if (error || !exam) {
     return (
-      <div className="bg-red-50 text-red-600 p-4 rounded-xl shadow-sm border border-red-100">
-        {error}
+      <div className="max-w-md mx-auto bg-white p-8 rounded-3xl border border-secondary-200 shadow-xl text-center space-y-4 my-12 animate-in fade-in duration-200">
+        <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
+        <h2 className="text-xl font-bold text-secondary-900">Assessment Details Unavailable</h2>
+        <p className="text-secondary-600 text-sm">
+          {error || 'The requested assessment could not be found or you do not have permission to view it.'}
+        </p>
+        <div className="flex gap-3 pt-2">
+          <Button onClick={() => navigate('/host/my-exams')} variant="outline" className="flex-1">
+            Back to Exams
+          </Button>
+          <Button onClick={fetchExam} className="flex-1">
+            <RotateCw className="w-4 h-4 mr-1.5" />
+            <span>Retry</span>
+          </Button>
+        </div>
       </div>
     );
   }
-
-  if (!exam) return null;
 
   return (
     <>
@@ -155,9 +166,7 @@ const ManageExam = () => {
       
       {/* Header Banner */}
       <div className="relative bg-white rounded-3xl p-8 shadow-sm border border-secondary-200 overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        {/* Background Accent */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-50 rounded-full blur-3xl opacity-50 -mr-20 -mt-20 pointer-events-none"></div>
-        
+
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
             <span className={`px-3 py-1.5 text-xs font-bold rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-sm
@@ -182,15 +191,6 @@ const ManageExam = () => {
             </svg>
             {exam.subject}
           </p>
-          
-          {exam.hasCodingSection && (
-            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary-900 text-white text-sm font-semibold shadow-md">
-              <svg className="w-4 h-4 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-              Coding Section Included ({exam.codingDurationMinutes} min)
-            </div>
-          )}
         </div>
 
         <div className="flex gap-3 relative z-10 w-full md:w-auto">

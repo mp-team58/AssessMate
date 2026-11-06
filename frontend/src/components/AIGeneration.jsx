@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+﻿import React, { useState, useRef } from 'react';
 import {
   Zap,
   FileText,
@@ -9,7 +9,6 @@ import {
   Loader2
 } from 'lucide-react';
 import Button from './ui/Button';
-import QuestionCard from './QuestionCard';
 import { useToast } from '../contexts/ToastContext';
 import {
   generateQuestionsFromTopic,
@@ -48,7 +47,7 @@ const getInputTypeLabel = (inputType) => {
   return labels[inputType] || inputType;
 };
 
-const AIGeneration = ({ examId, stats, questions = [], onGenerationSuccess, onEdit, onDelete, onClose }) => {
+const AIGeneration = ({ examId, stats, questions = [], onGenerationSuccess, onEdit, onDelete, onClose, onReview }) => {
   const { showToast } = useToast();
   const [aiMode, setAiMode] = useState("TOPIC");
   const [aiForm, setAiForm] = useState({
@@ -274,66 +273,56 @@ const AIGeneration = ({ examId, stats, questions = [], onGenerationSuccess, onEd
           </div>
         )}
 
-        {/* Verified Questions */}
-        {verifiedQuestions.length > 0 && (
-          <div>
-            <h4 className="text-md font-bold text-green-800 flex items-center gap-2 mb-2">
-              <CheckCircle className="w-5 h-5" /> Source-Supported Questions ({verifiedQuestions.length})
-            </h4>
-            <p className="text-sm text-gray-600 mb-4">
-              These answers have supporting evidence in the supplied source material. They are still AI-generated and should be reviewed before publishing.
-            </p>
-            <div className="space-y-4">
-              {verifiedQuestions.map(q => (
-                <QuestionCard
-                  key={q.id}
-                  question={q}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                />
-              ))}
+        {generatedCount > 0 && (
+          unverifiedCount > 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+              <p className="text-sm text-amber-900 flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                <span>
+                  <strong>{unverifiedCount}</strong> of the generated questions have no supporting evidence in your source material. Review them before you publish.
+                </span>
+              </p>
+              <button type="button" onClick={onReview} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition">
+                Review {unverifiedCount} question{unverifiedCount > 1 ? 's' : ''}
+              </button>
             </div>
-          </div>
-        )}
-
-        {/* Unverified Questions */}
-        {unverifiedQuestions.length > 0 && (
-          <div>
-            <h4 className="text-md font-bold text-amber-800 flex items-center gap-2 mb-2 mt-8">
-              <AlertTriangle className="w-5 h-5" /> Questions Needing Review ({unverifiedQuestions.length})
-            </h4>
-            <p className="text-sm text-gray-600 mb-4">
-              The backend could not confidently find supporting evidence for the expected answer in the supplied source material. Review these questions carefully.
-            </p>
-            <div className="space-y-4">
-              {unverifiedQuestions.map(q => (
-                <QuestionCard
-                  key={q.id}
-                  question={q}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                />
-              ))}
+          ) : (
+            <div className="flex items-start gap-2 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-900">
+              <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>All generated questions are supported by your source material. They are in the exam list below. Skim them before you publish.</span>
             </div>
-          </div>
+          )
         )}
       </div>
     );
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-brand-200 p-6 md:p-8 relative">
-      <button
-        onClick={onClose}
-        disabled={isGenerating}
-        className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-      >
-        Close
-      </button>
-
-      <h2 className="text-xl font-extrabold text-secondary-900 mb-6 flex items-center justify-center gap-2">
-        <Zap className="text-brand-600 w-6 h-6 fill-brand-600" /> Generate Questions with AI
-      </h2>
+    <div className="bg-white rounded-3xl shadow-sm border border-secondary-200 p-6 md:p-8 relative">
+      <div className="flex items-center justify-between pb-6 mb-6 border-b border-secondary-200">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#16241F] text-amber-300 flex items-center justify-center shadow-sm">
+            <Zap className="w-5 h-5 fill-amber-300" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-[#16241F]">
+              Generate Questions with AI
+            </h2>
+            <p className="text-xs text-secondary-600">
+              Create curriculum-aligned questions automatically from topics, study text, or documents.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={isGenerating}
+          className="p-2 hover:bg-secondary-100 rounded-xl transition-colors text-secondary-400 hover:text-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50 cursor-pointer"
+          aria-label="Close AI question generator"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
       {/* Capacity Banner */}
       <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center text-indigo-900">

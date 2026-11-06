@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -10,14 +10,19 @@ import OtpInput from '../components/ui/OtpInput';
 import Countdown from '../components/ui/Countdown';
 import { requestPasswordResetOtp, resetPassword } from '../services/authService';
 import { useToast } from '../contexts/ToastContext';
-import { Shield, Lock, Mail, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Shield, Lock, Mail, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { AUTH_COPY } from '../utils/authForm';
 
 const emailSchema = yup.object().shape({
   email: yup.string().trim().email('Must be a valid email').required('Email is required'),
 });
 
 const resetSchema = yup.object().shape({
-  newPassword: yup.string().trim().min(8, 'Password must be at least 8 characters').required('New Password is required'),
+  newPassword: yup.string().required('New Password is required').min(8, 'Password must be at least 8 characters').test(
+    'not-blank',
+    'Password cannot be empty',
+    (val) => Boolean(val && val.trim().length > 0)
+  ),
   confirmPassword: yup.string()
     .oneOf([yup.ref('newPassword'), null], 'Passwords must match')
     .required('Confirm password is required'),
@@ -28,9 +33,52 @@ const ForgotPassword = () => {
   const isAdmin = location.pathname.startsWith('/admin');
   const [step, setStep] = useState('EMAIL'); // 'EMAIL' | 'OTP'
   const [isLoading, setIsLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otp, setOtp] = useState('');
   const [resetEmail, setResetEmail] = useState('');
-  const [cooldown, setCooldown] = useState(0);
+
+  const getStorageKey = (targetEmail) => {
+    const clean = (targetEmail || resetEmail || '').trim().toLowerCase();
+    const prefix = isAdmin ? 'assessmate_fp_cooldown_admin' : 'assessmate_fp_cooldown_user';
+    return clean ? `${prefix}_${encodeURIComponent(clean)}` : prefix;
+  };
+
+  const getRemainingCooldown = (targetEmail) => {
+    try {
+      const key = getStorageKey(targetEmail);
+      const stored = sessionStorage.getItem(key);
+      if (stored) {
+        const remaining = Math.ceil((parseInt(stored, 10) - Date.now()) / 1000);
+        return remaining > 0 ? remaining : 0;
+      }
+    } catch (_) {}
+    return 0;
+  };
+
+  const [cooldown, setCooldown] = useState(() => getRemainingCooldown());
+
+  const startCooldown = (seconds = 60, targetEmail) => {
+    const expiry = Date.now() + seconds * 1000;
+    try {
+      const key = getStorageKey(targetEmail);
+      sessionStorage.setItem(key, String(expiry));
+    } catch (_) {}
+    setCooldown(seconds);
+  };
+
+  const clearCooldown = (targetEmail) => {
+    try {
+      const key = getStorageKey(targetEmail);
+      sessionStorage.removeItem(key);
+    } catch (_) {}
+    setCooldown(0);
+  };
+
+  React.useEffect(() => {
+    const rem = getRemainingCooldown(resetEmail);
+    setCooldown(rem);
+  }, [step, resetEmail]);
 
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -62,7 +110,7 @@ const ForgotPassword = () => {
         showToast(msg, 'error');
       } else {
         showToast(msg || 'If an account exists for this email, a verification code has been sent.', 'success');
-        setCooldown(60);
+        startCooldown(60, data.email);
       }
       setResetEmail(data.email);
       setStep('OTP');
@@ -71,7 +119,7 @@ const ForgotPassword = () => {
         showToast('If an account exists for this email, a verification code has been sent.', 'success');
         setResetEmail(data.email);
         setStep('OTP');
-        setCooldown(60);
+        startCooldown(60, data.email);
       } else {
         showToast(err.response?.data?.message || 'Failed to send verification code. Please try again.', 'error');
       }
@@ -97,6 +145,7 @@ const ForgotPassword = () => {
 
       const response = await resetPassword(payload);
 
+      clearCooldown(resetEmail);
       showToast(response.data?.message || 'Password reset successfully. Please log in with your new password.', 'success');
       navigate(isAdmin ? '/admin' : '/login');
     } catch (err) {
@@ -119,14 +168,19 @@ const ForgotPassword = () => {
         showToast(msg, 'error');
       } else {
         showToast(msg || 'If an account exists for this email, a verification code has been sent.', 'success');
-        setCooldown(60);
+        startCooldown(60, resetEmail);
         setOtp('');
       }
     } catch (err) {
       if (err.response?.status === 404) {
         showToast('If an account exists for this email, a verification code has been sent.', 'success');
-        setCooldown(60);
+        startCooldown(60, resetEmail);
         setOtp('');
+      } else if (err.response?.status === 429 || err.response?.data?.message?.toLowerCase()?.includes('wait')) {
+        const retryHeader = err.response?.headers?.['retry-after'];
+        const retrySec = retryHeader ? parseInt(retryHeader, 10) : 60;
+        startCooldown(!isNaN(retrySec) && retrySec > 0 ? retrySec : 60, resetEmail);
+        showToast(err.response?.data?.message || 'Please wait before requesting another verification code.', 'error');
       } else {
         showToast(err.response?.data?.message || 'Failed to resend verification code. Please try again.', 'error');
       }
@@ -144,12 +198,12 @@ const ForgotPassword = () => {
               <Shield size={28} />
             </div>
             <h1 className="text-2xl font-bold text-white tracking-tight">AssessMate Admin</h1>
-            <p className="text-xs text-emerald-400/80 font-medium tracking-wide uppercase mt-1">
+            <p className="text-xs text-brand-400/80 font-medium tracking-wide uppercase mt-1">
               Master Password Recovery
             </p>
           </div>
 
-          <div className="bg-[#18231E] border border-emerald-900/40 rounded-2xl p-6 sm:p-8 shadow-2xl">
+          <div className="bg-[#16241F] border border-secondary-700/40 rounded-2xl p-6 sm:p-8 shadow-2xl">
             {step === 'EMAIL' ? (
               <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-4">
                 <div>
@@ -168,9 +222,9 @@ const ForgotPassword = () => {
                     <input
                       type="email"
                       required
-                      placeholder="admin@assessmate.com"
+                      placeholder={AUTH_COPY.emailPlaceholder}
                       {...registerEmail('email')}
-                      className="w-full pl-10 pr-4 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
                     />
                   </div>
                   {emailErrors.email && (
@@ -181,7 +235,7 @@ const ForgotPassword = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full mt-2 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-emerald-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full mt-2 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>{isLoading ? 'Sending Code...' : 'Send Recovery Code'}</span>
                   {!isLoading && <ArrowRight size={16} />}
@@ -210,13 +264,13 @@ const ForgotPassword = () => {
                   </button>
                   <h2 className="text-base font-bold text-white">Enter Verification Code</h2>
                   <p className="text-xs text-gray-400 mt-1">
-                    Code sent to <span className="font-semibold text-white">{maskEmail(resetEmail)}</span>
+                    Code sent to <span className="font-semibold text-white break-all">{maskEmail(resetEmail)}</span>
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-xs font-medium text-gray-300">6-Digit Code</label>
-                  <OtpInput value={otp} onChange={setOtp} length={6} disabled={isLoading} />
+                  <OtpInput value={otp} onChange={setOtp} length={6} disabled={isLoading} isDark={true} />
                 </div>
 
                 <div>
@@ -224,11 +278,20 @@ const ForgotPassword = () => {
                   <div className="relative">
                     <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
-                      type="password"
+                      type={showNewPassword ? 'text' : 'password'}
                       placeholder="••••••••••••"
                       {...registerReset('newPassword')}
-                      className="w-full pl-10 pr-4 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                      className="w-full pl-10 pr-11 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer p-1 rounded-lg"
+                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                      tabIndex={-1}
+                    >
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                   {resetErrors.newPassword && (
                     <p className="text-red-400 text-xs mt-1">{resetErrors.newPassword.message}</p>
@@ -240,11 +303,20 @@ const ForgotPassword = () => {
                   <div className="relative">
                     <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
-                      type="password"
+                      type={showConfirmPassword ? 'text' : 'password'}
                       placeholder="••••••••••••"
                       {...registerReset('confirmPassword')}
-                      className="w-full pl-10 pr-4 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                      className="w-full pl-10 pr-11 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer p-1 rounded-lg"
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      tabIndex={-1}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                   {resetErrors.confirmPassword && (
                     <p className="text-red-400 text-xs mt-1">{resetErrors.confirmPassword.message}</p>
@@ -254,7 +326,7 @@ const ForgotPassword = () => {
                 <button
                   type="submit"
                   disabled={isLoading || otp.length !== 6}
-                  className="w-full mt-2 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-emerald-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full mt-2 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>{isLoading ? 'Resetting...' : 'Reset Master Password'}</span>
                   {!isLoading && <ArrowRight size={16} />}
@@ -263,14 +335,14 @@ const ForgotPassword = () => {
                 <div className="pt-2 text-center text-xs">
                   {cooldown > 0 ? (
                     <span className="text-gray-400">
-                      Resend code in <Countdown seconds={cooldown} onComplete={() => setCooldown(0)} />
+                      Resend code in <Countdown seconds={cooldown} onComplete={() => clearCooldown()} />
                     </span>
                   ) : (
                     <button
                       type="button"
                       onClick={handleResend}
                       disabled={isLoading}
-                      className="text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer disabled:opacity-50"
+                      className="text-brand-400 hover:text-brand-300 font-semibold cursor-pointer disabled:opacity-50"
                     >
                       Resend Code
                     </button>
@@ -290,7 +362,8 @@ const ForgotPassword = () => {
 
   return (
     <AuthLayout>
-      {step === 'EMAIL' ? (
+      <div className="w-full min-h-[440px] flex flex-col justify-between">
+        {step === 'EMAIL' ? (
         <>
           <div className="mb-8 text-center lg:text-left">
             <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Forgot Password</h2>
@@ -301,7 +374,7 @@ const ForgotPassword = () => {
             <Input
               label="Email"
               type="email"
-              placeholder="you@example.com"
+              placeholder={AUTH_COPY.emailPlaceholder}
               {...registerEmail('email')}
               error={emailErrors.email}
             />
@@ -337,7 +410,7 @@ const ForgotPassword = () => {
             <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Reset Password</h2>
             <p className="text-secondary-600 text-sm leading-relaxed">
               We've sent a verification code to<br />
-              <span className="font-bold text-secondary-900">{maskEmail(resetEmail)}</span>
+              <span className="font-bold text-secondary-900 break-all">{maskEmail(resetEmail)}</span>
             </p>
           </div>
 
@@ -373,7 +446,7 @@ const ForgotPassword = () => {
           <div className="mt-8 text-center text-sm">
             {cooldown > 0 ? (
               <span className="text-secondary-400 font-medium flex items-center justify-center gap-2">
-                Resend code in <Countdown seconds={cooldown} onComplete={() => setCooldown(0)} />
+                Resend code in <Countdown seconds={cooldown} onComplete={() => clearCooldown()} />
               </span>
             ) : (
               <button
@@ -387,6 +460,7 @@ const ForgotPassword = () => {
           </div>
         </div>
       )}
+      </div>
     </AuthLayout>
   );
 };

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, PlusCircle, User, LogOut, Menu, X, BookOpenCheck } from 'lucide-react';
+import { LayoutDashboard, FileText, PlusCircle, User, LogOut, Menu, X, BookOpenCheck, Library } from 'lucide-react';
 import { logout } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { prefetchRoute, prefetchCommonRoutes } from '../utils/prefetch';
 import ContentSkeleton from '../components/ui/ContentSkeleton';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const DashboardLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -47,11 +48,11 @@ const DashboardLayout = () => {
     { name: 'Dashboard', path: '/host/dashboard', icon: LayoutDashboard },
     { name: 'My Exams', path: '/host/my-exams', icon: FileText },
     { name: 'Create Exam', path: '/host/create-exam', icon: PlusCircle },
-    { name: 'Question Bank', path: '/host/question-bank', icon: BookOpenCheck },
+    { name: 'Question Bank', path: '/host/question-bank', icon: Library },
   ];
 
   return (
-    <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-[#F1F4F2] flex flex-col md:flex-row font-sans">
+    <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-surface flex flex-col md:flex-row font-sans">
       {/* Mobile Header */}
       <div className="md:hidden bg-[#16241F] text-[#F1F4F2] flex items-center justify-between p-4 sticky top-0 z-50 shadow-md">
         <Link to="/host/dashboard" className="flex items-center gap-2 font-bold text-xl tracking-tight" aria-label="AssessMate home">
@@ -65,7 +66,7 @@ const DashboardLayout = () => {
 
       {/* Sidebar Navigation */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-[#16241F] text-[#F1F4F2] shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col pt-16 md:pt-0
+        fixed inset-y-0 left-0 z-40 w-64 flex-shrink-0 bg-[#16241F] text-[#F1F4F2] shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col pt-16 md:pt-0 border-r border-secondary-800/70
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
         md:relative md:translate-x-0
       `}>
@@ -75,13 +76,13 @@ const DashboardLayout = () => {
             <BookOpenCheck className="w-7 h-7 text-brand-400" />
           </div>
           <div>
-            <span className="text-2xl font-extrabold tracking-tight block leading-tight">AssessMate</span>
+            <span className="text-2xl font-extrabold tracking-tight block leading-tight text-white">AssessMate</span>
             <span className="text-xs text-brand-300 font-semibold tracking-wider uppercase">HOST</span>
           </div>
         </Link>
 
         {/* Sidebar Links */}
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-4 py-5 space-y-1.5 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
@@ -90,14 +91,14 @@ const DashboardLayout = () => {
               onFocus={() => prefetchRoute(item.path)}
               onClick={() => setIsMobileMenuOpen(false)}
               className={({ isActive }) => `
-                flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
+                flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium transition-all duration-200
                 ${isActive 
-                  ? 'bg-brand-500 text-white shadow-lg shadow-brand-900/20' 
-                  : 'text-secondary-200 hover:bg-secondary-800/50 hover:text-[#F1F4F2]'}
+                  ? 'bg-brand-500 text-white shadow-lg shadow-brand-900/20 font-semibold' 
+                  : 'text-secondary-200 hover:bg-secondary-800/60 hover:text-[#F1F4F2]'}
               `}
             >
-              <item.icon className="w-5 h-5" />
-              {item.name}
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <span>{item.name}</span>
             </NavLink>
           ))}
         </nav>
@@ -122,15 +123,16 @@ const DashboardLayout = () => {
             <div className="overflow-hidden flex-1 min-w-0">
               <p className="text-sm font-bold text-[#F1F4F2] truncate">{user?.name || 'Host'}</p>
               <p className="text-xs text-secondary-400 font-medium flex items-center gap-1">
-                <User className="w-3 h-3 text-brand-400" />
+                <User className="w-3.5 h-3.5 text-brand-400" />
                 Profile
               </p>
             </div>
           </NavLink>
 
           <button 
+            type="button"
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-secondary-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl font-medium transition-colors duration-200"
+            className="w-full flex items-center gap-3 px-4 py-3 text-secondary-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl font-medium transition-colors duration-200 cursor-pointer text-[15px]"
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
             <span>Sign Out</span>
@@ -148,15 +150,11 @@ const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <main id="app-scroll-container" className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative h-full">
-        {/* Decorative glows - clipped so they can never cause sideways scrolling */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-          <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-[#C0562C] rounded-full blur-[140px] opacity-10 pointer-events-none"></div>
-          <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-500 rounded-full blur-[140px] opacity-10 pointer-events-none"></div>
-        </div>
-        
-        <div className="flex-1 p-4 md:p-6 lg:p-8 z-10 w-full">
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 xl:p-10 z-10 w-full max-w-[1600px] mx-auto">
           <React.Suspense fallback={<ContentSkeleton />}>
-            <Outlet />
+            <ErrorBoundary routeLevel>
+              <Outlet />
+            </ErrorBoundary>
           </React.Suspense>
         </div>
       </main>

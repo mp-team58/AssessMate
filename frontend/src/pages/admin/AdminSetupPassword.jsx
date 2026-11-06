@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import adminService from '../../services/adminService';
 import { useToast } from '../../contexts/ToastContext';
@@ -89,13 +89,13 @@ export default function AdminSetupPassword() {
             <Shield size={28} />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">AssessMate Admin</h1>
-          <p className="text-xs text-emerald-400/80 font-medium tracking-wide uppercase mt-1">
+          <p className="text-xs text-brand-400/80 font-medium tracking-wide uppercase mt-1">
             Administrator Account Setup
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#18231E] border border-emerald-900/40 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="bg-[#16241F] border border-secondary-700/40 rounded-2xl p-6 sm:p-8 shadow-2xl">
           {validating ? (
             <div className="py-12 text-center space-y-4">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500 mx-auto" />
@@ -127,7 +127,7 @@ export default function AdminSetupPassword() {
               <div className="pb-3 border-b border-emerald-950">
                 <p className="text-xs text-gray-400">Welcome,</p>
                 <p className="text-sm font-bold text-white">{invitationData?.name || 'Administrator'}</p>
-                <p className="text-xs text-emerald-400 font-mono mt-0.5">{invitationData?.email}</p>
+                <p className="text-xs text-brand-400 font-mono mt-0.5">{invitationData?.email}</p>
               </div>
 
               <div>
@@ -142,12 +142,14 @@ export default function AdminSetupPassword() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter strong password"
-                    className="w-full pl-10 pr-10 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                    className="w-full pl-10 pr-10 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 cursor-pointer p-1 rounded-lg"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    tabIndex={-1}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -166,12 +168,14 @@ export default function AdminSetupPassword() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter password"
-                    className="w-full pl-10 pr-10 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                    className="w-full pl-10 pr-10 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 cursor-pointer p-1 rounded-lg"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    tabIndex={-1}
                   >
                     {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -179,31 +183,31 @@ export default function AdminSetupPassword() {
               </div>
 
               {/* Password Requirements */}
-              <div className="bg-[#121B16] p-3 rounded-xl border border-emerald-950 text-[11px] space-y-1.5">
+              <div className="bg-[#111915] p-3 rounded-xl border border-emerald-950 text-[11px] space-y-1.5">
                 <p className="text-gray-400 font-semibold mb-1">Security Standards:</p>
                 <div className="grid grid-cols-2 gap-1 text-gray-400">
-                  <span className={`flex items-center gap-1.5 ${hasLength ? 'text-emerald-400' : hasMinLength ? 'text-emerald-500' : 'text-gray-500'}`}>
-                    <Check size={12} className={hasMinLength ? 'text-emerald-400' : 'text-gray-600'} />
+                  <span className={`flex items-center gap-1.5 ${hasLength ? 'text-brand-400' : hasMinLength ? 'text-emerald-500' : 'text-gray-500'}`}>
+                    <Check size={12} className={hasMinLength ? 'text-brand-400' : 'text-gray-600'} />
                     <span>8+ chars (12+ rec.)</span>
                   </span>
-                  <span className={`flex items-center gap-1.5 ${hasUpper ? 'text-emerald-400' : 'text-gray-500'}`}>
-                    <Check size={12} className={hasUpper ? 'text-emerald-400' : 'text-gray-600'} />
+                  <span className={`flex items-center gap-1.5 ${hasUpper ? 'text-brand-400' : 'text-gray-500'}`}>
+                    <Check size={12} className={hasUpper ? 'text-brand-400' : 'text-gray-600'} />
                     <span>Uppercase letter</span>
                   </span>
-                  <span className={`flex items-center gap-1.5 ${hasLower ? 'text-emerald-400' : 'text-gray-500'}`}>
-                    <Check size={12} className={hasLower ? 'text-emerald-400' : 'text-gray-600'} />
+                  <span className={`flex items-center gap-1.5 ${hasLower ? 'text-brand-400' : 'text-gray-500'}`}>
+                    <Check size={12} className={hasLower ? 'text-brand-400' : 'text-gray-600'} />
                     <span>Lowercase letter</span>
                   </span>
-                  <span className={`flex items-center gap-1.5 ${hasNumber ? 'text-emerald-400' : 'text-gray-500'}`}>
-                    <Check size={12} className={hasNumber ? 'text-emerald-400' : 'text-gray-600'} />
+                  <span className={`flex items-center gap-1.5 ${hasNumber ? 'text-brand-400' : 'text-gray-500'}`}>
+                    <Check size={12} className={hasNumber ? 'text-brand-400' : 'text-gray-600'} />
                     <span>Number (0-9)</span>
                   </span>
-                  <span className={`flex items-center gap-1.5 ${hasSymbol ? 'text-emerald-400' : 'text-gray-500'}`}>
-                    <Check size={12} className={hasSymbol ? 'text-emerald-400' : 'text-gray-600'} />
+                  <span className={`flex items-center gap-1.5 ${hasSymbol ? 'text-brand-400' : 'text-gray-500'}`}>
+                    <Check size={12} className={hasSymbol ? 'text-brand-400' : 'text-gray-600'} />
                     <span>Special symbol</span>
                   </span>
-                  <span className={`flex items-center gap-1.5 ${isMatch ? 'text-emerald-400' : 'text-gray-500'}`}>
-                    <Check size={12} className={isMatch ? 'text-emerald-400' : 'text-gray-600'} />
+                  <span className={`flex items-center gap-1.5 ${isMatch ? 'text-brand-400' : 'text-gray-500'}`}>
+                    <Check size={12} className={isMatch ? 'text-brand-400' : 'text-gray-600'} />
                     <span>Passwords match</span>
                   </span>
                 </div>
@@ -212,7 +216,7 @@ export default function AdminSetupPassword() {
               <button
                 type="submit"
                 disabled={submitting || !isValid}
-                className="w-full mt-4 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-emerald-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full mt-4 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>{submitting ? 'Setting Password...' : 'Activate Admin Account'}</span>
                 {!submitting && <ArrowRight size={16} />}

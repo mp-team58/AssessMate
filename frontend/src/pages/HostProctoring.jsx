@@ -1,17 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getProctoringDashboard, getCandidateProctoringTimeline } from '../services/hostService';
 import { useToast } from '../contexts/ToastContext';
-import { ShieldAlert, ArrowLeft, EyeOff, Users, Monitor, Maximize, AlertTriangle, Activity, Mic } from 'lucide-react';
+import { ShieldAlert, ArrowLeft, EyeOff, Users, Monitor, Maximize, AlertTriangle, Activity, Mic, RefreshCcw } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { getMediaUrl } from '../services/apiClient';
 import { SecureImage, SecureAudio } from '../components/SecureMedia';
 
-const ProctoringRow = ({ candidate, examId }) => {
+const ProctoringRow = ({ candidate, examId, pollTrigger }) => {
   const [timeline, setTimeline] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
+
+  const fetchTimeline = useCallback(async (isBackground = false) => {
+    if (!isBackground) setIsLoading(true);
+    try {
+      const response = await getCandidateProctoringTimeline(examId, candidate.enrollmentId);
+      setTimeline(response.data || []);
+    } catch (err) {
+      if (!isBackground) {
+        showToast('Unable to load timeline.', 'error');
+        setTimeline([]);
+      }
+    } finally {
+      if (!isBackground) setIsLoading(false);
+    }
+  }, [examId, candidate.enrollmentId, showToast]);
 
   const toggleTimeline = async () => {
     if (isExpanded) {
@@ -21,18 +36,15 @@ const ProctoringRow = ({ candidate, examId }) => {
     
     setIsExpanded(true);
     if (!timeline) {
-      setIsLoading(true);
-      try {
-        const response = await getCandidateProctoringTimeline(examId, candidate.enrollmentId);
-        setTimeline(response.data || []);
-      } catch (err) {
-        showToast('Unable to load timeline.', 'error');
-        setTimeline([]);
-      } finally {
-        setIsLoading(false);
-      }
+      fetchTimeline(false);
     }
   };
+
+  useEffect(() => {
+    if (isExpanded && pollTrigger > 0) {
+      fetchTimeline(true);
+    }
+  }, [pollTrigger, isExpanded, fetchTimeline]);
 
   const hasFlags = candidate.totalFlags > 0;
   const isSevere = candidate.totalFlags > 5;
@@ -139,20 +151,39 @@ const HostProctoring = () => {
   
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pollTrigger, setPollTrigger] = useState(0);
+  const intervalRef = useRef(null);
+
+  const fetchProctoring = useCallback(async (isBackground = false) => {
+    try {
+      if (!isBackground && !data) setIsLoading(true);
+      if (isBackground) setIsRefreshing(true);
+      const response = await getProctoringDashboard(id);
+      setData(response.data);
+      if (isBackground) setPollTrigger((prev) => prev + 1);
+    } catch (error) {
+      if (!isBackground) showToast('Unable to load proctoring data.', 'error');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [id, data, showToast]);
 
   useEffect(() => {
-    const fetchProctoring = async () => {
-      try {
-        const response = await getProctoringDashboard(id);
-        setData(response.data);
-      } catch (error) {
-        showToast('Unable to load proctoring data.', 'error');
-      } finally {
-        setIsLoading(false);
+    fetchProctoring(false);
+
+    intervalRef.current = setInterval(() => {
+      fetchProctoring(true);
+    }, 6000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-    fetchProctoring();
-  }, [id, showToast]);
+  }, [id, fetchProctoring]);
 
   if (isLoading) {
     return (
@@ -195,17 +226,33 @@ const HostProctoring = () => {
 
   return (
     <div className="w-full h-full space-y-8 animate-in fade-in duration-500 pb-12">
-      <header className="mb-6 flex flex-col gap-4">
-        <button onClick={() => navigate(`/host/exams/${id}/manage`)} className="text-brand-600 hover:text-brand-700 flex items-center gap-2 font-bold text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Exam Details
-        </button>
+      <header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
+          <button onClick={() => navigate(`/host/exams/${id}/manage`)} className="text-brand-600 hover:text-brand-700 flex items-center gap-2 font-bold text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100 mb-2 cursor-pointer">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Exam Details
+          </button>
           <h1 className="text-3xl md:text-4xl font-extrabold text-secondary-900 tracking-tight flex items-center gap-3">
             <ShieldAlert className="w-8 h-8 text-purple-600" />
             Proctoring
           </h1>
           <p className="text-secondary-500 mt-2 text-lg">Review candidate monitoring events and flagged activity for {data.examTitle}.</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            Auto-refreshing (6s)
+          </span>
+          <Button
+            variant="outline"
+            onClick={() => fetchProctoring(true)}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs h-auto bg-white cursor-pointer"
+          >
+            <RefreshCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Sync</span>
+          </Button>
         </div>
       </header>
 
@@ -282,7 +329,12 @@ const HostProctoring = () => {
               </thead>
               <tbody className="divide-y divide-secondary-100">
                 {cands.map((candidate) => (
-                  <ProctoringRow key={candidate.enrollmentId} candidate={candidate} examId={id} />
+                  <ProctoringRow
+                    key={candidate.enrollmentId}
+                    candidate={candidate}
+                    examId={id}
+                    pollTrigger={pollTrigger}
+                  />
                 ))}
               </tbody>
             </table>

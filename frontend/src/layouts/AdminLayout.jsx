@@ -18,6 +18,7 @@ import { logout } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../contexts/ConfirmContext';
 import ContentSkeleton from '../components/ui/ContentSkeleton';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const AdminLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -59,7 +60,7 @@ const AdminLayout = () => {
   ];
 
   return (
-    <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-[#F1F4F2] flex flex-col md:flex-row font-sans">
+    <div className="h-screen supports-[height:100dvh]:h-dvh overflow-hidden bg-surface flex flex-col md:flex-row font-sans">
       {/* Mobile Header */}
       <div className="md:hidden bg-[#16241F] text-[#F1F4F2] flex items-center justify-between p-4 sticky top-0 z-50 shadow-md">
         <Link to="/admin/dashboard" className="flex items-center gap-2 font-bold text-xl tracking-tight" aria-label="AssessMate home">
@@ -70,15 +71,17 @@ const AdminLayout = () => {
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 text-secondary-200 hover:text-white rounded-lg transition-colors"
           aria-label="Toggle Navigation Menu"
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="admin-sidebar-nav"
         >
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
 
       {/* Sidebar Navigation */}
-      <aside
+      <aside id="admin-sidebar-nav" aria-label="Admin Navigation"
         className={`
-          fixed inset-y-0 left-0 z-40 w-64 bg-[#16241F] text-[#F1F4F2] shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col pt-16 md:pt-0
+          fixed inset-y-0 left-0 z-40 w-64 flex-shrink-0 bg-[#16241F] text-[#F1F4F2] shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col pt-16 md:pt-0 border-r border-secondary-800/70
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
           md:relative md:translate-x-0
         `}
@@ -89,20 +92,20 @@ const AdminLayout = () => {
             <BookOpenCheck className="w-7 h-7 text-brand-400" />
           </div>
           <div>
-            <span className="text-2xl font-extrabold tracking-tight block leading-tight">AssessMate</span>
+            <span className="text-2xl font-extrabold tracking-tight block leading-tight text-white">AssessMate</span>
             <span className="text-xs text-brand-300 font-semibold tracking-wider uppercase">ADMIN</span>
           </div>
         </Link>
 
         {/* Sidebar Links */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 px-4 py-5 space-y-1.5 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.path}
               onClick={() => setIsMobileMenuOpen(false)}
               className={({ isActive }) => `
-                flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200
+                flex items-center gap-3 px-4 py-3 rounded-xl text-[15px] font-medium transition-all duration-200
                 ${
                   isActive
                     ? 'bg-brand-500 text-white shadow-lg shadow-brand-900/20 font-semibold'
@@ -144,7 +147,7 @@ const AdminLayout = () => {
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-secondary-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl font-medium transition-colors duration-200"
+            className="w-full flex items-center gap-3 px-4 py-3 text-secondary-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl font-medium transition-colors duration-200 cursor-pointer text-[15px]"
           >
             <LogOut className="w-5 h-5 flex-shrink-0" />
             <span>Sign Out</span>
@@ -162,15 +165,11 @@ const AdminLayout = () => {
 
       {/* Main Content Area */}
       <main id="app-scroll-container" className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative h-full">
-        {/* Decorative glows - matching Host and Candidate layouts */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-          <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-[#C0562C] rounded-full blur-[140px] opacity-10 pointer-events-none" />
-          <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-500 rounded-full blur-[140px] opacity-10 pointer-events-none" />
-        </div>
-
-        <div className="flex-1 p-6 md:p-8 lg:p-10 z-10 w-full max-w-[1600px] mx-auto">
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 xl:p-10 z-10 w-full max-w-[1600px] mx-auto">
           <React.Suspense fallback={<ContentSkeleton />}>
-            <Outlet />
+            <ErrorBoundary routeLevel>
+              <Outlet />
+            </ErrorBoundary>
           </React.Suspense>
         </div>
       </main>

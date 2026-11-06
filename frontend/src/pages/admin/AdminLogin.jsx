@@ -1,122 +1,93 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { Link, useNavigate } from 'react-router-dom';
+import { Shield } from 'lucide-react';
+import AuthLayout from '../../layouts/AuthLayout';
+import Input from '../../components/ui/Input';
+import Button from '../../components/ui/Button';
+import FormAlert from '../../components/ui/FormAlert';
 import apiClient from '../../services/apiClient';
-import { useToast } from '../../contexts/ToastContext';
-import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { AUTH_COPY, loginSchema } from '../../utils/authForm';
 
 export default function AdminLogin() {
-  const { showToast } = useToast();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState('');
+  const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const { register, handleSubmit, formState: { errors } } = useForm({ resolver: yupResolver(loginSchema) });
 
+  const onSubmit = async ({ email, password }) => {
+    setIsLoading(true);
+    setFormError('');
     try {
-      const res = await apiClient.post('/auth/login', {
-        email: email.trim(),
-        password,
-        portal: 'ADMIN'
-      });
-
+      const res = await apiClient.post('/auth/login', { email: email.trim(), password, portal: 'ADMIN' });
       const data = res.data;
       if (data.role !== 'ADMIN') {
-        showToast('Unauthorized: Admin access required.', 'error');
+        setFormError('This portal is for administrators only.');
         return;
       }
-
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('role', data.role);
-      localStorage.setItem('name', data.name);
+      // Go through AuthContext so the app's user state is set (writing localStorage alone leaves useAuth().user empty until a reload).
+      login(data.token, data.role, data.name, data.id);
       localStorage.setItem('email', email.trim());
       localStorage.setItem('mustChangePassword', data.mustChangePassword ? 'true' : 'false');
-
       navigate('/admin/dashboard', { replace: true });
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || 'Invalid administrator credentials.';
-      showToast(msg, 'error');
+      setFormError(err?.response?.data?.message || err?.message || 'Sign in failed. Check your email and password.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#111915] flex items-center justify-center p-4 font-sans">
-      <div className="max-w-md w-full">
-        {/* Branding */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#2F6F4E] text-white shadow-lg mb-4">
-            <Shield size={28} />
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">AssessMate Admin</h1>
-          <p className="text-xs text-emerald-400/80 font-medium tracking-wide uppercase mt-1">
-            Restricted System Administration Portal
-          </p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-[#18231E] border border-emerald-900/40 rounded-2xl p-6 sm:p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1.5">
-                Administrator Email
-              </label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@assessmate.com"
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-medium text-gray-300">
-                  Master Password
-                </label>
-                <Link
-                  to="/admin/forgot-password"
-                  className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition"
-                >
-                  Forgot Password?
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 bg-[#121B16] border border-emerald-900/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-4 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-emerald-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>{loading ? 'Authenticating...' : 'Sign In to Portal'}</span>
-              {!loading && <ArrowRight size={16} />}
-            </button>
-          </form>
-        </div>
-
-        <p className="text-center text-xs text-gray-500 mt-6">
-          Access logged & audited. Unauthorized access attempts are monitored.
-        </p>
+    <AuthLayout>
+      {/* Same structure as the host/candidate page; the pill is the only thing that marks this as the restricted portal. */}
+      <div className="mb-8 text-center lg:text-left">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 mb-4 rounded-full bg-brand-50 text-brand-700 border border-brand-200 text-xs font-bold">
+          <Shield className="w-3.5 h-3.5" aria-hidden="true" /> Admin portal
+        </span>
+        <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Administrator sign in</h2>
+        <p className="text-secondary-500 text-sm">Restricted area. Sign in with your administrator account.</p>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <Input
+          label={AUTH_COPY.emailLabel}
+          type="email"
+          autoComplete="username"
+          placeholder={AUTH_COPY.emailPlaceholder}
+          {...register('email', { onChange: () => setFormError('') })}
+          error={errors.email}
+        />
+
+        <div>
+          <Input
+            label={AUTH_COPY.passwordLabel}
+            type="password"
+            autoComplete="current-password"
+            placeholder={AUTH_COPY.passwordPlaceholder}
+            {...register('password', { onChange: () => setFormError('') })}
+            error={errors.password}
+          />
+          <div className="flex justify-end -mt-2">
+            <Link to="/admin/forgot-password" className="text-sm text-brand-600 hover:text-brand-500 font-medium">
+              {AUTH_COPY.forgotLink}
+            </Link>
+          </div>
+        </div>
+
+        <FormAlert>{formError}</FormAlert>
+
+        <Button type="submit" disabled={isLoading} className="mt-2 w-full">
+          {isLoading ? AUTH_COPY.signingIn : 'Sign in'}
+        </Button>
+      </form>
+
+      <p className="mt-8 text-center text-sm font-medium text-secondary-500">
+        Access is logged and audited. Unauthorized attempts are monitored.
+      </p>
+    </AuthLayout>
   );
 }

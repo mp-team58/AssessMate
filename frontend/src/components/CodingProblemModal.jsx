@@ -1,3 +1,6 @@
+﻿import { createPortal } from 'react-dom';
+import useModalScrollLock from '../hooks/useModalScrollLock';
+import useModalAccessibility from '../hooks/useModalAccessibility';
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Code2, AlertCircle, Check, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import Button from './ui/Button';
@@ -37,6 +40,12 @@ const CodingProblemModal = ({
   showSaveToBank = true,
   isSubmitting = false
 }) => {
+  useModalScrollLock(isOpen);
+  const modalRef = useModalAccessibility({
+    isOpen,
+    onClose,
+    preventEscape: isSubmitting,
+  });
   const [formData, setFormData] = useState(DEFAULT_PROBLEM);
   const [error, setError] = useState('');
 
@@ -167,9 +176,9 @@ const CodingProblemModal = ({
     onSubmit(payload);
   };
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col my-auto border border-secondary-200 animate-in fade-in zoom-in-95 duration-200">
+  return typeof document !== 'undefined' ? createPortal(
+    <div className="fixed inset-0 w-screen h-screen supports-[height:100dvh]:h-dvh z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="coding-modal-title" tabIndex={-1} className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col my-auto border border-secondary-200 animate-in fade-in zoom-in-95 duration-200 outline-none">
         
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between px-6 py-5 border-b border-secondary-200 bg-white rounded-t-3xl shadow-sm">
@@ -178,7 +187,7 @@ const CodingProblemModal = ({
               <Code2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-[#16241F]">
+              <h2 id="coding-modal-title" className="text-xl font-bold text-[#16241F]">
                 {initialData ? 'Edit Coding Problem' : 'Create Coding Problem'}
               </h2>
               <p className="text-xs text-secondary-600">
@@ -187,8 +196,10 @@ const CodingProblemModal = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 hover:bg-secondary-200/60 rounded-full transition-colors text-secondary-500"
+            className="p-2 hover:bg-secondary-100 rounded-xl transition text-secondary-400 hover:text-secondary-700 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+            aria-label="Close Coding Problem dialog"
           >
             <X className="w-5 h-5" />
           </button>
@@ -539,8 +550,9 @@ const CodingProblemModal = ({
         </form>
 
       </div>
-    </div>
-  );
+    </div>,
+    document.body
+  ) : null;
 };
 
 export default CodingProblemModal;

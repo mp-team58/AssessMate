@@ -1,8 +1,12 @@
-import React, { useEffect, useState, useMemo } from 'react';
+﻿import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import useModalScrollLock from '../../hooks/useModalScrollLock';
+import useModalAccessibility from '../../hooks/useModalAccessibility';
 import { Link } from 'react-router-dom';
 import adminService from '../../services/adminService';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { AUTH_COPY } from '../../utils/authForm';
 import {
   UserPlus,
   ShieldCheck,
@@ -26,7 +30,9 @@ import {
   KeyRound,
   ShieldAlert,
   Clock,
-  X
+  X,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function AdminSettings() {
@@ -53,8 +59,22 @@ export default function AdminSettings() {
   // Delete Admin Modal State
   const [deleteModalAdmin, setDeleteModalAdmin] = useState(null);
   const [deletePassword, setDeletePassword] = useState('');
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  useModalScrollLock(Boolean(deleteModalAdmin));
+  const deleteAdminModalRef = useModalAccessibility({
+    isOpen: Boolean(deleteModalAdmin),
+    onClose: () => {
+      setDeleteModalAdmin(null);
+      setDeletePassword('');
+      setShowDeletePassword(false);
+      setDeleteError('');
+    },
+    preventEscape: deleteSubmitting,
+    defaultFocusCancel: true,
+  });
 
   const fetchSecurityStatus = async () => {
     try {
@@ -65,13 +85,21 @@ export default function AdminSettings() {
     }
   };
 
-  const fetchAdmins = async (query = searchQuery) => {
+    const fetchAdmins = async (query = searchQuery) => {
     try {
       setLoadingAdmins(true);
       const res = await adminService.getAdmins({ q: query.trim() || undefined });
-      setAdmins(res.data?.content || []);
+      const root = res?.data !== undefined ? res.data : res;
+      if (!root || (typeof root === 'object' && !Array.isArray(root) && !Array.isArray(root.content))) {
+        setAdmins([]);
+        showToast('Received an unexpected response structure from the server.', 'error');
+      } else {
+        const raw = Array.isArray(root) ? root : (root.content || []);
+        setAdmins(raw);
+      }
     } catch (err) {
       console.warn('Failed to fetch administrator directory:', err);
+      setAdmins([]);
       showToast('Failed to load administrator accounts.', 'error');
     } finally {
       setLoadingAdmins(false);
@@ -87,7 +115,7 @@ export default function AdminSettings() {
     if (securityStatus?.totalActiveAdmins !== undefined) {
       return securityStatus.totalActiveAdmins;
     }
-    return admins.filter((a) => a.status === 'ACTIVE').length;
+    return (Array.isArray(admins) ? admins : []).filter((a) => a.status === 'ACTIVE').length;
   }, [securityStatus, admins]);
 
   // NEW: pull the remaining KPI figures out of the admins list so they can
@@ -152,7 +180,10 @@ export default function AdminSettings() {
 
   const handleDeleteSubmit = async (e) => {
     e.preventDefault();
-    if (!deleteModalAdmin || !deletePassword) return;
+    if (!deleteModalAdmin || !deletePassword || !deletePassword.trim()) {
+      setDeleteError('Current administrator password is required for confirmation.');
+      return;
+    }
 
     setDeleteSubmitting(true);
     setDeleteError('');
@@ -162,6 +193,7 @@ export default function AdminSettings() {
       showToast(res.data?.message || 'Administrator account removed successfully.', 'success');
       setDeleteModalAdmin(null);
       setDeletePassword('');
+      setShowDeletePassword(false);
       setDeleteError('');
       await fetchAdmins();
       await fetchSecurityStatus();
@@ -343,7 +375,7 @@ export default function AdminSettings() {
                 required
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="admin.delegate@assessmate.com"
+                placeholder={AUTH_COPY.emailPlaceholder}
                 className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs text-secondary-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition"
               />
             </div>
@@ -633,6 +665,7 @@ export default function AdminSettings() {
                               onClick={() => {
                                 setDeleteModalAdmin(adm);
                                 setDeletePassword('');
+                                setShowDeletePassword(false);
                                 setDeleteError('');
                               }}
                               disabled={isSelf || isLastActive || isActionLoading}
@@ -660,9 +693,9 @@ export default function AdminSettings() {
       </div>
 
       {/* Admin Deletion Confirmation Modal */}
-      {deleteModalAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl border border-secondary-200 max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+      {deleteModalAdmin && createPortal(
+        <div className="fixed inset-0 w-screen h-screen supports-[height:100dvh]:h-dvh z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-[#16241F]/60 backdrop-blur-sm animate-in fade-in duration-150 overflow-y-auto">
+          <div ref={deleteAdminModalRef} role="alertdialog" aria-modal="true" aria-labelledby="admin-delete-priv-title" aria-describedby="admin-delete-priv-desc" tabIndex={-1} className="bg-white rounded-2xl sm:rounded-3xl border border-secondary-200 max-w-md w-full p-5 sm:p-6 md:p-7 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200 outline-none my-auto">
             <div className="flex items-start justify-between">
               <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center border border-red-200 flex-shrink-0">
                 <ShieldAlert size={24} />
@@ -672,19 +705,20 @@ export default function AdminSettings() {
                 onClick={() => {
                   setDeleteModalAdmin(null);
                   setDeletePassword('');
+                  setShowDeletePassword(false);
                   setDeleteError('');
                 }}
-                className="text-secondary-400 hover:text-secondary-600 p-1 rounded-lg cursor-pointer"
+                aria-label="Cancel and close administrator deletion" className="text-secondary-400 hover:text-secondary-600 p-1 rounded-lg cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="text-base font-bold text-secondary-900">
+              <h3 id="admin-delete-priv-title" className="text-base font-bold text-secondary-900">
                 Authorize Administrator Deletion
               </h3>
-              <p className="text-xs text-secondary-600 leading-relaxed">
+              <p id="admin-delete-priv-desc" className="text-xs text-secondary-600 leading-relaxed">
                 You are about to delete administrator privileges for{' '}
                 <strong>{deleteModalAdmin.name || deleteModalAdmin.email}</strong> ({deleteModalAdmin.email}).
                 This will soft-delete and anonymize the account.
@@ -703,18 +737,28 @@ export default function AdminSettings() {
                 <label className="block text-xs font-bold text-secondary-700 mb-1.5">
                   Your Current Admin Password
                 </label>
-                <input
-                  type="password"
-                  required
-                  autoFocus
-                  value={deletePassword}
-                  onChange={(e) => {
-                    setDeletePassword(e.target.value);
-                    if (deleteError) setDeleteError('');
-                  }}
-                  placeholder="Enter your master password"
-                  className="w-full px-4 py-2.5 bg-secondary-50 border border-secondary-200 rounded-xl text-xs text-secondary-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
-                />
+                <div className="relative">
+                  <input
+                    type={showDeletePassword ? 'text' : 'password'}
+                    required
+                    autoFocus
+                    value={deletePassword}
+                    onChange={(e) => {
+                      setDeletePassword(e.target.value);
+                      if (deleteError) setDeleteError('');
+                    }}
+                    placeholder="Enter your master password"
+                    className="w-full px-4 py-2.5 pr-11 bg-secondary-50 border border-secondary-200 rounded-xl text-xs text-secondary-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDeletePassword(!showDeletePassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary-400 hover:text-secondary-700 transition cursor-pointer p-1 rounded-md"
+                    aria-label={showDeletePassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showDeletePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
                 <p className="text-[11px] text-secondary-500 mt-1">
                   Re-authenticating your credentials is required for administrative deletion.
                 </p>
@@ -726,6 +770,7 @@ export default function AdminSettings() {
                   onClick={() => {
                     setDeleteModalAdmin(null);
                     setDeletePassword('');
+                    setShowDeletePassword(false);
                     setDeleteError('');
                   }}
                   disabled={deleteSubmitting}
@@ -750,7 +795,8 @@ export default function AdminSettings() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

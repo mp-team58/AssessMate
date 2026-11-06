@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import apiClient from '../services/apiClient';
-import { useToast } from '../contexts/ToastContext';
 
 export default function AdminProtectedRoute() {
   const token = localStorage.getItem('token');
@@ -59,7 +58,7 @@ export default function AdminProtectedRoute() {
 
   if (mustChangePassword) {
     return (
-      <div className="min-h-screen bg-[#F9FAF8] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-surface flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 font-bold">
@@ -76,6 +75,20 @@ export default function AdminProtectedRoute() {
           </p>
 
 
+
+          {error && (
+            <div className="p-3.5 mb-4 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-700 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="p-3.5 mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              {success}
+            </div>
+          )}
 
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>

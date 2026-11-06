@@ -1,57 +1,43 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../layouts/AuthLayout';
 import Toggle from '../components/ui/Toggle';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import FormAlert from '../components/ui/FormAlert';
 import { useAuth } from '../context/AuthContext';
-import { useToast } from '../contexts/ToastContext';
 import { loginHost, loginCandidate } from '../services/authService';
+import { AUTH_COPY, loginSchema } from '../utils/authForm';
 
-const loginSchema = yup.object().shape({
-  email: yup.string().trim().email('Must be a valid email').required('Email is required'),
-  password: yup.string().trim().required('Password is required'),
-});
+const SUBTITLE = {
+  host: 'Sign in to manage your exams and review results.',
+  candidate: 'Sign in to take your assessments and see your results.',
+};
 
 const Login = () => {
   const [role, setRole] = useState('host');
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState('');
   const { login } = useAuth();
-  const { showToast } = useToast();
   const navigate = useNavigate();
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
-    resolver: yupResolver(loginSchema),
-  });
+  const { register, handleSubmit, formState: { errors } } = useForm({ resolver: yupResolver(loginSchema) });
 
   const onSubmit = async (data) => {
     setIsLoading(true);
+    setFormError('');
     try {
-      let response;
-      if (role === 'host') {
-        response = await loginHost(data);
-      } else {
-        response = await loginCandidate(data);
-      }
-
+      const response = role === 'host' ? await loginHost(data) : await loginCandidate(data);
       const { token, role: userRole, name, id } = response.data;
       login(token, userRole, name, id);
-      // Navigate to respective dashboard based on role returned from backend
-      if (userRole === 'ADMIN') {
-        navigate('/admin/dashboard');
-      } else if (userRole === 'HOST') {
-        navigate('/host/dashboard');
-      } else if (userRole === 'CANDIDATE') {
-        navigate('/candidate/dashboard');
-      } else {
-        // Fallback just in case
-        navigate(role === 'host' ? '/host/dashboard' : '/candidate/dashboard');
-      }
+      if (userRole === 'ADMIN') navigate('/admin/dashboard');
+      else if (userRole === 'HOST') navigate('/host/dashboard');
+      else if (userRole === 'CANDIDATE') navigate('/candidate/dashboard');
+      else navigate(role === 'host' ? '/host/dashboard' : '/candidate/dashboard');
     } catch (err) {
-      showToast(err.response?.data?.message || err.message || 'Failed to login. Please check your credentials.', 'error');
+      setFormError(err.response?.data?.message || err.message || 'Sign in failed. Check your email and password.');
     } finally {
       setIsLoading(false);
     }
@@ -61,44 +47,47 @@ const Login = () => {
     <AuthLayout>
       <div className="mb-8 text-center lg:text-left">
         <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Welcome back</h2>
-        <p className="text-secondary-500 text-sm">Sign in to your account to continue</p>
+        <p className="text-secondary-500 text-sm">{SUBTITLE[role]}</p>
       </div>
 
-      <Toggle activeRole={role} onChange={setRole} />
+      <Toggle activeRole={role} onChange={(r) => { setRole(r); setFormError(''); }} />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <Input
-          label="Email Address"
+          label={AUTH_COPY.emailLabel}
           type="email"
-          placeholder="you@example.com"
-          {...register('email')}
+          autoComplete="email"
+          placeholder={AUTH_COPY.emailPlaceholder}
+          {...register('email', { onChange: () => setFormError('') })}
           error={errors.email}
         />
 
         <div>
           <Input
-            label="Password"
+            label={AUTH_COPY.passwordLabel}
             type="password"
-            placeholder="••••••••"
-            {...register('password')}
+            autoComplete="current-password"
+            placeholder={AUTH_COPY.passwordPlaceholder}
+            {...register('password', { onChange: () => setFormError('') })}
             error={errors.password}
           />
-          <div className="flex justify-end mt-1">
+          <div className="flex justify-end -mt-2">
             <Link to="/forgot-password" className="text-sm text-brand-600 hover:text-brand-500 font-medium">
-              Forgot your password?
+              {AUTH_COPY.forgotLink}
             </Link>
           </div>
         </div>
 
-        <Button type="submit" disabled={isLoading} className="mt-6 w-full">
-          {isLoading ? 'Signing in...' : `Login as ${role === 'host' ? 'Host' : 'Candidate'}`}
+        <FormAlert>{formError}</FormAlert>
+
+        <Button type="submit" disabled={isLoading} className="mt-2 w-full">
+          {isLoading ? AUTH_COPY.signingIn : `Sign in as ${role === 'host' ? 'host' : 'candidate'}`}
         </Button>
       </form>
 
       <p className="mt-8 text-center text-sm font-medium text-secondary-500">
-        Don't have an account?{' '}
-        <Link to="/signup" className="text-brand-500 hover:text-brand-600 font-bold ml-1">
+        Don’t have an account?{' '}
+        <Link to="/signup" className="text-brand-600 hover:text-brand-700 font-bold ml-1">
           Create one now
         </Link>
       </p>

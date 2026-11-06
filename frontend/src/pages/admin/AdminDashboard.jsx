@@ -14,47 +14,70 @@ import {
   Activity,
   UserPlus,
   Sparkles,
-  Layers,
-  Clock,
-  CheckCircle2,
   AlertTriangle
 } from 'lucide-react';
 
 const StatCard = ({ title, value, icon: Icon, color = 'brand', trend, link }) => {
   const navigate = useNavigate();
   const colorMap = {
-    brand: 'bg-brand-50 text-brand-600 border-brand-100',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    amber: 'bg-amber-50 text-amber-600 border-amber-100',
-    blue: 'bg-blue-50 text-blue-600 border-blue-100',
-    purple: 'bg-purple-50 text-purple-600 border-purple-100',
+    brand: 'bg-brand-50 text-brand-600 border-brand-200/80',
+    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200/80',
+    amber: 'bg-amber-50 text-amber-600 border-amber-200/80',
+    blue: 'bg-blue-50 text-blue-600 border-blue-200/80',
+    purple: 'bg-purple-50 text-purple-600 border-purple-200/80',
+  };
+
+  const handleKeyDown = (e) => {
+    if (link && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      navigate(link);
+    }
   };
 
   return (
     <div
+      role={link ? 'link' : undefined}
+      tabIndex={link ? 0 : undefined}
       onClick={() => link && navigate(link)}
-      className={`bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 shadow-sm border border-secondary-200/60 flex flex-col hover:shadow-xl transition-all duration-300 group ${link ? 'cursor-pointer hover:border-brand-300' : ''
-        }`}
+      onKeyDown={handleKeyDown}
+      className={`bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm border border-secondary-200/70 flex flex-col justify-between h-full transition-all duration-200 group ${
+        link
+          ? 'cursor-pointer hover:border-brand-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2'
+          : ''
+      }`}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3.5 rounded-2xl border ${colorMap[color] || colorMap.brand} group-hover:scale-110 transition-transform duration-300 shadow-sm`}>
-          <Icon className="w-6 h-6" />
-        </div>
-        {link && (
-          <div className="w-8 h-8 rounded-full bg-secondary-50 flex items-center justify-center group-hover:bg-brand-50 group-hover:scale-110 transition-all duration-300">
-            <ArrowRight className="w-4 h-4 text-secondary-400 group-hover:text-brand-600 transition-colors" />
-          </div>
-        )}
-      </div>
       <div>
-        <h3 className="text-4xl font-black text-secondary-900 mb-1 tracking-tight">{value}</h3>
-        <p className="text-sm font-bold text-secondary-500 uppercase tracking-wider">{title}</p>
-        {trend && (
-          <p className="text-[11px] font-bold mt-4 inline-block px-2.5 py-1 rounded-lg bg-secondary-100 text-secondary-600 border border-secondary-200">
+        <div className="flex items-start justify-between mb-4">
+          <div
+            className={`p-3 sm:p-3.5 rounded-2xl border ${
+              colorMap[color] || colorMap.brand
+            } group-hover:scale-105 transition-transform duration-200 shadow-sm flex items-center justify-center flex-shrink-0`}
+          >
+            <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
+          {link && (
+            <div className="w-8 h-8 rounded-full bg-secondary-100/70 flex items-center justify-center group-hover:bg-brand-50 group-hover:scale-105 transition-all duration-200 flex-shrink-0">
+              <ArrowRight className="w-4 h-4 text-secondary-400 group-hover:text-brand-600 transition-colors" />
+            </div>
+          )}
+        </div>
+        <div>
+          <h3 className="text-3xl sm:text-4xl font-black text-secondary-900 mb-1 tracking-tight leading-tight">
+            {value}
+          </h3>
+          <p className="text-xs font-bold text-secondary-500 uppercase tracking-wider">
+            {title}
+          </p>
+        </div>
+      </div>
+
+      {trend && (
+        <div className="mt-4 pt-3 border-t border-secondary-100/80">
+          <p className="text-[11px] font-semibold text-secondary-600 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-secondary-50 border border-secondary-200/60">
             {trend}
           </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -68,19 +91,41 @@ const ActionCard = ({ title, desc, icon: Icon, color = 'emerald', link }) => {
     amber: 'bg-amber-50 text-amber-600 group-hover:bg-amber-100 group-hover:border-amber-200',
   };
 
+  const handleKeyDown = (e) => {
+    if (link && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      navigate(link);
+    }
+  };
+
   return (
     <div
+      role={link ? 'link' : undefined}
+      tabIndex={link ? 0 : undefined}
       onClick={() => link && navigate(link)}
-      className="bg-white/80 backdrop-blur-md border border-secondary-200 p-5 rounded-3xl flex items-center gap-4 cursor-pointer hover:border-brand-300 hover:shadow-lg transition-all duration-300 group"
+      onKeyDown={handleKeyDown}
+      className={`bg-white/80 backdrop-blur-md border border-secondary-200 p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex items-center gap-3.5 sm:gap-4 transition-all duration-200 group ${
+        link
+          ? 'cursor-pointer hover:border-brand-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2'
+          : ''
+      }`}
     >
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 border border-transparent ${colorMap[color] || colorMap.emerald}`}>
-        <Icon className="w-6 h-6" />
+      <div
+        className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center transition-all duration-200 border border-transparent flex-shrink-0 ${
+          colorMap[color] || colorMap.emerald
+        }`}
+      >
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
       </div>
-      <div className="flex-1">
-        <h4 className="font-extrabold text-secondary-900 text-[15px] group-hover:text-brand-600 transition-colors">{title}</h4>
-        <p className="text-xs font-medium text-secondary-500 mt-1 leading-relaxed">{desc}</p>
+      <div className="flex-1 min-w-0">
+        <h4 className="font-extrabold text-secondary-900 text-sm sm:text-[15px] group-hover:text-brand-600 transition-colors truncate">
+          {title}
+        </h4>
+        <p className="text-xs font-medium text-secondary-500 mt-0.5 sm:mt-1 leading-relaxed line-clamp-2">
+          {desc}
+        </p>
       </div>
-      <div className="w-8 h-8 rounded-full bg-secondary-50 flex items-center justify-center group-hover:bg-brand-50 group-hover:scale-110 transition-all duration-300">
+      <div className="w-8 h-8 rounded-full bg-secondary-100/70 flex items-center justify-center group-hover:bg-brand-50 group-hover:scale-105 transition-all duration-200 flex-shrink-0">
         <ArrowRight className="w-4 h-4 text-secondary-400 group-hover:text-brand-600 transition-colors" />
       </div>
     </div>
@@ -97,6 +142,7 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       setLoading(true);
+      setError('');
       const res = await adminService.getDashboard();
       setStats(res.data);
     } catch (err) {
@@ -114,11 +160,11 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="space-y-8 animate-pulse font-sans">
-        <div className="h-48 bg-secondary-200/70 rounded-[2.5rem]" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="space-y-6 sm:space-y-8 animate-pulse font-sans">
+        <div className="h-44 sm:h-48 bg-secondary-200/70 rounded-2xl sm:rounded-3xl lg:rounded-[2.5rem]" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-40 bg-secondary-200/60 rounded-[2rem]" />
+            <div key={i} className="h-36 sm:h-40 bg-secondary-200/60 rounded-2xl sm:rounded-3xl" />
           ))}
         </div>
       </div>
@@ -127,14 +173,18 @@ export default function AdminDashboard() {
 
   if (error) {
     return (
-      <div className="p-6 bg-red-50 border border-red-200 rounded-3xl text-red-800 font-sans">
-        <h3 className="font-bold text-base mb-1">Failed to load metrics</h3>
-        <p className="text-sm">{error}</p>
+      <div role="alert" className="p-6 bg-red-50 border border-red-200 rounded-2xl sm:rounded-3xl text-red-800 font-sans">
+        <div className="flex items-center gap-2 mb-2 text-red-700">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          <h3 className="font-bold text-base">Failed to load metrics</h3>
+        </div>
+        <p className="text-sm text-red-700">{error}</p>
         <button
           onClick={fetchStats}
-          className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+          className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
         >
-          Retry
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Retry</span>
         </button>
       </div>
     );
@@ -145,7 +195,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 pb-16 animate-in fade-in duration-300 font-sans">
       {/* Welcome Hero Banner matching Host & Candidate Dashboards */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-brand-900 via-secondary-900 to-brand-950 p-8 md:p-12 text-white shadow-2xl border border-secondary-800">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl lg:rounded-[2.5rem] bg-gradient-to-br from-brand-900 via-secondary-900 to-brand-950 p-6 sm:p-8 md:p-10 lg:p-12 text-white shadow-2xl border border-secondary-800">
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/20 border border-brand-400/30 text-brand-300 text-xs font-bold mb-4 uppercase tracking-wider">
             <Shield className="w-3.5 h-3.5" />
@@ -176,14 +226,10 @@ export default function AdminDashboard() {
             <span>Audit Trail</span>
           </Link>
         </div>
-
-        {/* Ambient decorative glowing orbs */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-brand-500 blur-3xl opacity-30 animate-pulse pointer-events-none" />
-        <div className="absolute bottom-0 right-40 -mb-20 w-72 h-72 rounded-full bg-brand-400 blur-3xl opacity-20 pointer-events-none" />
       </div>
 
       {/* Primary KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
         <StatCard
           title="Total Users"
           value={stats?.totalUsers?.toLocaleString() || '0'}
@@ -221,7 +267,7 @@ export default function AdminDashboard() {
       {/* Assessment Lifecycle & Quick Management Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Assessment Lifecycle Snapshot Card */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] p-6 md:p-8 shadow-sm border border-secondary-200/60 space-y-5">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-5 sm:p-6 md:p-8 shadow-sm border border-secondary-200/60 space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-secondary-100">
             <h3 className="text-xl font-bold text-secondary-900">Assessment Lifecycle</h3>
             <FileText className="w-5 h-5 text-brand-600" />
@@ -265,7 +311,7 @@ export default function AdminDashboard() {
             <h3 className="text-2xl font-black text-secondary-900 tracking-tight">Administrative Controls</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
             <ActionCard
               title="User Directory"
               desc="View, deactivate, or safely delete accounts with data integrity safeguards."

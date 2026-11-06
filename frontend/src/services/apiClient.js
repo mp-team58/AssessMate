@@ -1,4 +1,14 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const resolveBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  if (import.meta.env.PROD && typeof window !== 'undefined' && !window.location.origin.includes('localhost')) {
+    return `${window.location.origin}/api`;
+  }
+  return 'http://localhost:8080/api';
+};
+
+const BASE_URL = resolveBaseUrl();
 
 export const API_BASE_URL = BASE_URL;
 
@@ -26,13 +36,20 @@ export const clearApiCache = () => {
   inFlightRequests.clear();
 };
 
+const clearAuthStorageInternal = () => {
+  const keys = ['token', 'role', 'name', 'id', 'email', 'user', 'mustChangePassword', 'currentEnrollmentId', 'currentExamId'];
+  keys.forEach((k) => {
+    try { localStorage.removeItem(k); } catch (_) {}
+  });
+};
+
 // Session ended -> go to login and show why once the login page has loaded.
 // (Dispatching a toast right before a full page redirect would be lost.)
 const redirectToLogin = (message) => {
   if (isRedirecting) return;
   isRedirecting = true;
   clearApiCache();
-  localStorage.clear();
+  clearAuthStorageInternal();
   try {
     sessionStorage.setItem('pendingToast', JSON.stringify({ message, type: 'warning' }));
   } catch (_) { /* storage unavailable */ }

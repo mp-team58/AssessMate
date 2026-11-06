@@ -67,7 +67,7 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
 
     if (savedCount > 0 && skippedCount === 0) {
       return (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6 mt-6">
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mt-6 shadow-sm">
           <h3 className="text-lg font-bold text-green-800 flex items-center gap-2 mb-4">
             <CheckCircle className="w-5 h-5" /> Upload Successful
           </h3>
@@ -82,7 +82,7 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
 
     if (savedCount > 0 && skippedCount > 0) {
       return (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 mt-6">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mt-6 shadow-sm">
           <h3 className="text-lg font-bold text-amber-800 flex items-center gap-2 mb-4">
             <AlertTriangle className="w-5 h-5" /> Upload Completed with Errors
           </h3>
@@ -111,7 +111,7 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
 
     if (savedCount === 0) {
       return (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 mt-6">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mt-6 shadow-sm">
           <h3 className="text-lg font-bold text-red-800 flex items-center gap-2 mb-4">
             <XCircle className="w-5 h-5" /> Upload Failed
           </h3>
@@ -149,24 +149,24 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
         <div>
           <div className="space-y-6">
             <div>
-              <h3 className="text-sm font-bold text-secondary-500 uppercase tracking-wider mb-3">Step 1: Download the template</h3>
+              <h3 className="text-xs font-bold text-secondary-600 uppercase tracking-wider mb-2.5">Step 1: Download the template</h3>
               <Button onClick={handleDownloadTemplate} variant="outline" className="w-full flex justify-center gap-2 border-brand-200 text-brand-700 hover:bg-brand-50">
                 <Download className="w-4 h-4" /> Download Template
               </Button>
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-secondary-500 uppercase tracking-wider mb-3">Step 2: Fill your questions in Excel</h3>
-              <p className="text-sm text-secondary-600 bg-secondary-50 p-3 rounded-lg border border-secondary-100">
+              <h3 className="text-xs font-bold text-secondary-600 uppercase tracking-wider mb-2.5">Step 2: Fill your questions in Excel</h3>
+              <p className="text-xs font-medium text-secondary-700 bg-secondary-50 p-3.5 rounded-xl border border-secondary-200/80">
                 Follow the instructions inside the template file. Do not change the column headers.
               </p>
             </div>
 
             <div>
-              <h3 className="text-sm font-bold text-secondary-500 uppercase tracking-wider mb-3">Step 3: Upload your filled file</h3>
+              <h3 className="text-xs font-bold text-secondary-600 uppercase tracking-wider mb-2.5">Step 3: Upload your filled file</h3>
               
               <div 
-                className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors relative
+                className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all relative
                   ${file ? 'border-brand-500 bg-brand-50' : 'border-gray-300 hover:border-brand-400 hover:bg-gray-50 cursor-pointer'}`}
                 onClick={() => { if (!file) fileInputRef.current?.click(); }}
               >
@@ -194,8 +194,8 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
                   </div>
                 ) : (
                   <div>
-                    <p className="text-sm font-semibold text-gray-700">Drag and drop your Excel file</p>
-                    <p className="text-sm text-gray-500 mt-1">or click to browse</p>
+                    <p className="text-sm font-semibold text-secondary-700">Drag and drop your Excel file</p>
+                    <p className="text-sm text-secondary-500 mt-1">or click to browse</p>
                     <p className="text-xs text-gray-400 mt-2">Supports .xlsx and .xls only (Max 500 rows)</p>
                   </div>
                 )}
@@ -208,8 +208,11 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
                   disabled={isUploading}
                 />
               </div>
-              
-              
+              {error && (
+                <p className="text-xs font-semibold text-rose-600 mt-2">
+                  {error}
+                </p>
+              )}
             </div>
 
             <Button 
@@ -227,8 +230,8 @@ const ExcelUpload = ({ examId, onUploadSuccess, onClose }) => {
         </div>
 
         {/* Right Side: Template Instructions */}
-        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-          <h3 className="text-md font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="bg-secondary-50/70 rounded-2xl p-6 border border-secondary-200 shadow-sm">
+          <h3 className="text-md font-bold text-secondary-900 mb-4 flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-gray-500" /> Template Instructions
           </h3>
           

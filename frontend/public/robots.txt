@@ -1,0 +1,21 @@
+# AssessMate Robots Configuration
+# https://assessmate.me/robots.txt
+
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /signup
+
+# Disallow authenticated portal dashboards & administrative routes
+Disallow: /admin/
+Disallow: /host/
+Disallow: /candidate/
+Disallow: /profile
+Disallow: /forgot-password
+
+# Disallow backend API endpoints from search index
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://assessmate.me/sitemap.xml
+

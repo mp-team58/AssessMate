@@ -138,6 +138,14 @@ export default function LandingPage() {
       <div className="absolute top-[35%] left-[-8%] w-[550px] h-[550px] bg-amber-200/30 rounded-full blur-[140px] opacity-30 animate-pulse mix-blend-multiply pointer-events-none" style={{ animationDelay: '2.5s' }}></div>
       <div className="absolute bottom-[8%] right-[5%] w-[500px] h-[500px] bg-brand-200/40 rounded-full blur-[130px] opacity-35 animate-pulse mix-blend-multiply pointer-events-none" style={{ animationDelay: '5s' }}></div>
 
+      {/* Skip Link for Keyboard Accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-brand-500 focus:text-white focus:rounded-md focus:shadow-lg focus:outline-none"
+      >
+        Skip to main content
+      </a>
+
       {/* Navbar */}
       <header className="relative w-full px-6 sm:px-10 lg:px-16 xl:px-20 py-5 flex items-center justify-between">
         <Link to="/" className="font-display text-2xl tracking-tight" aria-label="AssessMate home">
@@ -227,7 +235,8 @@ export default function LandingPage() {
         )}
       </header>
 
-      {/* Hero */}
+      <main id="main-content">
+        {/* Hero */}
       <section className="w-full px-6 sm:px-10 lg:px-16 xl:px-20 pt-8 pb-20 md:pt-16 md:pb-28 grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
         <div>
           <h1 className="font-display text-5xl md:text-6xl lg:text-7xl leading-[1.0] mb-4">
@@ -400,6 +409,7 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="border-t border-secondary-900/10">

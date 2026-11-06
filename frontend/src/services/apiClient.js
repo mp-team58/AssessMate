@@ -3,6 +3,11 @@ const resolveBaseUrl = () => {
     return import.meta.env.VITE_API_BASE_URL;
   }
   if (import.meta.env.PROD && typeof window !== 'undefined' && !window.location.origin.includes('localhost')) {
+    if (window.location.origin.includes('assessmate.me')) {
+      console.warn(
+        '[AssessMate] VITE_API_BASE_URL is not configured for production. Defaulting to /api on the current origin. If your backend is hosted separately, set VITE_API_BASE_URL in repository secrets or build environment.'
+      );
+    }
     return `${window.location.origin}/api`;
   }
   return 'http://localhost:8080/api';

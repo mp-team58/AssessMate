@@ -23,6 +23,26 @@ export const getExamQuestions = async (enrollmentId) => {
 };
 
 /**
+ * Step 2B: Expire Current Question (Per-Question Timer)
+ * Calls POST /api/candidate/exam/{enrollmentId}/questions/{questionId}/expire
+ * @param {number|string} enrollmentId
+ * @param {number|string} questionId
+ */
+export const expireExamQuestion = async (enrollmentId, questionId) => {
+  return candidateApiClient.post(`/candidate/exam/${enrollmentId}/questions/${questionId}/expire`);
+};
+
+/**
+ * Step 2C: Advance Current Question Early (Per-Question Timer)
+ * Calls POST /api/candidate/exam/{enrollmentId}/questions/{questionId}/advance
+ * @param {number|string} enrollmentId
+ * @param {number|string} questionId
+ */
+export const advanceExamQuestion = async (enrollmentId, questionId) => {
+  return candidateApiClient.post(`/candidate/exam/${enrollmentId}/questions/${questionId}/advance`);
+};
+
+/**
  * Step 3A: Upload Proctoring Evidence (Image Snapshot or Audio Clip)
  * Calls POST /api/candidate/proctor/evidence
  * @param {Blob} fileBlob - image/jpeg or audio/webm Blob

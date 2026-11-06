@@ -20,6 +20,17 @@ public class AuthController {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.assessmate.security.ClientIpResolver clientIpResolver;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.assessmate.security.OtpRateLimiterService otpRateLimiterService;
+
+    public void setOtpRateLimiterService(com.assessmate.security.OtpRateLimiterService otpRateLimiterService) {
+        this.otpRateLimiterService = otpRateLimiterService;
+    }
+
+    public void setClientIpResolver(com.assessmate.security.ClientIpResolver clientIpResolver) {
+        this.clientIpResolver = clientIpResolver;
+    }
+
     @GetMapping("/admin/invitation/validate")
     public ResponseEntity<Map<String, Object>> validateAdminInvitation(@RequestParam String token) {
         return ResponseEntity.ok(adminService.validateInvitationToken(token));
@@ -30,7 +41,7 @@ public class AuthController {
             @Valid @RequestBody AdminSetupPasswordRequest request,
             jakarta.servlet.http.HttpServletRequest httpRequest
     ) {
-        String clientIp = clientIpResolver != null ? clientIpResolver.resolveClientIp(httpRequest) : "127.0.0.1";
+        String clientIp = resolveClientIp(httpRequest);
         return ResponseEntity.ok(adminService.setupAdminPassword(request, clientIp));
     }
 
@@ -39,14 +50,19 @@ public class AuthController {
             @Valid @RequestBody EmergencyRecoveryRequest request,
             jakarta.servlet.http.HttpServletRequest httpRequest
     ) {
-        String clientIp = clientIpResolver != null ? clientIpResolver.resolveClientIp(httpRequest) : "127.0.0.1";
+        String clientIp = resolveClientIp(httpRequest);
         return ResponseEntity.ok(adminService.emergencyRecoverAdmin(request, clientIp));
     }
 
     @PostMapping("/register/request-otp")
     public ResponseEntity<Map<String, String>> requestRegisterOtp(
-            @Valid @RequestBody RegisterRequest request
+            @Valid @RequestBody RegisterRequest request,
+            jakarta.servlet.http.HttpServletRequest httpRequest
     ) {
+        String clientIp = resolveClientIp(httpRequest);
+        if (otpRateLimiterService != null) {
+            otpRateLimiterService.checkAndRecord(clientIp);
+        }
         authService.requestRegisterOtp(request);
         return ResponseEntity.ok(
                 Map.of("message", "A verification code has been sent to your email.")
@@ -62,8 +78,13 @@ public class AuthController {
 
     @PostMapping("/forgot-password/request-otp")
     public ResponseEntity<Map<String, String>> requestPasswordResetOtp(
-            @Valid @RequestBody com.assessmate.dto.ForgotPasswordRequest request
+            @Valid @RequestBody com.assessmate.dto.ForgotPasswordRequest request,
+            jakarta.servlet.http.HttpServletRequest httpRequest
     ) {
+        String clientIp = resolveClientIp(httpRequest);
+        if (otpRateLimiterService != null) {
+            otpRateLimiterService.checkAndRecord(clientIp);
+        }
         authService.requestPasswordResetOtp(request);
         return ResponseEntity.ok(
                 Map.of("message", "If an account exists for this email, a verification code has been sent.")
@@ -85,20 +106,18 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             jakarta.servlet.http.HttpServletRequest httpRequest
     ) {
-        String clientIp = clientIpResolver != null ? clientIpResolver.resolveClientIp(httpRequest) : extractClientIp(httpRequest);
+        String clientIp = resolveClientIp(httpRequest);
         return ResponseEntity.ok(authService.login(request, clientIp));
     }
 
-    private String extractClientIp(jakarta.servlet.http.HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.trim().isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
-            return xForwardedFor.split(",")[0].trim();
+    private String resolveClientIp(jakarta.servlet.http.HttpServletRequest request) {
+        if (clientIpResolver != null) {
+            String ip = clientIpResolver.resolveClientIp(request);
+            if (ip != null && !ip.trim().isEmpty()) {
+                return ip;
+            }
         }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.trim().isEmpty() && !"unknown".equalsIgnoreCase(xRealIp)) {
-            return xRealIp.trim();
-        }
-        return request.getRemoteAddr();
+        return (request != null && request.getRemoteAddr() != null) ? request.getRemoteAddr() : "127.0.0.1";
     }
 
     @PostMapping("/change-password")
@@ -139,7 +158,7 @@ public class AuthController {
         if (principal == null) {
             throw new BadRequestException("No active session found.");
         }
-        String clientIp = clientIpResolver != null ? clientIpResolver.resolveClientIp(httpRequest) : extractClientIp(httpRequest);
+        String clientIp = resolveClientIp(httpRequest);
         return ResponseEntity.ok(authService.updateProfile(principal.getName(), request, clientIp));
     }
 }

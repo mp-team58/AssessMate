@@ -1,53 +1,35 @@
 package com.assessmate.service;
 
-import lombok.RequiredArgsConstructor;
+import com.assessmate.dto.EmailContent;
+import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+
+/**
+ * Service responsible for dispatching official AssessMate transactional emails.
+ * Supports multi-part MIME (responsive branded HTML + plain text fallback + inline CID logo)
+ * and falls back safely to plain-text dispatch if MIME is unavailable.
+ */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    private EmailTemplateService emailTemplateService = new EmailTemplateService();
 
-    @Value("${app.mail.from}")
+    @Value("${app.mail.from:noreply@assessmate.com}")
     private String fromAddress;
 
-    @Value("${app.otp.expiry-minutes}")
+    @Value("${app.otp.expiry-minutes:10}")
     private int otpExpiryMinutes;
-
-    public void sendRegistrationOtp(String toEmail, String name, String otp) {
-        String subject = "Verify your AssessMate account";
-
-        String body = "Hi " + name + ",\n\n" +
-                "Your AssessMate verification code is:\n\n" +
-                otp + "\n\n" +
-                "This code expires in " + otpExpiryMinutes + " minutes.\n\n" +
-                "If you did not try to create an AssessMate account, " +
-                "you can safely ignore this email.\n\n" +
-                "— AssessMate";
-
-        send(toEmail, subject, body);
-    }
-
-    public void sendPasswordResetOtp(String toEmail, String otp) {
-        String subject = "Reset your AssessMate password";
-
-        String body = "Hi,\n\n" +
-                "Your AssessMate password reset code is:\n\n" +
-                otp + "\n\n" +
-                "This code expires in " + otpExpiryMinutes + " minutes.\n\n" +
-                "If you did not request a password reset, " +
-                "you can safely ignore this email. " +
-                "Your password will not be changed.\n\n" +
-                "— AssessMate";
-
-        send(toEmail, subject, body);
-    }
 
     @Value("${spring.mail.username:}")
     private String mailUsername;
@@ -55,37 +37,116 @@ public class EmailService {
     @Value("${spring.mail.password:}")
     private String mailPassword;
 
+    public EmailService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
+
+    @Autowired(required = false)
+    public void setEmailTemplateService(EmailTemplateService emailTemplateService) {
+        if (emailTemplateService != null) {
+            this.emailTemplateService = emailTemplateService;
+        }
+    }
+
     public boolean isMailConfigured() {
         return mailUsername != null && !mailUsername.trim().isEmpty() &&
                mailPassword != null && !mailPassword.trim().isEmpty();
     }
 
-    public boolean sendAdminInvitation(String toEmail, String name, String setupUrl) {
-        String subject = "You've been invited as an Administrator on AssessMate";
+    // -------------------------------------------------------------------------
+    // Transactional Email Dispatch Methods
+    // -------------------------------------------------------------------------
 
-        String body = "Hi " + name + ",\n\n" +
-                "You have been invited to join AssessMate as a System Administrator.\n\n" +
-                "Please click the link below to set up your password and activate your administrator account:\n\n" +
-                setupUrl + "\n\n" +
-                "This invitation link expires in 30 minutes.\n\n" +
-                "If you were not expecting this invitation, you can safely ignore this email.\n\n" +
-                "— AssessMate Team";
-
-        return send(toEmail, subject, body);
+    public void sendRegistrationOtp(String toEmail, String name, String otp) {
+        EmailContent content = emailTemplateService.buildRegistrationOtpEmail(name, otp, otpExpiryMinutes);
+        send(toEmail, content);
     }
 
-    private boolean send(String toEmail, String subject, String body) {
-        log.info("\n========== EMAIL SIMULATION ==========\nTo: {}\nSubject: {}\n{}\n======================================", toEmail, subject, body);
+    public void sendPasswordResetOtp(String toEmail, String otp) {
+        EmailContent content = emailTemplateService.buildPasswordResetOtpEmail(otp, otpExpiryMinutes);
+        send(toEmail, content);
+    }
+
+    public boolean sendPasswordResetSuccessNotification(String toEmail, String name) {
+        EmailContent content = emailTemplateService.buildPasswordResetSuccessEmail(name, toEmail);
+        return send(toEmail, content);
+    }
+
+    public boolean sendAdminInvitation(String toEmail, String name, String setupUrl) {
+        EmailContent content = emailTemplateService.buildAdminInvitationEmail(name, setupUrl, 30);
+        return send(toEmail, content);
+    }
+
+    public boolean sendAdminInvitationResend(String toEmail, String name, String setupUrl) {
+        EmailContent content = emailTemplateService.buildAdminInvitationResendEmail(name, setupUrl, 30);
+        return send(toEmail, content);
+    }
+
+    public boolean sendAdminAccountActivated(String toEmail, String name, String dashboardUrl) {
+        EmailContent content = emailTemplateService.buildAdminAccountActivatedEmail(name, dashboardUrl);
+        return send(toEmail, content);
+    }
+
+    public boolean sendExamInvitation(
+            String toEmail,
+            String candidateName,
+            String examTitle,
+            String subject,
+            String joinCode,
+            String scheduledStart,
+            Integer durationMinutes,
+            String deviceAccess,
+            String joinUrl
+    ) {
+        EmailContent content = emailTemplateService.buildExamInvitationEmail(
+                candidateName,
+                examTitle,
+                subject,
+                joinCode,
+                scheduledStart,
+                durationMinutes,
+                deviceAccess,
+                joinUrl
+        );
+        return send(toEmail, content);
+    }
+
+    // -------------------------------------------------------------------------
+    // Core Email Dispatch Pipeline
+    // -------------------------------------------------------------------------
+
+    private boolean send(String toEmail, EmailContent content) {
+        log.info("Email dispatch: To={}, Subject='{}' (content redacted)", toEmail, content.getSubject());
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromAddress);
-            message.setTo(toEmail);
-            message.setSubject(subject);
-            message.setText(body);
-            mailSender.send(message);
-            return true;
+            MimeMessage mimeMessage = mailSender != null ? mailSender.createMimeMessage() : null;
+            if (mimeMessage != null) {
+                MimeMessageHelper helper = new MimeMessageHelper(
+                        mimeMessage,
+                        true,
+                        StandardCharsets.UTF_8.name()
+                );
+                helper.setFrom(fromAddress);
+                helper.setTo(toEmail);
+                helper.setSubject(content.getSubject());
+                helper.setText(content.getPlainTextBody(), content.getHtmlBody());
+
+                mailSender.send(mimeMessage);
+                return true;
+            } else if (mailSender != null) {
+                // Fallback for mock environments or plain senders without MIME support
+                SimpleMailMessage message = new SimpleMailMessage();
+                message.setFrom(fromAddress);
+                message.setTo(toEmail);
+                message.setSubject(content.getSubject());
+                message.setText(content.getPlainTextBody());
+                mailSender.send(message);
+                return true;
+            } else {
+                log.warn("Cannot dispatch email to {}: JavaMailSender is null", toEmail);
+                return false;
+            }
         } catch (Exception e) {
-            log.error("Failed to send email to {}: {}", toEmail, e.getMessage());
+            log.error("Failed to send email to {}: Subject='{}', error={}", toEmail, content.getSubject(), e.getMessage());
             return false;
         }
     }

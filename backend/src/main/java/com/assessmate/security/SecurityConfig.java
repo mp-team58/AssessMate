@@ -72,7 +72,7 @@ public class SecurityConfig {
                 .requestMatchers("/uploads/proctoring/**", "/api/proctoring/evidence/**").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/exams/*/coding/candidate").hasRole("CANDIDATE")
-                .requestMatchers("/api/exams/**", "/api/exams", "/api/questions/**", "/api/coding/bank/**", "/api/coding/bank", "/api/analytics/**").hasRole("HOST")
+                .requestMatchers("/api/exams/**", "/api/exams", "/api/questions/**", "/api/coding/bank/**", "/api/coding/bank", "/api/coding/*", "/api/analytics/**", "/api/results/**").hasRole("HOST")
                 .requestMatchers("/api/candidate/**").hasRole("CANDIDATE")
                 .requestMatchers("/api/coding/run", "/api/coding/submit").hasRole("CANDIDATE")
                 .requestMatchers("/api/coding/{id}").hasRole("HOST")

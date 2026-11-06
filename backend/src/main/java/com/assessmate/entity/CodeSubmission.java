@@ -5,7 +5,11 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "code_submissions")
+@Table(name = "code_submissions", indexes = {
+        @Index(name = "idx_submission_enrollment", columnList = "enrollmentId"),
+        @Index(name = "idx_submission_candidate", columnList = "candidate_id"),
+        @Index(name = "idx_submission_coding_q", columnList = "coding_question_id")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,11 +20,11 @@ public class CodeSubmission {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "candidate_id", nullable = false)
     private User candidate;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "coding_question_id", nullable = false)
     private CodingQuestion codingQuestion;
 

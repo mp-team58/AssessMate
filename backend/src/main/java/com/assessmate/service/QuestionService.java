@@ -375,11 +375,12 @@ public class QuestionService {
                 questionRepository.save(examQuestion));
     }
 
+    @Transactional(readOnly = true)
     public List<QuestionResponse> getByExamId(
             Long examId, String hostEmail) {
 
         Exam exam = examRepository
-                .findById(examId)
+                .findWithHostById(examId)
                 .orElseThrow(() ->
                         new com.assessmate.exception.BadRequestException(
                                 "Exam not found"));
@@ -398,11 +399,12 @@ public class QuestionService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public QuestionStatsResponse getStats(
             Long examId, String hostEmail) {
 
         Exam exam = examRepository
-                .findById(examId)
+                .findWithHostById(examId)
                 .orElseThrow(() ->
                         new com.assessmate.exception.BadRequestException(
                                 "Exam not found"));

@@ -3,6 +3,7 @@ package com.assessmate.dto;
 import com.assessmate.entity.QuestionType;
 import lombok.Builder;
 import lombok.Data;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -17,6 +18,12 @@ public class CandidateQuestionDTO {
     private Integer timeSeconds;
     private List<OptionDTO> options;
     private String savedAnswer;
+
+    // P3.5.9: Per-question timing extensions
+    private Boolean isExpired;
+    private Boolean isActive;
+    private LocalDateTime deadline;
+    private Long remainingSeconds;
 
     @Data
     @Builder

@@ -42,6 +42,22 @@ public class CandidateController {
         return ResponseEntity.ok(candidateService.getExamQuestions(enrollmentId, principal.getName(), userAgent, chMobile));
     }
 
+    @PostMapping("/exam/{enrollmentId}/questions/{questionId}/expire")
+    public ResponseEntity<com.assessmate.dto.QuestionExpireResponse> expireQuestion(
+            @PathVariable Long enrollmentId,
+            @PathVariable Long questionId,
+            Principal principal) {
+        return ResponseEntity.ok(candidateService.expireQuestion(enrollmentId, questionId, principal.getName()));
+    }
+
+    @PostMapping("/exam/{enrollmentId}/questions/{questionId}/advance")
+    public ResponseEntity<com.assessmate.dto.QuestionExpireResponse> advanceQuestion(
+            @PathVariable Long enrollmentId,
+            @PathVariable Long questionId,
+            Principal principal) {
+        return ResponseEntity.ok(candidateService.advanceQuestion(enrollmentId, questionId, principal.getName()));
+    }
+
     @PostMapping("/proctor/log")
     public ResponseEntity<Map<String, Boolean>> logProctorEvent(
             @RequestBody com.assessmate.dto.ProctorEventRequest request,

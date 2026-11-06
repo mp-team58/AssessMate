@@ -17,6 +17,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class ProctoringService {
 
     private final com.assessmate.repository.ExamRepository examRepository;
@@ -28,14 +29,14 @@ public class ProctoringService {
     public void dropConstraint() {
         try {
             jdbcTemplate.execute("ALTER TABLE proctoring_logs DROP CONSTRAINT IF EXISTS proctoring_logs_event_type_check;");
-            System.out.println("Dropped check constraint for proctoring_logs event_type");
+            log.info("Dropped check constraint for proctoring_logs event_type");
         } catch (Exception e) {
-            System.out.println("Could not drop constraint: " + e.getMessage());
+            log.warn("Could not drop check constraint for proctoring_logs: {}", e.getMessage());
         }
     }
 
     private Exam getOwnedExam(Long examId, String hostEmail) {
-        Exam exam = examRepository.findById(examId)
+        Exam exam = examRepository.findWithHostById(examId)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Exam not found"));
         if (!exam.getHost().getEmail().equals(hostEmail)) {
             throw new com.assessmate.exception.ForbiddenException("You do not have access to this exam's proctoring data");
@@ -43,6 +44,7 @@ public class ProctoringService {
         return exam;
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public com.assessmate.dto.ProctoringDashboard getDashboard(Long examId, String hostEmail) {
 
         Exam exam = getOwnedExam(examId, hostEmail);
@@ -267,7 +269,7 @@ public class ProctoringService {
             Files.deleteIfExists(filePath);
         } catch (Exception e) {
             // Log silently and continue, don't crash the scheduler
-            System.err.println("Failed to delete evidence file: " + relativeUrl);
+            log.warn("Failed to delete evidence file: {}", relativeUrl);
         }
     }
 }

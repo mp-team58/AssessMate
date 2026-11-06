@@ -18,6 +18,8 @@ import com.assessmate.dto.SubmitExamRequest;
 import com.assessmate.dto.ResultResponseDTO;
 import com.assessmate.dto.CandidateHistoryDTO;
 import com.assessmate.dto.CandidateAnswerReviewDTO;
+import com.assessmate.dto.QuestionExpireResponse;
+import com.assessmate.repository.CandidateQuestionTimingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +49,34 @@ public class CandidateService {
 
     public void setJoinCodeRateLimiterService(com.assessmate.security.JoinCodeRateLimiterService joinCodeRateLimiterService) {
         this.joinCodeRateLimiterService = joinCodeRateLimiterService;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CandidateQuestionTimingRepository candidateQuestionTimingRepository;
+
+    public void setCandidateQuestionTimingRepository(CandidateQuestionTimingRepository candidateQuestionTimingRepository) {
+        this.candidateQuestionTimingRepository = candidateQuestionTimingRepository;
+    }
+
+    public int resolveQuestionDurationSeconds(Question q, Exam exam) {
+        if (q.getTimeSeconds() != null && q.getTimeSeconds() > 0) {
+            return q.getTimeSeconds();
+        }
+        Integer fallback = null;
+        if (q.getDifficulty() == Difficulty.EASY) {
+            fallback = exam.getEasySeconds();
+        } else if (q.getDifficulty() == Difficulty.HARD) {
+            fallback = exam.getHardSeconds();
+        } else {
+            fallback = exam.getMediumSeconds();
+        }
+        if (fallback == null || fallback <= 0) {
+            if (exam.getTimerType() == TimerType.PER_QUESTION) {
+                throw new BadRequestException("Invalid question duration configured for question: " + q.getId());
+            }
+            return 60;
+        }
+        return fallback;
     }
 
     private void forceSubmit(Long enrollmentId, String candidateEmail) {
@@ -132,6 +162,7 @@ public class CandidateService {
         return joinExam(joinCode, candidateEmail, userAgent, null, clientIp);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public JoinExamResponse joinExam(String joinCode, String candidateEmail, String userAgent, String chMobile, String clientIp) {
         if (joinCodeRateLimiterService != null) {
             joinCodeRateLimiterService.checkRateLimit(clientIp, candidateEmail);
@@ -226,11 +257,19 @@ public class CandidateService {
                 .instructions("Please read all questions carefully. Do not switch tabs. Your face must be visible at all times.")
                 .requireCamera(exam.getRequireCamera())
                 .requireMic(exam.getRequireMic())
-                .requireScreenShare(exam.getRequireScreenShare())
+                .requireScreenShare(false)
                 .enableFaceDetection(exam.getEnableFaceDetection())
                 .enableObjectDetection(exam.getEnableObjectDetection())
                 .enableTabSwitchDetection(exam.getEnableTabSwitchDetection())
                 .enableAudioDetection(exam.getEnableAudioDetection())
+                .enableScreenCaptureProtection(exam.getEnableScreenCaptureProtection())
+                .enableBrowserActivityDetection(exam.getEnableBrowserActivityDetection())
+                .enableExamWatermark(exam.getEnableExamWatermark())
+                .disableCopy(exam.getDisableCopy())
+                .disablePaste(exam.getDisablePaste())
+                .disableCut(exam.getDisableCut())
+                .disableRightClick(exam.getDisableRightClick())
+                .restrictBrowserShortcuts(exam.getRestrictBrowserShortcuts())
                 .maxTabSwitches(exam.getMaxTabSwitches())
                 .build();
     }
@@ -239,6 +278,7 @@ public class CandidateService {
         return getExamQuestions(enrollmentId, candidateEmail, "", "");
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public CandidateExamQuestionsResponse getExamQuestions(Long enrollmentId, String candidateEmail, String userAgent, String chMobile) {
         ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
@@ -251,7 +291,8 @@ public class CandidateService {
             throw new BadRequestException("You can only get questions for an ongoing exam.");
         }
 
-        Exam exam = enrollment.getExam();
+        Exam exam = examRepository.findById(enrollment.getExam().getId())
+                .orElse(enrollment.getExam());
         validateDeviceAccess(exam.getDeviceAccess(), userAgent, chMobile);
 
         if (enrollment.getPersonalEndTime() == null) {
@@ -264,13 +305,7 @@ public class CandidateService {
                 int totalSeconds = 0;
                 List<Question> questions = questionRepository.findByExamId(exam.getId());
                 for (Question q : questions) {
-                    if (q.getTimeSeconds() != null) {
-                        totalSeconds += q.getTimeSeconds();
-                    } else {
-                        if (com.assessmate.entity.Difficulty.EASY == q.getDifficulty()) totalSeconds += exam.getEasySeconds();
-                        else if (com.assessmate.entity.Difficulty.HARD == q.getDifficulty()) totalSeconds += exam.getHardSeconds();
-                        else totalSeconds += exam.getMediumSeconds();
-                    }
+                    totalSeconds += resolveQuestionDurationSeconds(q, exam);
                 }
                 if (exam.getHasCodingSection() != null && exam.getHasCodingSection() && exam.getCodingDurationMinutes() != null) {
                     totalSeconds += exam.getCodingDurationMinutes() * 60;
@@ -281,7 +316,82 @@ public class CandidateService {
             enrollmentRepository.save(enrollment);
         }
 
-        List<Question> examQuestions = questionRepository.findByExamId(enrollment.getExam().getId());
+        List<Question> examQuestions = new java.util.ArrayList<>(questionRepository.findByExamId(enrollment.getExam().getId()));
+        examQuestions.sort(java.util.Comparator.comparing(Question::getId));
+        java.util.Collections.shuffle(examQuestions, new java.util.Random(enrollment.getId()));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // Load existing timings if PER_QUESTION
+        Map<Long, com.assessmate.entity.CandidateQuestionTiming> timingMap = new java.util.HashMap<>();
+        Long activeQuestionId = null;
+        LocalDateTime activeQuestionDeadline = null;
+        Long activeQuestionRemainingSeconds = null;
+
+        if (exam.getTimerType() == TimerType.PER_QUESTION && candidateQuestionTimingRepository != null) {
+            List<com.assessmate.entity.CandidateQuestionTiming> timings = candidateQuestionTimingRepository.findByEnrollmentId(enrollmentId);
+            boolean timingsUpdated = false;
+            for (com.assessmate.entity.CandidateQuestionTiming t : timings) {
+                if (!t.isExpired() && now.isAfter(t.getDeadline())) {
+                    t.setExpired(true);
+                    timingsUpdated = true;
+                }
+                timingMap.put(t.getQuestion().getId(), t);
+            }
+            if (timingsUpdated) {
+                candidateQuestionTimingRepository.saveAll(timings);
+            }
+
+            if (timings.isEmpty() && !examQuestions.isEmpty()) {
+                Question firstQ = examQuestions.get(0);
+                int duration = resolveQuestionDurationSeconds(firstQ, exam);
+                LocalDateTime deadline = now.plusSeconds(duration);
+                com.assessmate.entity.CandidateQuestionTiming firstTiming = com.assessmate.entity.CandidateQuestionTiming.builder()
+                        .enrollment(enrollment)
+                        .question(firstQ)
+                        .startedAt(now)
+                        .deadline(deadline)
+                        .isExpired(false)
+                        .build();
+                firstTiming = candidateQuestionTimingRepository.save(firstTiming);
+                timingMap.put(firstQ.getId(), firstTiming);
+                activeQuestionId = firstQ.getId();
+                activeQuestionDeadline = deadline;
+                activeQuestionRemainingSeconds = (long) duration;
+            } else {
+                for (Question q : examQuestions) {
+                    com.assessmate.entity.CandidateQuestionTiming t = timingMap.get(q.getId());
+                    if (t != null && !t.isExpired() && now.isBefore(t.getDeadline())) {
+                        activeQuestionId = q.getId();
+                        activeQuestionDeadline = t.getDeadline();
+                        activeQuestionRemainingSeconds = Math.max(0, java.time.Duration.between(now, t.getDeadline()).getSeconds());
+                        break;
+                    }
+                }
+                if (activeQuestionId == null) {
+                    for (Question q : examQuestions) {
+                        com.assessmate.entity.CandidateQuestionTiming t = timingMap.get(q.getId());
+                        if (t == null) {
+                            int duration = resolveQuestionDurationSeconds(q, exam);
+                            LocalDateTime deadline = now.plusSeconds(duration);
+                            com.assessmate.entity.CandidateQuestionTiming nextTiming = com.assessmate.entity.CandidateQuestionTiming.builder()
+                                    .enrollment(enrollment)
+                                    .question(q)
+                                    .startedAt(now)
+                                    .deadline(deadline)
+                                    .isExpired(false)
+                                    .build();
+                            nextTiming = candidateQuestionTimingRepository.save(nextTiming);
+                            timingMap.put(q.getId(), nextTiming);
+                            activeQuestionId = q.getId();
+                            activeQuestionDeadline = deadline;
+                            activeQuestionRemainingSeconds = (long) duration;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
         // Load any previously autosaved answers so the paper can be restored on rejoin
         Map<Long, String> savedAnswers = candidateAnswerRepository.findByEnrollmentId(enrollmentId).stream()
@@ -290,7 +400,9 @@ public class CandidateService {
                         a -> a.getQuestion().getId(),
                         CandidateAnswer::getCandidateAnswer));
 
-        List<CandidateQuestionDTO> candidateQuestions = new java.util.ArrayList<>(examQuestions.stream().map(q -> {
+        final Long finalActiveQuestionId = activeQuestionId;
+        List<CandidateQuestionDTO> candidateQuestions = new java.util.ArrayList<>();
+        for (Question q : examQuestions) {
             List<CandidateQuestionDTO.OptionDTO> options = new java.util.ArrayList<>();
             if (q.getType() == QuestionType.SINGLE_CHOICE || q.getType() == QuestionType.MULTIPLE_SELECT) {
                 if (q.getOptionA() != null && !q.getOptionA().trim().isEmpty()) {
@@ -308,23 +420,32 @@ public class CandidateService {
                 java.util.Collections.shuffle(options, new java.util.Random(enrollment.getId() * 31 + q.getId()));
             }
 
-            return CandidateQuestionDTO.builder()
+            int resolvedDuration = resolveQuestionDurationSeconds(q, exam);
+            com.assessmate.entity.CandidateQuestionTiming t = timingMap.get(q.getId());
+            boolean isExpired = t != null && (t.isExpired() || now.isAfter(t.getDeadline()));
+            boolean isActive = t != null && !isExpired && (finalActiveQuestionId != null && finalActiveQuestionId.equals(q.getId()));
+            LocalDateTime deadline = t != null ? t.getDeadline() : null;
+            Long qRemainingSeconds = (t != null && !isExpired && now.isBefore(t.getDeadline()))
+                    ? Math.max(0, java.time.Duration.between(now, t.getDeadline()).getSeconds())
+                    : 0L;
+
+            candidateQuestions.add(CandidateQuestionDTO.builder()
                     .id(q.getId())
                     .questionText(q.getQuestionText())
                     .imageUrl(q.getImageUrl())
                     .type(q.getType())
                     .marks(q.getMarks())
                     .negativeMarks(q.getNegativeMarks())
-                    .timeSeconds(q.getTimeSeconds())
+                    .timeSeconds(resolvedDuration)
                     .options(options)
                     .savedAnswer(savedAnswers.get(q.getId()))
-                    .build();
-        }).toList());
+                    .isExpired(isExpired)
+                    .isActive(isActive)
+                    .deadline(deadline)
+                    .remainingSeconds(qRemainingSeconds)
+                    .build());
+        }
 
-        // Shuffle the questions randomly but deterministically for this enrollment
-        java.util.Collections.shuffle(candidateQuestions, new java.util.Random(enrollment.getId()));
-
-        LocalDateTime now = LocalDateTime.now();
         Long remainingSeconds = null;
         if (enrollment.getPersonalEndTime() != null) {
             if (now.isAfter(enrollment.getPersonalEndTime())) {
@@ -338,11 +459,42 @@ public class CandidateService {
             remainingSeconds = java.time.Duration.between(now, enrollment.getPersonalEndTime()).getSeconds();
         }
 
+        long currentTabSwitches = proctoringLogRepository.countByEnrollmentIdAndEventTypeIn(
+                enrollment.getId(), java.util.List.of(
+                        com.assessmate.entity.ProctoringEventType.TAB_SWITCH,
+                        com.assessmate.entity.ProctoringEventType.FULL_SCREEN_EXIT,
+                        com.assessmate.entity.ProctoringEventType.SCREEN_SHARE_STOPPED));
+
         return CandidateExamQuestionsResponse.builder()
                 .questions(candidateQuestions)
                 .personalEndTime(enrollment.getPersonalEndTime())
                 .remainingSeconds(remainingSeconds)
                 .deviceAccess(enrollment.getExam().getDeviceAccess())
+                .timerType(exam.getTimerType())
+                .easySeconds(exam.getEasySeconds())
+                .mediumSeconds(exam.getMediumSeconds())
+                .hardSeconds(exam.getHardSeconds())
+                .serverTime(now)
+                .activeQuestionId(activeQuestionId)
+                .activeQuestionDeadline(activeQuestionDeadline)
+                .activeQuestionRemainingSeconds(activeQuestionRemainingSeconds)
+                .requireCamera(exam.getRequireCamera())
+                .requireMic(exam.getRequireMic())
+                .requireScreenShare(false)
+                .enableFaceDetection(exam.getEnableFaceDetection())
+                .enableObjectDetection(exam.getEnableObjectDetection())
+                .enableTabSwitchDetection(exam.getEnableTabSwitchDetection())
+                .enableAudioDetection(exam.getEnableAudioDetection())
+                .enableScreenCaptureProtection(exam.getEnableScreenCaptureProtection())
+                .enableBrowserActivityDetection(exam.getEnableBrowserActivityDetection())
+                .enableExamWatermark(exam.getEnableExamWatermark())
+                .disableCopy(exam.getDisableCopy())
+                .disablePaste(exam.getDisablePaste())
+                .disableCut(exam.getDisableCut())
+                .disableRightClick(exam.getDisableRightClick())
+                .restrictBrowserShortcuts(exam.getRestrictBrowserShortcuts())
+                .maxTabSwitches(exam.getMaxTabSwitches())
+                .currentTabSwitches(currentTabSwitches)
                 .build();
     }
 
@@ -358,7 +510,8 @@ public class CandidateService {
             throw new BadRequestException("You can only log events for an ongoing exam.");
         }
 
-        Exam exam = enrollment.getExam();
+        Exam exam = examRepository.findById(enrollment.getExam().getId())
+                .orElse(enrollment.getExam());
         if (!isDetectionEnabled(exam, request.getEventType())) {
             return false;
         }
@@ -388,7 +541,8 @@ public class CandidateService {
 
         proctoringLogRepository.save(log);
 
-        if (request.getEventType() == ProctoringEventType.TAB_SWITCH || request.getEventType() == ProctoringEventType.FULL_SCREEN_EXIT) {
+        if (request.getEventType() == ProctoringEventType.TAB_SWITCH 
+                || request.getEventType() == ProctoringEventType.FULL_SCREEN_EXIT) {
             return checkTabSwitchLimit(enrollment);
         }
         return false;
@@ -402,16 +556,26 @@ public class CandidateService {
             case AUDIO_DETECTED -> exam.getEnableAudioDetection() == null || exam.getEnableAudioDetection();
             case NO_CAMERA -> exam.getRequireCamera() == null || exam.getRequireCamera();
             case NO_MIC -> exam.getRequireMic() == null || exam.getRequireMic();
-            case SCREEN_SHARE_STOPPED -> exam.getRequireScreenShare() == null || exam.getRequireScreenShare();
+            case SCREEN_SHARE_STOPPED -> false;
+            case WINDOW_BLUR, WINDOW_FOCUS, SCREENSHOT_ATTEMPT -> Boolean.TRUE.equals(exam.getEnableScreenCaptureProtection())
+                    && (exam.getEnableBrowserActivityDetection() == null || Boolean.TRUE.equals(exam.getEnableBrowserActivityDetection()));
+            case COPY_ATTEMPT -> Boolean.TRUE.equals(exam.getDisableCopy());
+            case PASTE_ATTEMPT -> Boolean.TRUE.equals(exam.getDisablePaste());
+            case CUT_ATTEMPT -> Boolean.TRUE.equals(exam.getDisableCut());
+            case RIGHT_CLICK_ATTEMPT -> Boolean.TRUE.equals(exam.getDisableRightClick());
+            case SHORTCUT_ATTEMPT -> Boolean.TRUE.equals(exam.getRestrictBrowserShortcuts());
         };
     }
 
     private boolean checkTabSwitchLimit(ExamEnrollment enrollment) {
-        Exam exam = enrollment.getExam();
-        if (exam.getMaxTabSwitches() == null) return false; // host didn't set a limit
+        Exam exam = examRepository.findById(enrollment.getExam().getId())
+                .orElse(enrollment.getExam());
+        if (exam.getMaxTabSwitches() == null || exam.getMaxTabSwitches() <= 0) return false; // host didn't set a limit
 
         long count = proctoringLogRepository.countByEnrollmentIdAndEventTypeIn(
-                enrollment.getId(), java.util.List.of(ProctoringEventType.TAB_SWITCH, ProctoringEventType.FULL_SCREEN_EXIT));
+                enrollment.getId(), java.util.List.of(
+                        ProctoringEventType.TAB_SWITCH,
+                        ProctoringEventType.FULL_SCREEN_EXIT));
 
         if (count >= exam.getMaxTabSwitches()) {
             try {
@@ -424,23 +588,32 @@ public class CandidateService {
         return false;
     }
 
-    private static final Map<ProctoringEventType, Double> DEDUCTIONS = Map.of(
-        ProctoringEventType.GAZE_AWAY, 1.0,
-        ProctoringEventType.NO_FACE, 3.0,
-        ProctoringEventType.TAB_SWITCH, 4.0,
-        ProctoringEventType.FULL_SCREEN_EXIT, 4.0,
-        ProctoringEventType.AUDIO_DETECTED, 3.0,
-        ProctoringEventType.MULTIPLE_FACES, 8.0,
-        ProctoringEventType.OBJECT_DETECTED, 10.0,
-        ProctoringEventType.NO_CAMERA, 10.0,
-        ProctoringEventType.NO_MIC, 6.0,
-        ProctoringEventType.SCREEN_SHARE_STOPPED, 10.0
+    private static final Map<ProctoringEventType, Double> DEDUCTIONS = Map.ofEntries(
+        Map.entry(ProctoringEventType.GAZE_AWAY, 1.0),
+        Map.entry(ProctoringEventType.NO_FACE, 3.0),
+        Map.entry(ProctoringEventType.TAB_SWITCH, 4.0),
+        Map.entry(ProctoringEventType.FULL_SCREEN_EXIT, 4.0),
+        Map.entry(ProctoringEventType.AUDIO_DETECTED, 3.0),
+        Map.entry(ProctoringEventType.MULTIPLE_FACES, 8.0),
+        Map.entry(ProctoringEventType.OBJECT_DETECTED, 10.0),
+        Map.entry(ProctoringEventType.NO_CAMERA, 10.0),
+        Map.entry(ProctoringEventType.NO_MIC, 6.0),
+        Map.entry(ProctoringEventType.SCREEN_SHARE_STOPPED, 0.0),
+        Map.entry(ProctoringEventType.WINDOW_BLUR, 1.0),
+        Map.entry(ProctoringEventType.WINDOW_FOCUS, 0.0),
+        Map.entry(ProctoringEventType.SCREENSHOT_ATTEMPT, 2.0),
+        Map.entry(ProctoringEventType.COPY_ATTEMPT, 1.0),
+        Map.entry(ProctoringEventType.PASTE_ATTEMPT, 1.0),
+        Map.entry(ProctoringEventType.CUT_ATTEMPT, 1.0),
+        Map.entry(ProctoringEventType.RIGHT_CLICK_ATTEMPT, 0.5),
+        Map.entry(ProctoringEventType.SHORTCUT_ATTEMPT, 1.0)
     );
 
     private Severity resolveSeverity(ProctoringEventType type) {
         return switch (type) {
-            case GAZE_AWAY -> Severity.LOW;
-            case NO_FACE, TAB_SWITCH, FULL_SCREEN_EXIT, AUDIO_DETECTED -> Severity.MEDIUM;
+            case GAZE_AWAY, WINDOW_FOCUS -> Severity.LOW;
+            case NO_FACE, TAB_SWITCH, FULL_SCREEN_EXIT, AUDIO_DETECTED, WINDOW_BLUR, SCREENSHOT_ATTEMPT,
+                 COPY_ATTEMPT, PASTE_ATTEMPT, CUT_ATTEMPT, RIGHT_CLICK_ATTEMPT, SHORTCUT_ATTEMPT -> Severity.MEDIUM;
             default -> Severity.HIGH;
         };
     }
@@ -477,7 +650,8 @@ public class CandidateService {
             isLate = true;
         }
 
-        Exam exam = enrollment.getExam();
+        Exam exam = examRepository.findById(enrollment.getExam().getId())
+                .orElse(enrollment.getExam());
         List<Question> questions = questionRepository.findByExamId(exam.getId());
 
         // Fall back to autosaved progress when the request itself has no
@@ -696,18 +870,25 @@ public class CandidateService {
                 .toList();
 
         if (!wrongAnswers.isEmpty()) {
-            StringBuilder sb = new StringBuilder();
-            for (CandidateAnswer ans : wrongAnswers) {
-                sb.append("Question: ").append(ans.getQuestion().getQuestionText()).append("\n");
-                sb.append("Candidate answered: ").append(ans.getCandidateAnswer()).append("\n");
-                sb.append("Correct answer was: ").append(ans.getQuestion().getCorrectAnswer()).append("\n");
-                if (ans.getQuestion().getTopic() != null) {
-                    sb.append("Topic: ").append(ans.getQuestion().getTopic()).append("\n");
+            List<GeminiService.CandidateMistakeItem> mistakeItems = new java.util.ArrayList<>();
+            int maxItems = Math.min(wrongAnswers.size(), 20);
+            for (int i = 0; i < maxItems; i++) {
+                CandidateAnswer ans = wrongAnswers.get(i);
+                String rawAns = ans.getCandidateAnswer();
+                String safeAns = rawAns != null ? (rawAns.length() > 500 ? rawAns.substring(0, 500) + "..." : rawAns) : "";
+                String topic = ans.getQuestion().getTopic() != null ? ans.getQuestion().getTopic() : "General";
+                String qText = ans.getQuestion().getQuestionText();
+                if (qText != null && qText.length() > 500) {
+                    qText = qText.substring(0, 500) + "...";
                 }
-                sb.append("\n");
+                String corrAns = ans.getQuestion().getCorrectAnswer();
+                if (corrAns != null && corrAns.length() > 300) {
+                    corrAns = corrAns.substring(0, 300) + "...";
+                }
+                mistakeItems.add(new GeminiService.CandidateMistakeItem(topic, qText, safeAns, corrAns));
             }
             try {
-                GeminiService.GeminiFeedbackResult feedback = geminiService.generateFeedback(sb.toString());
+                GeminiService.GeminiFeedbackResult feedback = geminiService.generateFeedbackFromMistakes(mistakeItems);
                 result.setAiFeedback(feedback.getAiFeedback());
                 result.setWeakTopicsJson(feedback.getWeakTopicsJson());
                 result.setFeedbackStatus("READY");
@@ -885,17 +1066,56 @@ public class CandidateService {
             throw new BadRequestException("Exam time has expired. Answers can no longer be saved.");
         }
 
-        Exam exam = enrollment.getExam();
+        Exam exam = examRepository.findById(enrollment.getExam().getId())
+                .orElse(enrollment.getExam());
         List<Question> questions = questionRepository.findByExamId(exam.getId());
         List<CandidateAnswer> existingAnswers = candidateAnswerRepository.findByEnrollmentId(enrollmentId);
         java.util.Map<Long, CandidateAnswer> existingMap = existingAnswers.stream()
                 .collect(java.util.stream.Collectors.toMap(a -> a.getQuestion().getId(), a -> a));
+
+        // Load timings if in PER_QUESTION mode
+        Map<Long, com.assessmate.entity.CandidateQuestionTiming> timingMap = new java.util.HashMap<>();
+        if (exam.getTimerType() == TimerType.PER_QUESTION && candidateQuestionTimingRepository != null) {
+            List<com.assessmate.entity.CandidateQuestionTiming> timings = candidateQuestionTimingRepository.findByEnrollmentId(enrollmentId);
+            for (com.assessmate.entity.CandidateQuestionTiming t : timings) {
+                timingMap.put(t.getQuestion().getId(), t);
+            }
+        }
 
         java.util.List<CandidateAnswer> answersToSave = new java.util.ArrayList<>();
         for (Question q : questions) {
             String candidateAnswerStr = request.getAnswers() != null ? request.getAnswers().get(q.getId()) : null;
             if (candidateAnswerStr != null && !candidateAnswerStr.trim().isEmpty()) {
                 CandidateAnswer answer = existingMap.get(q.getId());
+
+                // Server-side question deadline enforcement in PER_QUESTION mode
+                if (exam.getTimerType() == TimerType.PER_QUESTION && candidateQuestionTimingRepository != null) {
+                    com.assessmate.entity.CandidateQuestionTiming timing = timingMap.get(q.getId());
+                    if (timing == null) {
+                        // Question has not started yet. In PER_QUESTION mode, future unstarted questions cannot accept answers.
+                        if (answer == null) {
+                            throw new BadRequestException("Question " + q.getId() + " has not started yet. In per-question mode, questions must be answered sequentially.");
+                        } else if (!candidateAnswerStr.trim().equals(answer.getCandidateAnswer())) {
+                            throw new BadRequestException("Question " + q.getId() + " has not started yet. In per-question mode, questions must be answered sequentially.");
+                        }
+                        continue;
+                    }
+                    boolean isExpired = timing.isExpired() || now.isAfter(timing.getDeadline());
+                    if (isExpired) {
+                        if (!timing.isExpired()) {
+                            timing.setExpired(true);
+                            candidateQuestionTimingRepository.save(timing);
+                        }
+                        if (answer == null) {
+                            throw new BadRequestException("Question " + q.getId() + " time has expired. Answers can no longer be saved.");
+                        } else if (!candidateAnswerStr.trim().equals(answer.getCandidateAnswer())) {
+                            throw new BadRequestException("Question " + q.getId() + " time has expired. Answers can no longer be modified.");
+                        }
+                        // Matches existing saved answer -> preserve it without modifying
+                        continue;
+                    }
+                }
+
                 if (answer == null) {
                     answer = CandidateAnswer.builder()
                             .enrollment(enrollment)
@@ -918,6 +1138,116 @@ public class CandidateService {
         saveProgress(enrollmentId, request, candidateEmail);
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public QuestionExpireResponse expireQuestion(Long enrollmentId, Long questionId, String candidateEmail) {
+        ExamEnrollment enrollment = enrollmentRepository.findByIdForUpdate(enrollmentId)
+                .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
+
+        if (!enrollment.getCandidate().getEmail().equals(candidateEmail)) {
+            throw new ForbiddenException("You do not have access to this enrollment.");
+        }
+
+        if (enrollment.getStatus() != EnrollmentStatus.ONGOING) {
+            throw new BadRequestException("This exam is no longer active.");
+        }
+
+        Exam exam = examRepository.findById(enrollment.getExam().getId())
+                .orElse(enrollment.getExam());
+        if (exam.getTimerType() != TimerType.PER_QUESTION) {
+            throw new BadRequestException("This exam does not use per-question timing.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // Check overall exam deadline
+        if (enrollment.getPersonalEndTime() != null && now.isAfter(enrollment.getPersonalEndTime())) {
+            try {
+                forceSubmit(enrollmentId, candidateEmail);
+            } catch (Exception e) {
+                log.warn("Force submit failed on question expiry: {}", e.getMessage());
+            }
+            return QuestionExpireResponse.builder()
+                    .expiredQuestionId(questionId)
+                    .nextQuestionId(null)
+                    .isExamCompleted(true)
+                    .serverTime(now)
+                    .build();
+        }
+
+        if (candidateQuestionTimingRepository != null) {
+            com.assessmate.entity.CandidateQuestionTiming currentTiming = candidateQuestionTimingRepository
+                    .findByEnrollmentIdAndQuestionIdForUpdate(enrollmentId, questionId)
+                    .orElse(null);
+
+            if (currentTiming != null) {
+                currentTiming.setExpired(true);
+                currentTiming.setCompletedAt(now);
+                candidateQuestionTimingRepository.save(currentTiming);
+            }
+        }
+
+        // Determine next question
+        List<Question> examQuestions = new java.util.ArrayList<>(questionRepository.findByExamId(exam.getId()));
+        examQuestions.sort(java.util.Comparator.comparing(Question::getId));
+        java.util.Collections.shuffle(examQuestions, new java.util.Random(enrollment.getId()));
+
+        int currentIndex = -1;
+        for (int i = 0; i < examQuestions.size(); i++) {
+            if (examQuestions.get(i).getId().equals(questionId)) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        if (currentIndex >= 0 && currentIndex + 1 < examQuestions.size()) {
+            Question nextQ = examQuestions.get(currentIndex + 1);
+            int duration = resolveQuestionDurationSeconds(nextQ, exam);
+            LocalDateTime nextDeadline = now.plusSeconds(duration);
+
+            if (candidateQuestionTimingRepository != null) {
+                com.assessmate.entity.CandidateQuestionTiming nextTiming = candidateQuestionTimingRepository
+                        .findByEnrollmentIdAndQuestionIdForUpdate(enrollmentId, nextQ.getId())
+                        .orElse(null);
+
+                if (nextTiming == null) {
+                    nextTiming = com.assessmate.entity.CandidateQuestionTiming.builder()
+                            .enrollment(enrollment)
+                            .question(nextQ)
+                            .startedAt(now)
+                            .deadline(nextDeadline)
+                            .isExpired(false)
+                            .build();
+                    candidateQuestionTimingRepository.save(nextTiming);
+                } else if (!nextTiming.isExpired()) {
+                    nextDeadline = nextTiming.getDeadline();
+                }
+            }
+
+            long remaining = Math.max(0, java.time.Duration.between(now, nextDeadline).getSeconds());
+            return QuestionExpireResponse.builder()
+                    .expiredQuestionId(questionId)
+                    .nextQuestionId(nextQ.getId())
+                    .nextQuestionDeadline(nextDeadline)
+                    .nextQuestionRemainingSeconds(remaining)
+                    .isExamCompleted(false)
+                    .serverTime(now)
+                    .build();
+        } else {
+            // Last question expired!
+            return QuestionExpireResponse.builder()
+                    .expiredQuestionId(questionId)
+                    .nextQuestionId(null)
+                    .isExamCompleted(true)
+                    .serverTime(now)
+                    .build();
+        }
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public QuestionExpireResponse advanceQuestion(Long enrollmentId, Long currentQuestionId, String candidateEmail) {
+        return expireQuestion(enrollmentId, currentQuestionId, candidateEmail);
+    }
+
     public java.util.Map<String, Object> getExamState(Long enrollmentId, String candidateEmail) {
         ExamEnrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Enrollment not found"));
@@ -928,6 +1258,9 @@ public class CandidateService {
 
         java.util.Map<String, Object> state = new java.util.HashMap<>();
         state.put("status", enrollment.getStatus().name());
+        Exam exam = examRepository.findById(enrollment.getExam().getId())
+                .orElse(enrollment.getExam());
+        state.put("timerType", exam.getTimerType() != null ? exam.getTimerType().name() : TimerType.WHOLE_EXAM.name());
         
         if (enrollment.getStatus() == EnrollmentStatus.ONGOING) {
             LocalDateTime now = LocalDateTime.now();
@@ -936,6 +1269,19 @@ public class CandidateService {
                 remainingSeconds = java.time.Duration.between(now, enrollment.getPersonalEndTime()).getSeconds();
             }
             state.put("remainingSeconds", remainingSeconds);
+
+            if (exam.getTimerType() == TimerType.PER_QUESTION && candidateQuestionTimingRepository != null) {
+                List<com.assessmate.entity.CandidateQuestionTiming> timings = candidateQuestionTimingRepository.findByEnrollmentId(enrollmentId);
+                for (com.assessmate.entity.CandidateQuestionTiming t : timings) {
+                    if (!t.isExpired() && now.isBefore(t.getDeadline())) {
+                        state.put("activeQuestionId", t.getQuestion().getId());
+                        state.put("activeQuestionRemainingSeconds", java.time.Duration.between(now, t.getDeadline()).getSeconds());
+                        state.put("activeQuestionDeadline", t.getDeadline().toString());
+                        state.put("isQuestionExpired", false);
+                        break;
+                    }
+                }
+            }
         }
 
         return state;

@@ -169,11 +169,11 @@ public class AdminController {
     ) {
         String password = null;
         if (body != null && body.getCurrentPassword() != null && !body.getCurrentPassword().isBlank()) {
-            password = body.getCurrentPassword().trim();
-        } else if (currentPassword != null && !currentPassword.isBlank()) {
-            password = currentPassword.trim();
+            password = body.getCurrentPassword();
         } else if (passwordHeader != null && !passwordHeader.isBlank()) {
-            password = passwordHeader.trim();
+            password = passwordHeader;
+        } else if (currentPassword != null && !currentPassword.isBlank()) {
+            password = currentPassword;
         }
 
         if (password == null || password.isBlank()) {

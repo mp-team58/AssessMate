@@ -235,6 +235,18 @@ public class AIQuestionService {
             MultipartFile file,
             String hostEmail) throws IOException {
 
+        FileExtractionResult extraction =
+            fileProcessingService.extractFromFile(
+                file, req.getTopic());
+
+        return generateFromFileExtraction(req, extraction, hostEmail);
+    }
+
+    public AIGenerationResponse generateFromFileExtraction(
+            AIFileRequest req,
+            FileExtractionResult extraction,
+            String hostEmail) {
+
         Exam exam = validateAndGetExam(
             req.getExamId(), hostEmail);
 
@@ -253,10 +265,6 @@ public class AIQuestionService {
 
         int[] counts = calculateCounts(
             countReq, exam);
-
-        FileExtractionResult extraction =
-            fileProcessingService.extractFromFile(
-                file, req.getTopic());
 
         // ── IMAGE ONLY FILE ──────────────────
         // No readable text — use Gemini Vision

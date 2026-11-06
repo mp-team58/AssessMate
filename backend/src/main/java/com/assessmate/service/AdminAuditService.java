@@ -15,6 +15,7 @@ public class AdminAuditService {
 
     private final AdminAuditLogRepository auditLogRepository;
 
+    @org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void logAction(Long actorId, String actorEmail, String action, String targetType, String targetId, String metadataJson, String clientIp) {
         try {
             AdminAuditLog logEntry = AdminAuditLog.builder()

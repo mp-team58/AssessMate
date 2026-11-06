@@ -29,5 +29,13 @@ public class JoinExamResponse {
     private Boolean enableObjectDetection;
     private Boolean enableTabSwitchDetection;
     private Boolean enableAudioDetection;
+    private Boolean enableScreenCaptureProtection;
+    private Boolean enableBrowserActivityDetection;
+    private Boolean enableExamWatermark;
+    private Boolean disableCopy;
+    private Boolean disablePaste;
+    private Boolean disableCut;
+    private Boolean disableRightClick;
+    private Boolean restrictBrowserShortcuts;
     private Integer maxTabSwitches;
 }

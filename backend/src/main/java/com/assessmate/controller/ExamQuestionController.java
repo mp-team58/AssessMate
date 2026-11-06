@@ -24,6 +24,7 @@ public class ExamQuestionController {
     private final QuestionService questionService;
     private final AIQuestionService aiQuestionService;
     private final ExcelService excelService;
+    private final com.assessmate.service.AIQuestionJobService aiQuestionJobService;
 
     // ── 1. LIST & STATS ──────────────────────
 
@@ -82,37 +83,47 @@ public class ExamQuestionController {
 
     // ── 3. AI QUESTION GENERATION ────────────
 
-    // AI generate questions from topic
+    // AI generate questions from topic (asynchronous non-blocking job)
     @PostMapping("/ai/topic")
-    public ResponseEntity<AIGenerationResponse> generateFromTopic(
+    public ResponseEntity<AIGenerationJobResponse> generateFromTopic(
             @PathVariable Long examId,
             @RequestBody AIGenerationRequest req,
             Principal principal) {
         req.setExamId(examId);
-        return ResponseEntity.ok(
-                aiQuestionService.generateFromTopic(req, principal.getName()));
+        return ResponseEntity.accepted().body(
+                aiQuestionJobService.startTopicJob(req, principal.getName()));
     }
 
-    // AI generate questions from pasted text
+    // AI generate questions from pasted text (asynchronous non-blocking job)
     @PostMapping("/ai/text")
-    public ResponseEntity<AIGenerationResponse> generateFromText(
+    public ResponseEntity<AIGenerationJobResponse> generateFromText(
             @PathVariable Long examId,
             @RequestBody AIGenerationRequest req,
             Principal principal) {
         req.setExamId(examId);
-        return ResponseEntity.ok(
-                aiQuestionService.generateFromText(req, principal.getName()));
+        return ResponseEntity.accepted().body(
+                aiQuestionJobService.startTextJob(req, principal.getName()));
     }
 
-    // AI generate questions from uploaded file (PDF / DOCX / TXT / Images)
+    // AI generate questions from uploaded file (asynchronous non-blocking job)
     @PostMapping(value = "/ai/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<AIGenerationResponse> generateFromFile(
+    public ResponseEntity<AIGenerationJobResponse> generateFromFile(
             @PathVariable Long examId,
             @RequestPart("data") AIFileRequest req,
             @RequestPart("file") MultipartFile file,
             Principal principal) throws IOException {
         req.setExamId(examId);
+        return ResponseEntity.accepted().body(
+                aiQuestionJobService.startFileJob(req, file, principal.getName()));
+    }
+
+    // Poll status of an async AI generation job
+    @GetMapping("/ai/jobs/{jobId}")
+    public ResponseEntity<AIGenerationJobResponse> getJobStatus(
+            @PathVariable Long examId,
+            @PathVariable String jobId,
+            Principal principal) {
         return ResponseEntity.ok(
-                aiQuestionService.generateFromFile(req, file, principal.getName()));
+                aiQuestionJobService.getJobStatus(examId, jobId, principal.getName()));
     }
 }

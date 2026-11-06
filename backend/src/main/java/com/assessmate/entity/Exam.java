@@ -6,7 +6,9 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "exams")
+@Table(name = "exams", indexes = {
+        @Index(name = "idx_exam_host", columnList = "host_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,7 +20,7 @@ public class Exam {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "host_id", nullable = false)
     private User host;
 
@@ -108,6 +110,30 @@ public class Exam {
 
     @Builder.Default
     private Boolean requireScreenShare = false;
+
+    @Builder.Default
+    private Boolean enableScreenCaptureProtection = false;
+
+    @Builder.Default
+    private Boolean enableBrowserActivityDetection = false;
+
+    @Builder.Default
+    private Boolean enableExamWatermark = false;
+
+    @Builder.Default
+    private Boolean disableCopy = false;
+
+    @Builder.Default
+    private Boolean disablePaste = false;
+
+    @Builder.Default
+    private Boolean disableCut = false;
+
+    @Builder.Default
+    private Boolean disableRightClick = false;
+
+    @Builder.Default
+    private Boolean restrictBrowserShortcuts = false;
 
     @Builder.Default
     private Boolean enableFaceDetection = false;

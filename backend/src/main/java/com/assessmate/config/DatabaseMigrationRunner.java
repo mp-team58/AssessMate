@@ -104,6 +104,39 @@ public class DatabaseMigrationRunner {
                 log.debug("Note: admin_invitations creation notice: {}", e.getMessage());
             }
 
+            // 7. Ensure high-frequency query indexes exist
+            try {
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_question_exam ON questions(exam_id)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_question_created_by ON questions(created_by)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_exam_host ON exams(host_id)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_enrollment_exam ON exam_enrollments(exam_id)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_coding_exam ON coding_questions(exam_id)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_coding_created_by ON coding_questions(created_by_id)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_test_case_coding_q ON test_cases(coding_question_id)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_submission_enrollment ON code_submissions(enrollment_id)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_submission_candidate ON code_submissions(candidate_id)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_submission_coding_q ON code_submissions(coding_question_id)");
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_tc_result_submission ON test_case_results(submission_id)");
+                log.info("Migration: High-frequency foreign key indexes verified.");
+            } catch (Exception e) {
+                log.debug("Note: High-frequency index migration notice: {}", e.getMessage());
+            }
+
+            // 8. Ensure Screen Capture Protection and Browser Restrictions columns exist on exams table
+            try {
+                jdbcTemplate.execute("ALTER TABLE exams ADD COLUMN IF NOT EXISTS enable_screen_capture_protection BOOLEAN DEFAULT FALSE");
+                jdbcTemplate.execute("ALTER TABLE exams ADD COLUMN IF NOT EXISTS enable_browser_activity_detection BOOLEAN DEFAULT FALSE");
+                jdbcTemplate.execute("ALTER TABLE exams ADD COLUMN IF NOT EXISTS enable_exam_watermark BOOLEAN DEFAULT FALSE");
+                jdbcTemplate.execute("ALTER TABLE exams ADD COLUMN IF NOT EXISTS disable_copy BOOLEAN DEFAULT FALSE");
+                jdbcTemplate.execute("ALTER TABLE exams ADD COLUMN IF NOT EXISTS disable_paste BOOLEAN DEFAULT FALSE");
+                jdbcTemplate.execute("ALTER TABLE exams ADD COLUMN IF NOT EXISTS disable_cut BOOLEAN DEFAULT FALSE");
+                jdbcTemplate.execute("ALTER TABLE exams ADD COLUMN IF NOT EXISTS disable_right_click BOOLEAN DEFAULT FALSE");
+                jdbcTemplate.execute("ALTER TABLE exams ADD COLUMN IF NOT EXISTS restrict_browser_shortcuts BOOLEAN DEFAULT FALSE");
+                log.info("Migration: exams screen capture protection and browser restriction columns verified.");
+            } catch (Exception e) {
+                log.debug("Note: exams proctoring columns migration notice: {}", e.getMessage());
+            }
+
             log.info("AssessMate database migrations completed successfully.");
         } catch (Exception e) {
             log.warn("Migration warning: {}", e.getMessage());

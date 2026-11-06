@@ -5,7 +5,10 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "coding_questions")
+@Table(name = "coding_questions", indexes = {
+        @Index(name = "idx_coding_exam", columnList = "exam_id"),
+        @Index(name = "idx_coding_created_by", columnList = "created_by_id")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,11 +19,11 @@ public class CodingQuestion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_id")
     private Exam exam; // null when isGlobal = true
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by_id", nullable = false)
     private User createdBy;
 

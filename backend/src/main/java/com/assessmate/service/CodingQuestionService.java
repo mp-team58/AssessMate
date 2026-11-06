@@ -197,11 +197,12 @@ public class CodingQuestionService {
     // GET EXAM POOL — HOST VIEW
     // ─────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public List<CodingQuestionResponse> getExamPool(
             Long examId,
             String hostEmail) {
 
-        Exam exam = examRepository.findById(examId)
+        Exam exam = examRepository.findWithHostById(examId)
                 .orElseThrow(() -> new com.assessmate.exception.ResourceNotFoundException("Exam not found."));
 
         if (!exam.getHost().getEmail().equals(hostEmail)) {
@@ -307,6 +308,7 @@ public class CodingQuestionService {
     // GET GLOBAL CODING BANK
     // ─────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public List<CodingQuestionResponse> getGlobalBank(String hostEmail) {
         User host = getUser(hostEmail);
         return codingQuestionRepository

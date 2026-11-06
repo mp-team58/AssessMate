@@ -190,7 +190,7 @@ class AdminPostgreSqlIntegrationTest {
         adminService.deleteUser(host.getId(), "audit.admin@test.com", "127.0.0.1");
 
         // Verify Exam still exists and host relationship is intact
-        Exam retrievedExam = examRepository.findById(exam.getId()).orElseThrow();
+        Exam retrievedExam = examRepository.findWithHostById(exam.getId()).orElseThrow();
         assertEquals("Preserved Exam Title", retrievedExam.getTitle());
         assertEquals(host.getId(), retrievedExam.getHost().getId());
         assertEquals(AccountStatus.DELETED, retrievedExam.getHost().getStatus());

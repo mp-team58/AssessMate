@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "test_cases")
+@Table(name = "test_cases", indexes = {
+        @Index(name = "idx_test_case_coding_q", columnList = "coding_question_id")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -15,7 +17,7 @@ public class TestCase {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "coding_question_id", nullable = false)
     private CodingQuestion codingQuestion;
 

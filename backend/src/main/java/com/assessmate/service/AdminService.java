@@ -189,6 +189,7 @@ public class AdminService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public Page<AdminExamRowDTO> getExams(ExamStatus status, String query, Pageable pageable) {
         String cleanQuery = (query != null && !query.trim().isEmpty()) ? query.trim().toLowerCase(Locale.ROOT) : null;
 
@@ -232,8 +233,9 @@ public class AdminService {
         });
     }
 
+    @Transactional(readOnly = true)
     public AdminExamDetailResponse getExamDetail(Long examId) {
-        Exam exam = examRepository.findById(examId)
+        Exam exam = examRepository.findWithHostById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found"));
 
         long enrollments = examEnrollmentRepository.countByExamId(exam.getId());

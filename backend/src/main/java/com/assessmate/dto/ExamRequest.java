@@ -95,6 +95,14 @@ public class ExamRequest {
     private Boolean requireCamera = false;
     private Boolean requireMic = false;
     private Boolean requireScreenShare = false;
+    private Boolean enableScreenCaptureProtection = false;
+    private Boolean enableBrowserActivityDetection = false;
+    private Boolean enableExamWatermark = false;
+    private Boolean disableCopy = false;
+    private Boolean disablePaste = false;
+    private Boolean disableCut = false;
+    private Boolean disableRightClick = false;
+    private Boolean restrictBrowserShortcuts = false;
     private Boolean enableFaceDetection = false;
     private Boolean enableObjectDetection = false;
     private Boolean enableTabSwitchDetection = false;

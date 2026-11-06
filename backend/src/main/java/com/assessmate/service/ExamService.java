@@ -100,13 +100,26 @@ public class ExamService {
                 .codingDurationMinutes(req.getCodingDurationMinutes())
                 .codingQuestionsCount(req.getCodingQuestionsCount())
                 .passingPercentage(req.getPassingPercentage() != null ? req.getPassingPercentage() : 50.0)
-                .requireCamera(req.getRequireCamera() != null ? req.getRequireCamera() : false)
-                .requireMic(req.getRequireMic() != null ? req.getRequireMic() : false)
-                .requireScreenShare(req.getRequireScreenShare() != null ? req.getRequireScreenShare() : false)
+                .requireCamera(Boolean.TRUE.equals(req.getRequireCamera())
+                        || Boolean.TRUE.equals(req.getEnableFaceDetection())
+                        || Boolean.TRUE.equals(req.getEnableObjectDetection()))
+                .requireMic(Boolean.TRUE.equals(req.getRequireMic())
+                        || Boolean.TRUE.equals(req.getEnableAudioDetection()))
+                .requireScreenShare(false)
                 .enableFaceDetection(req.getEnableFaceDetection() != null ? req.getEnableFaceDetection() : false)
                 .enableObjectDetection(req.getEnableObjectDetection() != null ? req.getEnableObjectDetection() : false)
                 .enableTabSwitchDetection(req.getEnableTabSwitchDetection() != null ? req.getEnableTabSwitchDetection() : false)
                 .enableAudioDetection(req.getEnableAudioDetection() != null ? req.getEnableAudioDetection() : false)
+                .enableScreenCaptureProtection(Boolean.TRUE.equals(req.getEnableScreenCaptureProtection()))
+                .enableBrowserActivityDetection(Boolean.TRUE.equals(req.getEnableScreenCaptureProtection())
+                        && (req.getEnableBrowserActivityDetection() == null || Boolean.TRUE.equals(req.getEnableBrowserActivityDetection())))
+                .enableExamWatermark(Boolean.TRUE.equals(req.getEnableScreenCaptureProtection())
+                        && Boolean.TRUE.equals(req.getEnableExamWatermark()))
+                .disableCopy(Boolean.TRUE.equals(req.getDisableCopy()))
+                .disablePaste(Boolean.TRUE.equals(req.getDisablePaste()))
+                .disableCut(Boolean.TRUE.equals(req.getDisableCut()))
+                .disableRightClick(Boolean.TRUE.equals(req.getDisableRightClick()))
+                .restrictBrowserShortcuts(Boolean.TRUE.equals(req.getRestrictBrowserShortcuts()))
                 .maxTabSwitches(req.getMaxTabSwitches())
                 .status(ExamStatus.DRAFT)
                 .build();
@@ -148,11 +161,19 @@ public class ExamService {
                 .codingQuestionsCount(originalExam.getCodingQuestionsCount())
                 .requireCamera(originalExam.getRequireCamera())
                 .requireMic(originalExam.getRequireMic())
-                .requireScreenShare(originalExam.getRequireScreenShare())
+                .requireScreenShare(false)
                 .enableFaceDetection(originalExam.getEnableFaceDetection())
                 .enableObjectDetection(originalExam.getEnableObjectDetection())
                 .enableTabSwitchDetection(originalExam.getEnableTabSwitchDetection())
                 .enableAudioDetection(originalExam.getEnableAudioDetection())
+                .enableScreenCaptureProtection(originalExam.getEnableScreenCaptureProtection())
+                .enableBrowserActivityDetection(originalExam.getEnableBrowserActivityDetection())
+                .enableExamWatermark(originalExam.getEnableExamWatermark())
+                .disableCopy(originalExam.getDisableCopy())
+                .disablePaste(originalExam.getDisablePaste())
+                .disableCut(originalExam.getDisableCut())
+                .disableRightClick(originalExam.getDisableRightClick())
+                .restrictBrowserShortcuts(originalExam.getRestrictBrowserShortcuts())
                 .maxTabSwitches(originalExam.getMaxTabSwitches())
                 .status(ExamStatus.DRAFT)
                 .build();
@@ -280,19 +301,33 @@ public class ExamService {
         exam.setCodingDurationMinutes(req.getCodingDurationMinutes());
         exam.setCodingQuestionsCount(req.getCodingQuestionsCount());
         exam.setPassingPercentage(req.getPassingPercentage() != null ? req.getPassingPercentage() : 50.0);
-        exam.setRequireCamera(req.getRequireCamera() != null ? req.getRequireCamera() : false);
-        exam.setRequireMic(req.getRequireMic() != null ? req.getRequireMic() : false);
-        exam.setRequireScreenShare(req.getRequireScreenShare() != null ? req.getRequireScreenShare() : false);
+        exam.setRequireCamera(Boolean.TRUE.equals(req.getRequireCamera())
+                || Boolean.TRUE.equals(req.getEnableFaceDetection())
+                || Boolean.TRUE.equals(req.getEnableObjectDetection()));
+        exam.setRequireMic(Boolean.TRUE.equals(req.getRequireMic())
+                || Boolean.TRUE.equals(req.getEnableAudioDetection()));
+        exam.setRequireScreenShare(false);
         exam.setEnableFaceDetection(req.getEnableFaceDetection() != null ? req.getEnableFaceDetection() : false);
         exam.setEnableObjectDetection(req.getEnableObjectDetection() != null ? req.getEnableObjectDetection() : false);
         exam.setEnableTabSwitchDetection(req.getEnableTabSwitchDetection() != null ? req.getEnableTabSwitchDetection() : false);
         exam.setEnableAudioDetection(req.getEnableAudioDetection() != null ? req.getEnableAudioDetection() : false);
+        exam.setEnableScreenCaptureProtection(Boolean.TRUE.equals(req.getEnableScreenCaptureProtection()));
+        exam.setEnableBrowserActivityDetection(Boolean.TRUE.equals(req.getEnableScreenCaptureProtection())
+                && (req.getEnableBrowserActivityDetection() == null || Boolean.TRUE.equals(req.getEnableBrowserActivityDetection())));
+        exam.setEnableExamWatermark(Boolean.TRUE.equals(req.getEnableScreenCaptureProtection())
+                && Boolean.TRUE.equals(req.getEnableExamWatermark()));
+        exam.setDisableCopy(Boolean.TRUE.equals(req.getDisableCopy()));
+        exam.setDisablePaste(Boolean.TRUE.equals(req.getDisablePaste()));
+        exam.setDisableCut(Boolean.TRUE.equals(req.getDisableCut()));
+        exam.setDisableRightClick(Boolean.TRUE.equals(req.getDisableRightClick()));
+        exam.setRestrictBrowserShortcuts(Boolean.TRUE.equals(req.getRestrictBrowserShortcuts()));
         exam.setMaxTabSwitches(req.getMaxTabSwitches());
 
         return mapToResponse(examRepository.save(exam));
     }
 
 
+    @Transactional(readOnly = true)
     public List<ExamResponse> getMyExams(String hostEmail) {
         User host = userRepository.findByEmail(hostEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Host not found"));
@@ -603,11 +638,19 @@ public class ExamService {
                 .passingPercentage(exam.getPassingPercentage())
                 .requireCamera(exam.getRequireCamera())
                 .requireMic(exam.getRequireMic())
-                .requireScreenShare(exam.getRequireScreenShare())
+                .requireScreenShare(false)
                 .enableFaceDetection(exam.getEnableFaceDetection())
                 .enableObjectDetection(exam.getEnableObjectDetection())
                 .enableTabSwitchDetection(exam.getEnableTabSwitchDetection())
                 .enableAudioDetection(exam.getEnableAudioDetection())
+                .enableScreenCaptureProtection(exam.getEnableScreenCaptureProtection())
+                .enableBrowserActivityDetection(exam.getEnableBrowserActivityDetection())
+                .enableExamWatermark(exam.getEnableExamWatermark())
+                .disableCopy(exam.getDisableCopy())
+                .disablePaste(exam.getDisablePaste())
+                .disableCut(exam.getDisableCut())
+                .disableRightClick(exam.getDisableRightClick())
+                .restrictBrowserShortcuts(exam.getRestrictBrowserShortcuts())
                 .maxTabSwitches(exam.getMaxTabSwitches())
                 .joinCode(exam.getJoinCode())
                 .status(exam.getStatus())

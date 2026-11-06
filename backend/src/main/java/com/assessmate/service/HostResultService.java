@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@org.springframework.transaction.annotation.Transactional(readOnly = true)
 public class HostResultService {
 
     private final ExamRepository examRepository;
@@ -26,7 +27,7 @@ public class HostResultService {
     private final ProctoringLogRepository proctoringLogRepository;
 
     private Exam getOwnedExam(Long examId, String hostEmail) {
-        Exam exam = examRepository.findById(examId)
+        Exam exam = examRepository.findWithHostById(examId)
                 .orElseThrow(() -> new ResourceNotFoundException("Exam not found"));
         if (!exam.getHost().getEmail().equals(hostEmail)) {
             throw new ForbiddenException("You do not have access to this exam's results");
@@ -285,6 +286,7 @@ public class HostResultService {
                 .build();
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void toggleCandidateResult(Long examId, Long enrollmentId, String hostEmail) {
         getOwnedExam(examId, hostEmail);
 

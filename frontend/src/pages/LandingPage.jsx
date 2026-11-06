@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, Navigate } from "react-router-dom";
 import {
   Sparkles,
@@ -130,8 +130,13 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface font-sans text-secondary-900 overflow-x-hidden">
+    <div className="min-h-screen bg-surface font-sans text-secondary-900 overflow-x-hidden relative">
       <style>{checkAnimStyles}</style>
+
+      {/* Dynamic decorative moving ambient background */}
+      <div className="absolute top-[-5%] right-[-10%] w-[650px] h-[650px] bg-brand-300/30 rounded-full blur-[140px] opacity-40 animate-pulse mix-blend-multiply pointer-events-none"></div>
+      <div className="absolute top-[35%] left-[-8%] w-[550px] h-[550px] bg-amber-200/30 rounded-full blur-[140px] opacity-30 animate-pulse mix-blend-multiply pointer-events-none" style={{ animationDelay: '2.5s' }}></div>
+      <div className="absolute bottom-[8%] right-[5%] w-[500px] h-[500px] bg-brand-200/40 rounded-full blur-[130px] opacity-35 animate-pulse mix-blend-multiply pointer-events-none" style={{ animationDelay: '5s' }}></div>
 
       {/* Navbar */}
       <header className="relative w-full px-6 sm:px-10 lg:px-16 xl:px-20 py-5 flex items-center justify-between">

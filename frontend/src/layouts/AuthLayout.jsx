@@ -5,11 +5,18 @@ import { BookOpenCheck } from 'lucide-react';
 const AuthLayout = ({ children }) => {
   return (
     <div className="min-h-screen bg-surface flex items-center justify-center p-6 md:p-12 relative overflow-hidden">
+      {/* Dynamic decorative moving ambient gradients */}
+      <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-brand-400 rounded-full blur-[120px] opacity-25 animate-pulse mix-blend-multiply pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-amber-300 rounded-full blur-[120px] opacity-25 mix-blend-multiply animate-pulse pointer-events-none" style={{ animationDelay: '2s' }}></div>
+
       {/* Floating App Window */}
-      <div className="relative w-full max-w-4xl bg-white rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.06)] flex flex-col lg:flex-row overflow-hidden min-h-[550px] z-10 border border-secondary-200/80 animate-in fade-in zoom-in-[0.98] duration-700">
+      <div className="relative w-full max-w-4xl bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] flex flex-col lg:flex-row overflow-hidden min-h-[550px] z-10 border border-white/60 animate-in fade-in zoom-in-[0.98] duration-700">
         
         {/* Left Marketing Panel */}
-        <div className="hidden lg:flex lg:w-1/2 bg-surface p-10 lg:p-12 flex-col justify-between relative overflow-hidden border-r border-secondary-200/70">
+        <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-secondary-50/80 to-white/60 p-10 lg:p-12 flex-col justify-between relative overflow-hidden border-r border-secondary-200/50">
+          {/* Subtle overlay grid pattern */}
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMCwwLDAsMC4wNCkiLz48L3N2Zz4=')] opacity-50 pointer-events-none"></div>
+
           {/* Logo */}
           <Link to="/" aria-label="AssessMate home" className="relative flex items-center gap-3 text-2xl font-extrabold tracking-tight text-secondary-900 z-10 hover:scale-105 transition-transform origin-left w-fit">
             <div className="p-2 bg-brand-100 rounded-xl">

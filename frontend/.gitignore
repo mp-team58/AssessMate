@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+# Agent Skills
+.agents/
+skills-lock.json

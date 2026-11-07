@@ -109,6 +109,12 @@ public class AuthService {
         user.setActiveToken(token);
         userRepository.save(user);
 
+        try {
+            emailService.sendWelcomeEmail(user.getEmail(), user.getName(), user.getRole().name());
+        } catch (Exception e) {
+            log.warn("Non-blocking failure dispatching welcome email to {}: {}", user.getEmail(), e.getMessage());
+        }
+
         return new AuthResponse(token, user.getRole().name(), user.getName(), user.getId(), false);
     }
 
@@ -185,6 +191,12 @@ public class AuthService {
         userRepository.save(user);
 
         otpRepository.delete(otpVerification);
+
+        try {
+            emailService.sendPasswordChangedNotification(user.getEmail(), user.getName());
+        } catch (Exception e) {
+            log.warn("Non-blocking failure dispatching password changed notification to {}: {}", user.getEmail(), e.getMessage());
+        }
     }
 
     public AuthResponse login(LoginRequest req) {
@@ -283,6 +295,12 @@ public class AuthService {
         user.setTokenVersion(currentVersion + 1);
         user.setActiveToken(null);
         userRepository.save(user);
+
+        try {
+            emailService.sendPasswordChangedNotification(user.getEmail(), user.getName());
+        } catch (Exception e) {
+            log.warn("Non-blocking failure dispatching password changed notification to {}: {}", user.getEmail(), e.getMessage());
+        }
     }
 
     public void logout(String email) {

@@ -57,6 +57,8 @@ public class SecurityConfig {
             })
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
+                    "/api/health",
+                    "/health",
                     "/api/auth/register/request-otp",
                     "/api/auth/register/verify-otp",
                     "/api/auth/forgot-password/request-otp",
@@ -103,13 +105,14 @@ public class SecurityConfig {
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
 
-        // Never combine wildcard origins with allowCredentials(true)
-        boolean hasWildcard = origins.contains("*");
-        if (hasWildcard) {
+        // Never combine bare "*" wildcard with allowCredentials(true)
+        // Using setAllowedOriginPatterns allows subdomain wildcards like https://*.pages.dev with credentials
+        boolean hasBareWildcard = origins.contains("*");
+        if (hasBareWildcard) {
             config.setAllowedOriginPatterns(List.of("*"));
             config.setAllowCredentials(false);
         } else {
-            config.setAllowedOrigins(origins);
+            config.setAllowedOriginPatterns(origins);
             config.setAllowCredentials(true);
         }
 

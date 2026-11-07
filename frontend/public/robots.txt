@@ -3,19 +3,22 @@
 
 User-agent: *
 Allow: /
-Allow: /login
-Allow: /signup
 
-# Disallow authenticated portal dashboards & administrative routes
+# Private Authentication & Account Management
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+Disallow: /profile
+
+# Protected Portals & Execution Rooms
 Disallow: /admin/
+Disallow: /admin
 Disallow: /host/
 Disallow: /candidate/
-Disallow: /profile
-Disallow: /forgot-password
+Disallow: /exam/
 
-# Disallow backend API endpoints from search index
+# Backend API Endpoints
 Disallow: /api/
 
-# Sitemap location
+# Sitemap
 Sitemap: https://assessmate.me/sitemap.xml
-

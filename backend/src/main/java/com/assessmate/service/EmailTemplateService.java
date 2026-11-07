@@ -1,819 +1,664 @@
 package com.assessmate.service;
 
 import com.assessmate.dto.EmailContent;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
 
+import java.net.URI;
+import java.time.Year;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
- * Premium Branded Transactional Email Design System for AssessMate.
- * Produces responsive, table-based, client-compatible (Gmail, Outlook, Apple Mail)
- * HTML and plain-text alternatives matching AssessMate's official visual identity.
+ * AssessMate transactional email templates.
+ *
+ * One shared layout (logo -> heading -> content -> footer) is used by every email so they all look
+ * the same. Every email has an HTML part and a matching plain-text part.
+ *
+ * Design rules that matter for inbox clients:
+ *  - The logo is a normal public HTTPS image inside a link to the website (no attachment, no CID, no base64).
+ *  - A verification code is ONE uninterrupted run of digits in its own table cell, shortly after a
+ *    short sentence ending in a colon, and appears the same way in the plain-text part.
+ *  - The code never appears in the subject or the inbox preview text (preheader).
  */
 @Service
-@Slf4j
 public class EmailTemplateService {
 
-    // Official AssessMate brand color palette (extracted from design tokens)
-    public static final String COLOR_BRAND_PRIMARY = "#2F6F4E"; // Deep Forest Green (brand-500)
-    public static final String COLOR_BRAND_DARK    = "#25573D"; // Deep Forest Hover/Dark (brand-600)
-    public static final String COLOR_BRAND_LIGHT   = "#F0F7F3"; // Brand Tint Background (brand-50)
-    public static final String COLOR_BRAND_BORDER  = "#B7D7C6"; // Brand Subtle Border (brand-200)
+    private static final Logger log = LoggerFactory.getLogger(EmailTemplateService.class);
 
-    public static final String COLOR_INK_HEADING   = "#16241F"; // Deep Ink / High Contrast (secondary-900)
-    public static final String COLOR_INK_BODY      = "#2D3730"; // Primary Content Ink (secondary-700)
-    public static final String COLOR_INK_MUTED     = "#56655D"; // Supporting Ink (secondary-500)
-    public static final String COLOR_INK_SUBTLE    = "#7D8A83"; // Footer & Caption Ink (secondary-400)
-    public static final String COLOR_INK_LIGHT     = "#AAB3AE"; // Light Disclaimer Ink (secondary-300)
+    /** OTP presentation. MINIMAL is a plain Namecheap-style box; BRANDED is the AssessMate card. */
+    public enum OtpLayout { BRANDED, MINIMAL }
 
-    public static final String COLOR_SURFACE       = "#F1F4F2"; // Canvas Background
-    public static final String COLOR_SURFACE_CARD  = "#F4F6F5"; // Secondary Surface Card (secondary-50)
-    public static final String COLOR_BORDER_CARD   = "#D3D9D6"; // Card Outline Border (secondary-200)
-    public static final String COLOR_BORDER_LIGHT  = "#E8EBE9"; // Light Divider Border (secondary-100)
+    // ---- Brand palette (all colours live here; change them in one place) --------------------------
+    public static final String COLOR_BRAND_PRIMARY = "#2F6F4E"; // Primary
+    public static final String COLOR_BRAND_DARK    = "#25573D"; // Button border / hover
+    public static final String COLOR_BRAND_LIGHT   = "#F0F7F3"; // Tint background
+    public static final String COLOR_BRAND_BORDER  = "#B7D7C6"; // Tint border
 
-    public static final String COLOR_ACCENT_ALERT  = "#C0562C"; // Warm Terracotta (accent-500)
-    public static final String COLOR_ACCENT_BG     = "#FDF3EE"; // Alert Background (accent-50)
-    public static final String COLOR_ACCENT_TITLE  = "#A04521"; // Alert Title (accent-600)
-    public static final String COLOR_ACCENT_TEXT   = "#7F371B"; // Alert Text (accent-700)
+    public static final String COLOR_INK_HEADING   = "#16241F";
+    public static final String COLOR_INK_BODY      = "#2D3730";
+    public static final String COLOR_INK_MUTED     = "#68756D";
+    public static final String COLOR_INK_SUBTLE    = "#7D8A83";
+    public static final String COLOR_INK_LIGHT     = "#AAB3AE";
 
-    private static final String SUPPORT_EMAIL = "mail.assessmate@gmail.com";
+    public static final String COLOR_BG_CANVAS     = "#F1F4F2";
+    public static final String COLOR_BG_EMAIL      = "#F4F6F4"; // outer background
+    public static final String COLOR_BG_CONTENT    = "#FFFFFF"; // card
+    public static final String COLOR_BORDER        = "#E1E8E2";
 
-    // -------------------------------------------------------------------------
-    // 1. Registration OTP Email
-    // -------------------------------------------------------------------------
+    public static final String COLOR_ACCENT_ALERT  = "#C0562C";
+    public static final String COLOR_ACCENT_BG     = "#FDF3EE";
+    public static final String COLOR_ACCENT_TITLE  = "#A04521";
+    public static final String COLOR_ACCENT_TEXT   = "#7F371B";
+
+    private static final String FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    private static final String MONO = "'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'Liberation Mono', monospace";
+
+    /** Official horizontal logo (logo.png) is 319 x 80 px. */
+    private static final int LOGO_SOURCE_WIDTH = 319;
+    private static final int LOGO_SOURCE_HEIGHT = 80;
+
+    private static final String DEFAULT_SITE = "https://assessmate.me";
+    private static final String DEFAULT_LOGO = "https://assessmate.me/logo.png";
+    private static final String DEFAULT_LOGIN = "https://assessmate.me/login";
+    private static final String DEFAULT_RESET = "https://assessmate.me/forgot-password";
+    private static final String DEFAULT_SUPPORT = "mail@assessmate.me";
+
+    // ---- Configuration -------------------------------------------------------------------------------
+    @Value("${app.mail.website-url:https://assessmate.me}")
+    private String websiteUrl = DEFAULT_SITE;
+
+    @Value("${app.mail.logo-url:https://assessmate.me/logo.png}")
+    private String logoUrl = DEFAULT_LOGO;
+
+    @Value("${app.mail.login-url:https://assessmate.me/login}")
+    private String loginUrl = DEFAULT_LOGIN;
+
+    @Value("${app.mail.reset-url:https://assessmate.me/forgot-password}")
+    private String resetUrl = DEFAULT_RESET;
+
+    @Value("${app.mail.support-email:mail@assessmate.me}")
+    private String supportEmail = DEFAULT_SUPPORT;
+
+    /** Displayed logo width in px (the 319 px source is crisp up to ~220 px on high-DPI screens). */
+    @Value("${app.mail.logo-width:210}")
+    private int logoWidth = 210;
+
+    /** "branded" (default) or "minimal"; used by buildConfirmationCodeEmail. */
+    @Value("${app.mail.otp-layout:branded}")
+    private String otpLayout = "branded";
+
+    public String getWebsiteUrl() { return websiteUrl; }
+    public void setWebsiteUrl(String v) { this.websiteUrl = v; }
+    public String getLogoUrl() { return logoUrl; }
+    public void setLogoUrl(String v) { this.logoUrl = v; }
+    public String getLoginUrl() { return loginUrl; }
+    public void setLoginUrl(String v) { this.loginUrl = v; }
+    public String getResetUrl() { return resetUrl; }
+    public void setResetUrl(String v) { this.resetUrl = v; }
+    public String getSupportEmail() { return supportEmail; }
+    public void setSupportEmail(String v) { this.supportEmail = v; }
+    public int getLogoWidth() { return logoWidth; }
+    public void setLogoWidth(int v) { this.logoWidth = v; }
+    public String getOtpLayout() { return otpLayout; }
+    public void setOtpLayout(String v) { this.otpLayout = v; }
+
+    // =====================================================================================================
+    // 1. Verification codes
+    // =====================================================================================================
+
+    /** Registration: "Verify your AssessMate account". */
     public EmailContent buildRegistrationOtpEmail(String name, String otp, int expiryMinutes) {
-        String safeName = escapeOrDefault(name, "there");
-        String safeOtp = HtmlUtils.htmlEscape(otp != null ? otp.trim() : "");
-        String subject = "Verify your AssessMate account";
-        String preheader = "Your AssessMate verification code is " + safeOtp + ". Valid for " + expiryMinutes + " minutes.";
-
-        String greeting = "Hi " + safeName + ",";
-        String mainContent = """
-            <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: %s;">
-              Thank you for creating an account with AssessMate. To verify your email address and activate your account, please enter the one-time code below:
-            </p>
-            %s
-            <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: %s;">
-              Enter this 6-digit verification code on the registration screen to complete your setup. Do not refresh or close the tab while verification is underway.
-            </p>
-            """.formatted(
-                COLOR_INK_BODY,
-                renderOtpCard(safeOtp, "One-Time Verification Code", expiryMinutes),
-                COLOR_INK_MUTED
-        );
-
-        String securityNotice = "AssessMate representatives will never contact you asking for this code. If you did not create an account on AssessMate, you can safely ignore this email; no account will be created.";
-
-        String html = renderLayout(preheader, "Account Verification", "Verify your AssessMate account", greeting, mainContent, securityNotice);
-
-        String plainText = """
-            AssessMate - Verify your account
-            
-            Hi %s,
-            
-            Thank you for creating an account with AssessMate.
-            
-            Your one-time verification code is:
-            %s
-            
-            This code expires in %d minutes.
-            
-            Security Notice:
-            AssessMate representatives will never ask you for this code. If you did not create an account on AssessMate, you can safely ignore this email.
-            
-            Warm regards,
-            The AssessMate Team
-            Intelligent assessment, uncompromised integrity.
-            
-            Need help? Contact %s
-            """.formatted(safeName, otp != null ? otp.trim() : "", expiryMinutes, SUPPORT_EMAIL);
-
-        return new EmailContent(subject, html, plainText);
+        return otpEmail(new OtpSpec(
+                "Verify your AssessMate account",
+                "Verify your email address",
+                "Confirm your email address to finish creating your AssessMate account.",
+                greeting(name, "there"),
+                "Thanks for signing up for AssessMate. Enter the code below on the verification screen to finish creating your account.",
+                "Your verification code is:",
+                "If you did not request this code, you can safely ignore this email. No account will be created without verification."),
+                otp, expiryMinutes, OtpLayout.BRANDED);
     }
 
-    // -------------------------------------------------------------------------
-    // 2. Forgot Password OTP Email
-    // -------------------------------------------------------------------------
+    /** General verification: same layout, subject "Your AssessMate verification code". */
+    public EmailContent buildOtpVerificationEmail(String name, String otp, int expiryMinutes) {
+        return otpEmail(new OtpSpec(
+                "Your AssessMate verification code",
+                "Your verification code",
+                "Use the code inside to verify your AssessMate account.",
+                greeting(name, "there"),
+                "We received a request to verify your AssessMate account.",
+                "Your verification code is:",
+                "If you did not request this code, you can ignore this email."),
+                otp, expiryMinutes, OtpLayout.BRANDED);
+    }
+
+    /** Confirmation code (Variant B by default, Variant A when app.mail.otp-layout=minimal). */
+    public EmailContent buildConfirmationCodeEmail(String name, String otp, int expiryMinutes) {
+        return buildConfirmationCodeEmail(name, otp, expiryMinutes,
+                "minimal".equalsIgnoreCase(otpLayout == null ? "" : otpLayout.trim()) ? OtpLayout.MINIMAL : OtpLayout.BRANDED);
+    }
+
+    /** Variant A (MINIMAL) and Variant B (BRANDED) have identical wording; only the code box styling differs. */
+    public EmailContent buildConfirmationCodeEmail(String name, String otp, int expiryMinutes, OtpLayout layout) {
+        return otpEmail(new OtpSpec(
+                "Your AssessMate confirmation code",
+                "Your confirmation code",
+                "Use the code inside to confirm your AssessMate account.",
+                greeting(name, "there"),
+                "We received a request to verify your AssessMate account.",
+                "Your verification code is:",
+                "If you did not request this code, you can ignore this email."),
+                otp, expiryMinutes, layout);
+    }
+
+    /** Variant C: password-recovery code. */
     public EmailContent buildPasswordResetOtpEmail(String otp, int expiryMinutes) {
-        String safeOtp = HtmlUtils.htmlEscape(otp != null ? otp.trim() : "");
-        String subject = "Reset your AssessMate password";
-        String preheader = "Your password reset code is " + safeOtp + ". Valid for " + expiryMinutes + " minutes.";
-
-        String greeting = "Hi there,";
-        String mainContent = """
-            <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: %s;">
-              We received a request to reset the password for your AssessMate account. Please enter the verification code below to authorize your password update:
-            </p>
-            %s
-            <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: %s;">
-              Once verified, you will be prompted to choose a new password. For security reasons, this code can only be used once.
-            </p>
-            """.formatted(
-                COLOR_INK_BODY,
-                renderOtpCard(safeOtp, "Password Reset Code", expiryMinutes),
-                COLOR_INK_MUTED
-        );
-
-        String securityNotice = "If you did not request a password reset, you can safely ignore this email. Your current password remains secure and no changes have been made to your account.";
-
-        String html = renderLayout(preheader, "Security Verification", "Reset your AssessMate password", greeting, mainContent, securityNotice);
-
-        String plainText = """
-            AssessMate - Reset your password
-            
-            Hi there,
-            
-            We received a request to reset the password for your AssessMate account.
-            
-            Your password reset code is:
-            %s
-            
-            This code expires in %d minutes.
-            
-            Security Notice:
-            If you did not request a password reset, you can safely ignore this email. Your password will not be changed.
-            
-            Warm regards,
-            The AssessMate Team
-            Intelligent assessment, uncompromised integrity.
-            
-            Need help? Contact %s
-            """.formatted(otp != null ? otp.trim() : "", expiryMinutes, SUPPORT_EMAIL);
-
-        return new EmailContent(subject, html, plainText);
+        return otpEmail(new OtpSpec(
+                "Reset your AssessMate password",
+                "Your password reset code",
+                "Use the code inside to reset your AssessMate password.",
+                "Hello,",
+                "We received a request to reset your AssessMate password. Enter the code below to continue. You will then be asked to choose a new password.",
+                "Your password reset code is:",
+                "If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged."),
+                otp, expiryMinutes, "minimal".equalsIgnoreCase(otpLayout == null ? "" : otpLayout.trim()) ? OtpLayout.MINIMAL : OtpLayout.BRANDED);
     }
 
-    // -------------------------------------------------------------------------
-    // 3. Password Reset Success Notification
-    // -------------------------------------------------------------------------
+    private record OtpSpec(String subject, String heading, String preheader, String greeting,
+                           String intro, String label, String ignoreNote) {}
+
+    private EmailContent otpEmail(OtpSpec s, String otp, int expiryMinutes, OtpLayout layout) {
+        String code = otp == null ? "" : otp.trim();
+        String body = p(esc(s.intro()))
+                + pLabel(esc(s.label()))
+                + otpBox(esc(code), layout)
+                + p("This code expires in " + expiryMinutes + " minutes and can only be used once. Never share it with anyone.")
+                + pMuted(esc(s.ignoreNote()));
+
+        String html = layout(s.heading(), s.preheader(), s.greeting(), body);
+
+        String text = plain(s.heading(), s.greeting(),
+                s.intro() + "\n\n" + s.label() + "\n\n" + code + "\n\n"
+                        + "This code expires in " + expiryMinutes + " minutes and can only be used once. Never share it with anyone.\n\n"
+                        + s.ignoreNote());
+        return new EmailContent(s.subject(), html, text);
+    }
+
+    // =====================================================================================================
+    // 2. Password reset (link)
+    // =====================================================================================================
+    public EmailContent buildPasswordResetEmail(String name, String resetLink, int expiryMinutes) {
+        String link = requireHttpUrl(resetLink, "Password reset link");
+        String body = p("We received a request to reset your AssessMate password.")
+                + p("Use the button below to choose a new password.")
+                + button(link, "Reset password", expiryMinutes)
+                + linkFallback(link)
+                + pMuted("If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.");
+
+        String text = plain("Reset your password", greeting(name, "there"),
+                "We received a request to reset your AssessMate password.\n"
+                        + "Use the link below to choose a new password:\n" + link + "\n\n"
+                        + "This link expires in " + expiryMinutes + " minutes.\n\n"
+                        + "If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.");
+        return new EmailContent("Reset your AssessMate password",
+                layout("Reset your password", "Choose a new password for your AssessMate account.", greeting(name, "there"), body), text);
+    }
+
+    // =====================================================================================================
+    // 3. Welcome
+    // =====================================================================================================
+    public EmailContent buildWelcomeEmail(String name, String role, String customLoginUrl) {
+        String target = customLoginUrl != null && !customLoginUrl.isBlank()
+                ? requireHttpUrl(customLoginUrl, "Login link")
+                : configUrl(loginUrl, DEFAULT_LOGIN, "app.mail.login-url");
+        String instruction = "HOST".equalsIgnoreCase(role == null ? "" : role.trim())
+                ? "Sign in and create your first assessment."
+                : "Sign in and view your available assessments.";
+
+        String body = p("Welcome to AssessMate, your smart examination platform.")
+                + p("Your account has been created successfully. " + esc(instruction))
+                + button(target, "Get started", null)
+                + linkFallback(target)
+                + pMuted("Keep your account credentials secure. AssessMate will never ask you for your password.");
+
+        String text = plain("Welcome to AssessMate", greeting(name, "there"),
+                "Welcome to AssessMate, your smart examination platform.\n"
+                        + "Your account has been created successfully. " + instruction + "\n\n"
+                        + "Sign in to get started:\n" + target + "\n\n"
+                        + "Keep your account credentials secure. AssessMate will never ask you for your password.");
+        return new EmailContent("Welcome to AssessMate",
+                layout("Welcome to AssessMate", "Your AssessMate account is ready.", greeting(name, "there"), body), text);
+    }
+
+    // =====================================================================================================
+    // 4. Host invitation
+    // =====================================================================================================
+    public EmailContent buildHostInvitationEmail(String name, String invitationUrl, String organizationName, int expiryMinutes) {
+        String link = requireHttpUrl(invitationUrl, "Invitation link");
+        String org = valueOrDefault(organizationName, "AssessMate");
+        String body = p("You have been invited to join AssessMate as a Host by <strong>" + esc(org) + "</strong>.")
+                + p("Use the button below to set up your account and start creating exams, managing question banks and monitoring candidate assessments.")
+                + details("Invitation details", List.of(
+                        Map.entry("Role", "Host (assessment creator)"),
+                        Map.entry("Invited by", org),
+                        Map.entry("Link expires in", expiryMinutes + " minutes")))
+                + button(link, "Accept invitation", expiryMinutes)
+                + linkFallback(link)
+                + pMuted("This invitation link can only be used once. If you were not expecting it, you can safely ignore this email.");
+
+        String text = plain("You're invited to AssessMate as a Host", greeting(name, "there"),
+                "You have been invited to join AssessMate as a Host by " + org + ".\n"
+                        + "Use the link below to set up your account:\n" + link + "\n\n"
+                        + "This link expires in " + expiryMinutes + " minutes and can only be used once.\n\n"
+                        + "If you were not expecting this invitation, you can safely ignore this email.");
+        return new EmailContent("You've been invited to AssessMate as a Host",
+                layout("You're invited to AssessMate as a Host", "Set up your AssessMate Host account.", greeting(name, "there"), body), text);
+    }
+
+    // =====================================================================================================
+    // 5. Candidate invitation
+    // =====================================================================================================
+    public EmailContent buildCandidateInvitationEmail(String name, String invitationUrl, String organizationName, int expiryMinutes) {
+        String link = requireHttpUrl(invitationUrl, "Invitation link");
+        String org = valueOrDefault(organizationName, "AssessMate");
+        String body = p("You have been invited to join AssessMate as a Candidate by <strong>" + esc(org) + "</strong>.")
+                + p("Use the button below to open your candidate dashboard, take scheduled assessments and track your results.")
+                + details("Candidate access", List.of(
+                        Map.entry("Role", "Candidate"),
+                        Map.entry("Institution / host", org),
+                        Map.entry("Link expires in", expiryMinutes + " minutes")))
+                + button(link, "Accept invitation", expiryMinutes)
+                + linkFallback(link)
+                + pMuted("This invitation is intended only for your account. If you were not expecting it, you can safely ignore this email.");
+
+        String text = plain("You're invited to AssessMate", greeting(name, "Candidate"),
+                "You have been invited to join AssessMate as a Candidate by " + org + ".\n"
+                        + "Use the link below to accept your invitation:\n" + link + "\n\n"
+                        + "This link expires in " + expiryMinutes + " minutes.\n\n"
+                        + "If you were not expecting this invitation, you can safely ignore this email.");
+        return new EmailContent("You've been invited to AssessMate",
+                layout("You're invited to AssessMate", "Accept your invitation to AssessMate.", greeting(name, "Candidate"), body), text);
+    }
+
+    // =====================================================================================================
+    // 6. Password changed
+    // =====================================================================================================
+    public EmailContent buildPasswordChangedNotificationEmail(String name, String accountEmail, String recoveryUrl) {
+        String account = valueOrDefault(accountEmail, "your account");
+        String recovery = recoveryUrl != null && !recoveryUrl.isBlank()
+                ? requireHttpUrl(recoveryUrl, "Recovery link")
+                : configUrl(resetUrl, DEFAULT_RESET, "app.mail.reset-url");
+        String support = supportAddress();
+
+        String body = p("Your AssessMate account password was changed.")
+                + p("If you made this change, no further action is needed. For your security, you have been signed out of your other sessions.")
+                + details("Security event", List.of(
+                        Map.entry("Account", account),
+                        Map.entry("Change", "Password updated"),
+                        Map.entry("Other sessions", "Signed out")))
+                + alertNote("Did not make this change?",
+                        "Your account may be at risk. Reset your password right away or contact " + esc(support) + ".")
+                + button(recovery, "Secure my account", null);
+
+        String text = plain("Your password was changed", greeting(name, "there"),
+                "Your AssessMate account password (" + account + ") was changed.\n\n"
+                        + "If you made this change, no further action is needed. You have been signed out of your other sessions.\n\n"
+                        + "If you did not make this change, reset your password right away:\n" + recovery + "\n\n"
+                        + "Need help? Contact " + support + ".");
+        return new EmailContent("Your AssessMate password was changed",
+                layout("Your password was changed", "Your AssessMate password was just changed.", greeting(name, "there"), body), text);
+    }
+
+    // =====================================================================================================
+    // Existing flows kept for backwards compatibility (same method signatures as before)
+    // =====================================================================================================
     public EmailContent buildPasswordResetSuccessEmail(String name, String accountEmail) {
-        String safeName = escapeOrDefault(name, "there");
-        String safeEmail = escapeOrDefault(accountEmail, "your account");
-        String subject = "Your AssessMate password was changed";
-        String preheader = "Your AssessMate account password has been successfully updated.";
-
-        String greeting = "Hi " + safeName + ",";
-        String mainContent = """
-            <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: %s;">
-              This is a confirmation that the password for your AssessMate account (<strong>%s</strong>) was recently updated. All existing sessions have been terminated to safeguard your credentials.
-            </p>
-            <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation" style="margin: 20px 0; background-color: %s; border: 1px solid %s; border-radius: 12px;">
-              <tr>
-                <td style="padding: 16px 20px;">
-                  <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation">
-                    <tr>
-                      <td style="font-size: 13px; color: %s; padding: 4px 0;">Account:</td>
-                      <td style="font-size: 13px; font-weight: 600; color: %s; text-align: right; padding: 4px 0;">%s</td>
-                    </tr>
-                    <tr>
-                      <td style="font-size: 13px; color: %s; padding: 4px 0;">Status:</td>
-                      <td style="font-size: 13px; font-weight: 700; color: %s; text-align: right; padding: 4px 0;">Password Successfully Updated</td>
-                    </tr>
-                    <tr>
-                      <td style="font-size: 13px; color: %s; padding: 4px 0;">Session Security:</td>
-                      <td style="font-size: 13px; font-weight: 600; color: %s; text-align: right; padding: 4px 0;">Previous tokens revoked</td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-            <p style="margin: 16px 0 0 0; font-size: 14px; line-height: 1.6; color: %s;">
-              You can now sign in using your newly configured password.
-            </p>
-            """.formatted(
-                COLOR_INK_BODY,
-                safeEmail,
-                COLOR_SURFACE_CARD,
-                COLOR_BORDER_CARD,
-                COLOR_INK_MUTED, COLOR_INK_HEADING, safeEmail,
-                COLOR_INK_MUTED, COLOR_BRAND_PRIMARY,
-                COLOR_INK_MUTED, COLOR_INK_HEADING,
-                COLOR_INK_MUTED
-        );
-
-        String securityNotice = "If you did not authorize this password change, your account may be compromised. Please perform a password reset immediately or contact our security team at " + SUPPORT_EMAIL + ".";
-
-        String html = renderLayout(preheader, "Account Security", "Your password has been changed", greeting, mainContent, securityNotice);
-
-        String plainText = """
-            AssessMate - Password Changed
-            
-            Hi %s,
-            
-            This is a confirmation that the password for your AssessMate account (%s) was successfully updated.
-            
-            Previous login sessions and tokens have been revoked.
-            
-            Security Alert:
-            If you did not perform this change, please reset your password immediately or reach out to %s.
-            
-            Warm regards,
-            The AssessMate Team
-            Intelligent assessment, uncompromised integrity.
-            """.formatted(safeName, safeEmail, SUPPORT_EMAIL);
-
-        return new EmailContent(subject, html, plainText);
+        return buildPasswordChangedNotificationEmail(name, accountEmail, configUrl(resetUrl, DEFAULT_RESET, "app.mail.reset-url"));
     }
 
-    // -------------------------------------------------------------------------
-    // 4. Admin Invitation Email
-    // -------------------------------------------------------------------------
     public EmailContent buildAdminInvitationEmail(String name, String setupUrl, int expiryMinutes) {
-        String safeName = escapeOrDefault(name, "there");
-        String safeUrl = HtmlUtils.htmlEscape(setupUrl != null ? setupUrl.trim() : "");
-        String subject = "You've been invited as an Administrator on AssessMate";
-        String preheader = "You have been invited to join AssessMate as a System Administrator. Please complete your password setup.";
-
-        String greeting = "Hi " + safeName + ",";
-        String mainContent = """
-            <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: %s;">
-              You have been invited to join the AssessMate administration team as a <strong>System Administrator</strong>.
-            </p>
-            <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: %s;">
-              As an administrator, you will have access to manage institutional exams, inspect proctoring activity, monitor user accounts, and oversee platform security policies.
-            </p>
-            %s
-            %s
-            """.formatted(
-                COLOR_INK_BODY,
-                COLOR_INK_BODY,
-                renderCtaButton(safeUrl, "Set Up Administrator Password", expiryMinutes),
-                renderDirectLinkBox(safeUrl)
-        );
-
-        String securityNotice = "This invitation link is single-use and will expire in " + expiryMinutes + " minutes. If you were not expecting this administrative invitation, you can safely ignore this email.";
-
-        String html = renderLayout(preheader, "Administrator Access", "Welcome to AssessMate Administration", greeting, mainContent, securityNotice);
-
-        String plainText = """
-            AssessMate - Administrator Invitation
-            
-            Hi %s,
-            
-            You have been invited to join AssessMate as a System Administrator.
-            
-            Please visit the link below to set up your password and activate your administrator account:
-            %s
-            
-            This invitation link expires in %d minutes.
-            
-            Security Notice:
-            If you were not expecting this invitation, you can safely ignore this email.
-            
-            Warm regards,
-            The AssessMate Team
-            Intelligent assessment, uncompromised integrity.
-            
-            Need help? Contact %s
-            """.formatted(safeName, setupUrl != null ? setupUrl.trim() : "", expiryMinutes, SUPPORT_EMAIL);
-
-        return new EmailContent(subject, html, plainText);
+        String link = requireHttpUrl(setupUrl, "Setup link");
+        String body = p("You have been invited to join the AssessMate administration team as a <strong>System Administrator</strong>.")
+                + p("Administrators manage institutional exams, review proctoring activity, oversee user accounts and platform security.")
+                + button(link, "Set up administrator password", expiryMinutes)
+                + linkFallback(link)
+                + pMuted("This invitation link can only be used once. If you were not expecting it, you can safely ignore this email.");
+        String text = plain("Administrator invitation", greeting(name, "there"),
+                "You have been invited to join AssessMate as a System Administrator.\n"
+                        + "Set up your password and activate your account here:\n" + link + "\n\n"
+                        + "This link expires in " + expiryMinutes + " minutes and can only be used once.\n\n"
+                        + "If you were not expecting this invitation, you can safely ignore this email.");
+        return new EmailContent("You've been invited as an Administrator on AssessMate",
+                layout("Administrator invitation", "Set up your AssessMate administrator account.", greeting(name, "there"), body), text);
     }
 
-    // -------------------------------------------------------------------------
-    // 5. Admin Invitation Resend Email
-    // -------------------------------------------------------------------------
     public EmailContent buildAdminInvitationResendEmail(String name, String setupUrl, int expiryMinutes) {
-        String safeName = escapeOrDefault(name, "there");
-        String safeUrl = HtmlUtils.htmlEscape(setupUrl != null ? setupUrl.trim() : "");
-        String subject = "Your AssessMate Administrator Invitation (Resent)";
-        String preheader = "Your administrator invitation link for AssessMate has been refreshed.";
-
-        String greeting = "Hi " + safeName + ",";
-        String mainContent = """
-            <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: %s;">
-              An existing administrator has re-issued your invitation to join AssessMate as a <strong>System Administrator</strong>. Any previous invitation links have been invalidated.
-            </p>
-            <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: %s;">
-              Please click the button below to set up your password and activate your administrator credentials:
-            </p>
-            %s
-            %s
-            """.formatted(
-                COLOR_INK_BODY,
-                COLOR_INK_BODY,
-                renderCtaButton(safeUrl, "Activate Administrator Account", expiryMinutes),
-                renderDirectLinkBox(safeUrl)
-        );
-
-        String securityNotice = "This renewed link expires in " + expiryMinutes + " minutes and can only be used once. Never share administrative credentials or login links.";
-
-        String html = renderLayout(preheader, "Administrator Access", "Administrator Invitation (Resent)", greeting, mainContent, securityNotice);
-
-        String plainText = """
-            AssessMate - Administrator Invitation (Resent)
-            
-            Hi %s,
-            
-            Your invitation to join AssessMate as a System Administrator has been re-issued.
-            
-            Please visit the updated link below to complete your password setup:
-            %s
-            
-            This link expires in %d minutes.
-            
-            Warm regards,
-            The AssessMate Team
-            Intelligent assessment, uncompromised integrity.
-            """.formatted(safeName, setupUrl != null ? setupUrl.trim() : "", expiryMinutes);
-
-        return new EmailContent(subject, html, plainText);
+        String link = requireHttpUrl(setupUrl, "Setup link");
+        String body = p("Your invitation to join AssessMate as a <strong>System Administrator</strong> has been re-issued. Any earlier invitation links no longer work.")
+                + button(link, "Activate administrator account", expiryMinutes)
+                + linkFallback(link)
+                + pMuted("This link can only be used once.");
+        String text = plain("Administrator invitation (resent)", greeting(name, "there"),
+                "Your invitation to join AssessMate as a System Administrator has been re-issued:\n" + link + "\n\n"
+                        + "This link expires in " + expiryMinutes + " minutes and can only be used once.");
+        return new EmailContent("Your AssessMate Administrator invitation (resent)",
+                layout("Administrator invitation (resent)", "Your administrator invitation link was refreshed.", greeting(name, "there"), body), text);
     }
 
-    // -------------------------------------------------------------------------
-    // 6. Admin Account Activated Email
-    // -------------------------------------------------------------------------
     public EmailContent buildAdminAccountActivatedEmail(String name, String dashboardUrl) {
-        String safeName = escapeOrDefault(name, "there");
-        String safeUrl = HtmlUtils.htmlEscape(dashboardUrl != null ? dashboardUrl.trim() : "");
-        String subject = "Administrator Account Activated - AssessMate";
-        String preheader = "Your AssessMate administrator account is now active and ready to use.";
-
-        String greeting = "Hi " + safeName + ",";
-        String mainContent = """
-            <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: %s;">
-              Your administrator account setup is complete and your credentials are now active. You have full access to the AssessMate Administrator portal.
-            </p>
-            <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation" style="margin: 20px 0; background-color: %s; border: 1px solid %s; border-radius: 12px;">
-              <tr>
-                <td style="padding: 18px 20px;">
-                  <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: %s; text-transform: uppercase; letter-spacing: 0.08em;">
-                    &#10003; Account Active
-                  </p>
-                  <p style="margin: 0; font-size: 14px; color: %s; line-height: 1.5;">
-                    Role: <strong>SYSTEM ADMINISTRATOR</strong><br/>
-                    Access Level: Full platform audit, host management, candidate governance
-                  </p>
-                </td>
-              </tr>
-            </table>
-            %s
-            """.formatted(
-                COLOR_INK_BODY,
-                COLOR_BRAND_LIGHT,
-                COLOR_BRAND_BORDER,
-                COLOR_BRAND_DARK,
-                COLOR_INK_BODY,
-                renderCtaButton(safeUrl, "Access Administrator Dashboard", null)
-        );
-
-        String securityNotice = "Keep your administrator credentials strictly confidential. Ensure two-factor authentication or strong passwords are in place on all accessing devices.";
-
-        String html = renderLayout(preheader, "Administrator Portal", "Administrator Account Activated", greeting, mainContent, securityNotice);
-
-        String plainText = """
-            AssessMate - Administrator Account Activated
-            
-            Hi %s,
-            
-            Your administrator account has been successfully configured and activated.
-            
-            You can sign in to the administration portal here:
-            %s
-            
-            Warm regards,
-            The AssessMate Team
-            Intelligent assessment, uncompromised integrity.
-            """.formatted(safeName, dashboardUrl != null ? dashboardUrl.trim() : "");
-
-        return new EmailContent(subject, html, plainText);
+        String link = requireHttpUrl(dashboardUrl, "Dashboard link");
+        String body = p("Your administrator account is set up and ready to use.")
+                + details("Account", List.of(
+                        Map.entry("Role", "System administrator"),
+                        Map.entry("Status", "Active")))
+                + button(link, "Open administrator dashboard", null)
+                + pMuted("Keep your administrator credentials confidential. Never share them or your sign-in links.");
+        String text = plain("Administrator account activated", greeting(name, "there"),
+                "Your administrator account is set up and ready to use.\n\nSign in here:\n" + link);
+        return new EmailContent("Administrator account activated - AssessMate",
+                layout("Administrator account activated", "Your AssessMate administrator account is now active.", greeting(name, "there"), body), text);
     }
 
-    // -------------------------------------------------------------------------
-    // 7. Exam Invitation Email
-    // -------------------------------------------------------------------------
-    public EmailContent buildExamInvitationEmail(
-            String candidateName,
-            String examTitle,
-            String subjectName,
-            String joinCode,
-            String scheduledStart,
-            Integer durationMinutes,
-            String deviceAccess,
-            String joinUrl
-    ) {
-        String safeName = escapeOrDefault(candidateName, "Candidate");
-        String safeTitle = escapeOrDefault(examTitle, "Upcoming Assessment");
-        String safeSubject = escapeOrDefault(subjectName, "Examination");
-        String safeCode = HtmlUtils.htmlEscape(joinCode != null ? joinCode.trim() : "");
-        String safeStart = escapeOrDefault(scheduledStart, "Scheduled Soon");
-        String safeDuration = durationMinutes != null ? durationMinutes + " minutes" : "Standard duration";
-        String safeDevice = "DESKTOP_ONLY".equalsIgnoreCase(deviceAccess)
-                ? "Desktop / Laptop (Webcam &amp; Microphone Required)"
-                : "Any supported browser";
-        String safeUrl = HtmlUtils.htmlEscape(joinUrl != null ? joinUrl.trim() : "");
+    public EmailContent buildExamInvitationEmail(String candidateName, String examTitle, String subjectName, String joinCode,
+                                                 String scheduledStart, Integer durationMinutes, String deviceAccess, String joinUrl) {
+        String title = valueOrDefault(examTitle, "Upcoming assessment");
+        String subj = valueOrDefault(subjectName, "Examination");
+        String code = joinCode == null ? "" : joinCode.trim();
+        String start = valueOrDefault(scheduledStart, "To be announced");
+        String duration = durationMinutes != null ? durationMinutes + " minutes" : "Standard duration";
+        String device = deviceText(deviceAccess);
+        String link = joinUrl != null && !joinUrl.isBlank() ? requireHttpUrl(joinUrl, "Join link") : "";
 
-        String subject = "Exam Invitation: " + safeTitle;
-        String preheader = "You have been invited to participate in " + safeTitle + ". Join code: " + safeCode;
+        String body = p("You have been registered for an upcoming proctored exam on AssessMate.")
+                + details(title, List.of(
+                        Map.entry("Subject", subj),
+                        Map.entry("Starts", start),
+                        Map.entry("Duration", duration),
+                        Map.entry("Devices", device)))
+                + pLabel("Your join code is:")
+                + otpBox(esc(code), OtpLayout.BRANDED)
+                + p("Enter this code in the AssessMate exam lobby to begin.")
+                + (link.isEmpty() ? "" : button(link, "Open exam lobby", null))
+                + pMuted("This exam uses live proctoring. Join from a quiet room with a working camera and microphone.");
 
-        String greeting = "Hi " + safeName + ",";
-        String mainContent = """
-            <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: %s;">
-              You have been registered for an upcoming proctored examination on AssessMate:
-            </p>
-
-            <!-- Exam Details Card -->
-            <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation" style="margin: 20px 0; background-color: %s; border: 1px solid %s; border-radius: 12px;">
-              <tr>
-                <td style="padding: 20px;">
-                  <h3 style="margin: 0 0 12px 0; font-family: 'Fraunces', Georgia, serif; font-size: 20px; color: %s; font-weight: 700;">
-                    %s
-                  </h3>
-                  <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation">
-                    <tr>
-                      <td style="font-size: 13px; color: %s; padding: 4px 0; width: 36%%;">Subject:</td>
-                      <td style="font-size: 13px; font-weight: 600; color: %s; padding: 4px 0;">%s</td>
-                    </tr>
-                    <tr>
-                      <td style="font-size: 13px; color: %s; padding: 4px 0;">Scheduled Start:</td>
-                      <td style="font-size: 13px; font-weight: 600; color: %s; padding: 4px 0;">%s</td>
-                    </tr>
-                    <tr>
-                      <td style="font-size: 13px; color: %s; padding: 4px 0;">Duration:</td>
-                      <td style="font-size: 13px; font-weight: 600; color: %s; padding: 4px 0;">%s</td>
-                    </tr>
-                    <tr>
-                      <td style="font-size: 13px; color: %s; padding: 4px 0;">Device Policy:</td>
-                      <td style="font-size: 13px; font-weight: 600; color: %s; padding: 4px 0;">%s</td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Join Code Card -->
-            <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation" style="margin: 24px 0; background-color: %s; border: 1.5px solid %s; border-radius: 12px; text-align: center;">
-              <tr>
-                <td style="padding: 22px 16px;">
-                  <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 700; color: %s; letter-spacing: 0.12em; text-transform: uppercase;">
-                    Candidate Join Code
-                  </p>
-                  <div class="otp-code" style="font-family: 'SF Pro Mono', 'Cascadia Code', Menlo, Consolas, Monaco, monospace; font-size: 36px; font-weight: 800; letter-spacing: 8px; color: %s; line-height: 1.2; padding: 6px 0;">
-                    %s
-                  </div>
-                  <p style="margin: 8px 0 0 0; font-size: 12px; color: %s; font-weight: 500;">
-                    Enter this code on the AssessMate candidate lobby to begin your assessment
-                  </p>
-                </td>
-              </tr>
-            </table>
-
-            %s
-            """.formatted(
-                COLOR_INK_BODY,
-                COLOR_SURFACE_CARD, COLOR_BORDER_CARD,
-                COLOR_INK_HEADING,
-                safeTitle,
-                COLOR_INK_MUTED, COLOR_INK_HEADING, safeSubject,
-                COLOR_INK_MUTED, COLOR_INK_HEADING, safeStart,
-                COLOR_INK_MUTED, COLOR_INK_HEADING, safeDuration,
-                COLOR_INK_MUTED, COLOR_BRAND_DARK, safeDevice,
-                COLOR_BRAND_LIGHT, COLOR_BRAND_BORDER,
-                COLOR_INK_MUTED,
-                COLOR_BRAND_PRIMARY,
-                safeCode,
-                COLOR_BRAND_DARK,
-                safeUrl != null && !safeUrl.isEmpty() ? renderCtaButton(safeUrl, "Enter Exam Lobby", null) : ""
-        );
-
-        String securityNotice = "This assessment utilizes real-time proctoring and browser monitoring. Please ensure you are in a quiet, well-lit room with your webcam and microphone verified prior to joining.";
-
-        String html = renderLayout(preheader, "Examination Schedule", "You've been invited to an Exam", greeting, mainContent, securityNotice);
-
-        String plainText = """
-            AssessMate - Exam Invitation
-            
-            Hi %s,
-            
-            You have been invited to participate in an examination on AssessMate:
-            Title: %s
-            Subject: %s
-            Scheduled Start: %s
-            Duration: %s
-            Join Code: %s
-            
-            Join URL: %s
-            
-            Please arrive before the scheduled start time with a working camera and microphone.
-            
-            Warm regards,
-            The AssessMate Team
-            Intelligent assessment, uncompromised integrity.
-            """.formatted(safeName, safeTitle, safeSubject, safeStart, safeDuration, safeCode, safeUrl);
-
-        return new EmailContent(subject, html, plainText);
+        String text = plain("Exam invitation: " + title, greeting(candidateName, "Candidate"),
+                "You have been registered for an upcoming proctored exam on AssessMate.\n\n"
+                        + "Exam: " + title + "\nSubject: " + subj + "\nStarts: " + start + "\nDuration: " + duration + "\nDevices: " + device + "\n\n"
+                        + "Your join code is:\n\n" + code + "\n\n"
+                        + (link.isEmpty() ? "" : "Exam lobby: " + link + "\n\n")
+                        + "Join from a quiet room with a working camera and microphone.");
+        return new EmailContent("Exam invitation: " + oneLine(title),
+                layout("You're invited to an exam", "You have been registered for an upcoming AssessMate exam.", greeting(candidateName, "Candidate"), body), text);
     }
 
-    // -------------------------------------------------------------------------
-    // Core Layout Engine (Table-based, Inline Styles, Outlook & Gmail Safe)
-    // -------------------------------------------------------------------------
-    private String renderLayout(
-            String preheader,
-            String categoryPill,
-            String heading,
-            String greeting,
-            String mainContentHtml,
-            String securityNoticeHtml
-    ) {
-        String safePreheader = HtmlUtils.htmlEscape(preheader != null ? preheader : "");
-        String safePill = HtmlUtils.htmlEscape(categoryPill != null ? categoryPill : "NOTIFICATION");
-        String safeHeading = HtmlUtils.htmlEscape(heading != null ? heading : "AssessMate Notification");
+    // =====================================================================================================
+    // Shared layout
+    // =====================================================================================================
+    private static final String LAYOUT = """
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>{{TITLE}}</title>
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<style type="text/css">
+body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+body { margin: 0; padding: 0; width: 100% !important; background-color: {{BG}}; }
+@media only screen and (max-width: 620px) {
+  .container { width: 100% !important; max-width: 100% !important; }
+  .px { padding-left: 24px !important; padding-right: 24px !important; }
+  .otp { font-size: 28px !important; letter-spacing: 4px !important; }
+}
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:{{BG}};">
+<!-- canvas {{CANVAS}} -->
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:{{BG}};opacity:0;">{{PREHEADER}}{{PAD}}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="{{BG}}" style="background-color:{{BG}};">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="{{CARD}}" style="width:600px;max-width:600px;background-color:{{CARD}};border:1px solid {{BORDER}};border-top:4px solid {{PRIMARY}};border-radius:8px;">
+<tr><td class="px" align="left" style="padding:32px 40px 0 40px;">
+<a href="{{SITE}}" target="_blank" style="text-decoration:none;color:{{INK}};">{{LOGO_ELEMENT}}</a>
+</td></tr>
+<tr><td class="px" style="padding:28px 40px 8px 40px;font-family:{{FONT}};">
+<h1 style="margin:0 0 18px 0;font-family:{{FONT}};font-size:22px;line-height:1.3;font-weight:700;letter-spacing:-0.2px;color:{{INK}};">{{HEADING}}</h1>
+<p style="margin:0 0 16px 0;font-family:{{FONT}};font-size:15px;line-height:1.6;font-weight:600;color:{{INK}};">{{GREETING}}</p>
+{{BODY}}
+</td></tr>
+<tr><td class="px" style="padding:8px 40px 32px 40px;font-family:{{FONT}};">
+<p style="margin:0;padding-top:20px;border-top:1px solid {{BORDER}};font-size:14px;line-height:1.5;color:{{MUTED}};">Thanks,<br><strong style="color:{{INK}};">The AssessMate Team</strong></p>
+</td></tr>
+<tr><td class="px" align="center" bgcolor="{{BG}}" style="padding:22px 40px;background-color:{{BG}};border-top:1px solid {{BORDER}};font-family:{{FONT}};">
+<p style="margin:0 0 6px 0;font-size:12px;line-height:1.5;color:{{MUTED}};"><a href="{{SITE}}" target="_blank" style="color:{{PRIMARY}};text-decoration:underline;">assessmate.me</a> &nbsp;|&nbsp; Need help? <a href="mailto:{{SUPPORT}}" style="color:{{PRIMARY}};text-decoration:underline;">{{SUPPORT}}</a></p>
+<p style="margin:0 0 4px 0;font-size:11px;line-height:1.5;color:{{SUBTLE}};">You are receiving this email because of activity on your AssessMate account or an invitation sent to this address.</p>
+<p style="margin:0;font-size:11px;line-height:1.5;color:{{LIGHT}};">&copy; {{YEAR}} AssessMate. All rights reserved.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+""";
 
-        return """
-            <!DOCTYPE html>
-            <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <meta http-equiv="X-UA-Compatible" content="IE=edge">
-              <title>%s</title>
-              <!--[if mso]>
-              <style type="text/css">
-                table { border-collapse: collapse; border-spacing: 0; }
-                td, div { font-family: Arial, sans-serif !important; }
-              </style>
-              <![endif]-->
-              <style type="text/css">
-                body, table, td, a { -webkit-text-size-adjust: 100%%; -ms-text-size-adjust: 100%%; }
-                table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-                img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
-                body { margin: 0; padding: 0; width: 100%% !important; background-color: %s; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-                @media only screen and (max-width: 620px) {
-                  .email-container { width: 100%% !important; max-width: 100%% !important; }
-                  .content-padding { padding: 24px 20px !important; }
-                  .header-padding { padding: 16px 20px !important; }
-                  .otp-code { font-size: 28px !important; letter-spacing: 6px !important; }
-                }
-              </style>
-            </head>
-            <body style="margin: 0; padding: 0; background-color: %s; -webkit-font-smoothing: antialiased;">
-              <!-- Preheader preview text in email clients -->
-              <div style="display: none; font-size: 1px; color: %s; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
-                %s
-              </div>
+    private String layout(String heading, String preheader, String greeting, String bodyHtml) {
+        String site = configUrl(websiteUrl, DEFAULT_SITE, "app.mail.website-url");
+        String logo = configUrl(logoUrl, DEFAULT_LOGO, "app.mail.logo-url");
+        int width = logoWidth >= 80 && logoWidth <= 320 ? logoWidth : 210;
+        int height = Math.round(width * (float) LOGO_SOURCE_HEIGHT / LOGO_SOURCE_WIDTH);
 
-              <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation" style="background-color: %s; padding: 32px 12px;">
-                <tr>
-                  <td align="center">
-                    <!-- Main Container Card -->
-                    <table class="email-container" border="0" cellpadding="0" cellspacing="0" width="600" role="presentation" style="max-width: 600px; width: 100%%; background-color: #FFFFFF; border-radius: 16px; border: 1px solid %s; box-shadow: 0 4px 20px rgba(22, 36, 31, 0.05); overflow: hidden;">
-                      
-                      <!-- Brand Header -->
-                      <tr>
-                        <td class="header-padding" style="padding: 24px 36px; border-bottom: 1px solid %s; background-color: #FFFFFF;">
-                          <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation">
-                            <tr>
-                              <td align="left" vertical-align="middle">
-                                <table border="0" cellpadding="0" cellspacing="0" role="presentation">
-                                  <tr>
-                                    <td style="vertical-align: middle; padding-right: 12px;">
-                                      <!-- AssessMate Brand Mark Badge -->
-                                      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width: 36px; height: 36px; border-collapse: separate; border-radius: 10px; background-color: %s;">
-                                        <tr>
-                                          <td align="center" valign="middle" style="width: 36px; height: 36px; border-radius: 10px; background-color: %s; text-align: center; vertical-align: middle; padding: 0;">
-                                            <!--[if mso]>
-                                            <span style="font-family: Arial, sans-serif; font-size: 20px; color: #FFFFFF; font-weight: bold; line-height: 36px;">&#10003;</span>
-                                            <![endif]-->
-                                            <!--[if !mso]><!-->
-                                            <svg width="20" height="20" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block; margin: 0 auto;">
-                                              <path d="M17 33.5L27.5 44L47 21" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-                                            </svg>
-                                            <!--<![endif]-->
-                                          </td>
-                                        </tr>
-                                      </table>
-                                    </td>
-                                    <td style="vertical-align: middle;">
-                                      <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 21px; font-weight: 800; color: %s; letter-spacing: -0.5px;">AssessMate<span style="color: %s;">.</span></span>
-                                    </td>
-                                  </tr>
-                                </table>
-                              </td>
-                              <td align="right" vertical-align="middle">
-                                <span style="display: inline-block; font-size: 10px; font-weight: 700; color: %s; background-color: %s; border: 1px solid %s; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.08em;">
-                                  Official
-                                </span>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-
-                      <!-- Content Body -->
-                      <tr>
-                        <td class="content-padding" style="padding: 36px 36px 28px 36px;">
-                          <!-- Category Pill -->
-                          <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom: 14px;">
-                            <tr>
-                              <td style="background-color: %s; border: 1px solid %s; padding: 4px 12px; border-radius: 16px;">
-                                <span style="font-size: 11px; font-weight: 700; color: %s; letter-spacing: 0.08em; text-transform: uppercase;">
-                                  %s
-                                </span>
-                              </td>
-                            </tr>
-                          </table>
-
-                          <!-- Main Heading (Fraunces / Georgia) -->
-                          <h1 style="margin: 0 0 16px 0; font-family: 'Fraunces', Georgia, 'Times New Roman', serif; font-size: 26px; line-height: 1.25; color: %s; font-weight: 700;">
-                            %s
-                          </h1>
-
-                          <!-- Salutation -->
-                          <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: %s; font-weight: 500;">
-                            %s
-                          </p>
-
-                          <!-- Dynamic Main Content -->
-                          %s
-
-                          <!-- Security Notice Callout (if present) -->
-                          %s
-
-                          <!-- Sign-off Block -->
-                          <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation" style="margin-top: 28px; border-top: 1px solid %s; padding-top: 20px;">
-                            <tr>
-                              <td>
-                                <p style="margin: 0 0 4px 0; font-size: 14px; color: %s;">
-                                  Warm regards,
-                                </p>
-                                <p style="margin: 0 0 2px 0; font-size: 15px; font-weight: 700; color: %s;">
-                                  The AssessMate Team
-                                </p>
-                                <p style="margin: 0; font-size: 12px; color: %s;">
-                                  Intelligent assessment, uncompromised integrity.
-                                </p>
-                              </td>
-                            </tr>
-                          </table>
-
-                        </td>
-                      </tr>
-
-                      <!-- Brand Footer -->
-                      <tr>
-                        <td style="background-color: %s; border-top: 1px solid %s; padding: 24px 36px; text-align: center;">
-                          <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: %s;">
-                            AssessMate Online Assessment &amp; Proctoring Platform
-                          </p>
-                          <p style="margin: 0 0 12px 0; font-size: 12px; color: %s; line-height: 1.5;">
-                            Need assistance? Contact our team at <a href="mailto:%s" style="color: %s; text-decoration: underline;">%s</a>
-                          </p>
-                          <p style="margin: 0 0 8px 0; font-size: 11px; color: %s; line-height: 1.4;">
-                            This is an automated transactional notification sent from AssessMate. Please do not reply directly to this email.
-                          </p>
-                          <p style="margin: 0; font-size: 11px; color: %s;">
-                            &copy; 2026 AssessMate. All rights reserved.
-                          </p>
-                        </td>
-                      </tr>
-
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </body>
-            </html>
-            """.formatted(
-                safeHeading,
-                COLOR_SURFACE,
-                COLOR_SURFACE,
-                COLOR_SURFACE,
-                safePreheader,
-                COLOR_SURFACE,
-                COLOR_BORDER_LIGHT,
-                COLOR_BORDER_LIGHT,
-                COLOR_BRAND_PRIMARY,
-                COLOR_BRAND_PRIMARY,
-                COLOR_INK_HEADING,
-                COLOR_BRAND_PRIMARY,
-                COLOR_INK_MUTED, COLOR_SURFACE_CARD, COLOR_BORDER_CARD,
-                COLOR_BRAND_LIGHT, COLOR_BRAND_BORDER, COLOR_BRAND_DARK, safePill,
-                COLOR_INK_HEADING, safeHeading,
-                COLOR_INK_BODY, greeting,
-                mainContentHtml,
-                renderSecurityCallout(securityNoticeHtml),
-                COLOR_SURFACE,
-                COLOR_INK_MUTED,
-                COLOR_INK_HEADING,
-                COLOR_INK_SUBTLE,
-                COLOR_SURFACE_CARD, COLOR_BORDER_LIGHT,
-                COLOR_INK_BODY,
-                COLOR_INK_SUBTLE,
-                SUPPORT_EMAIL, COLOR_BRAND_PRIMARY, SUPPORT_EMAIL,
-                COLOR_INK_LIGHT,
-                COLOR_INK_LIGHT
-        );
-    }
-
-    private String renderOtpCard(String safeOtp, String label, int expiryMinutes) {
-        return """
-            <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation" style="margin: 24px 0; background-color: %s; border: 1.5px solid %s; border-radius: 12px; text-align: center;">
-              <tr>
-                <td style="padding: 24px 16px;">
-                  <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 700; color: %s; letter-spacing: 0.12em; text-transform: uppercase;">
-                    %s
-                  </p>
-                  <div class="otp-code" style="font-family: 'SF Pro Mono', 'Cascadia Code', Menlo, Consolas, Monaco, monospace; font-size: 38px; font-weight: 800; letter-spacing: 10px; color: %s; line-height: 1.2; padding: 6px 0;">
-                    %s
-                  </div>
-                  <p style="margin: 10px 0 0 0; font-size: 13px; color: %s; font-weight: 600;">
-                    &#x23F1; Valid for %d minutes &bull; Single use
-                  </p>
-                </td>
-              </tr>
-            </table>
-            """.formatted(
-                COLOR_BRAND_LIGHT,
-                COLOR_BRAND_BORDER,
-                COLOR_INK_MUTED,
-                label,
-                COLOR_BRAND_PRIMARY,
-                safeOtp,
-                COLOR_BRAND_DARK,
-                expiryMinutes
-        );
-    }
-
-    private String renderCtaButton(String safeUrl, String buttonText, Integer expiryMinutes) {
-        String expiryNotice = expiryMinutes != null
-                ? "<p style=\"margin: 8px 0 0 0; font-size: 12px; color: " + COLOR_INK_MUTED + "; text-align: center;\">&#x23F1; This link expires in " + expiryMinutes + " minutes</p>"
-                : "";
-
-        return """
-            <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation" style="margin: 28px 0;">
-              <tr>
-                <td align="center">
-                  <table border="0" cellpadding="0" cellspacing="0" role="presentation">
-                    <tr>
-                      <td align="center" style="border-radius: 8px; background-color: %s;">
-                        <a href="%s" target="_blank" style="font-size: 15px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-weight: 600; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 8px; display: inline-block; background-color: %s; border: 1px solid %s; box-shadow: 0 2px 4px rgba(47, 111, 78, 0.2);">
-                          %s &rarr;
-                        </a>
-                      </td>
-                    </tr>
-                  </table>
-                  %s
-                </td>
-              </tr>
-            </table>
-            """.formatted(
-                COLOR_BRAND_PRIMARY,
-                safeUrl,
-                COLOR_BRAND_PRIMARY,
-                COLOR_BRAND_DARK,
-                HtmlUtils.htmlEscape(buttonText),
-                expiryNotice
-        );
-    }
-
-    private String renderDirectLinkBox(String safeUrl) {
-        return """
-            <div style="background-color: %s; border: 1px solid %s; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: %s; word-break: break-all; margin-top: 16px;">
-              <span style="font-weight: 600; color: %s; display: block; margin-bottom: 4px;">Direct Link:</span>
-              <a href="%s" style="color: %s; text-decoration: underline;">%s</a>
-            </div>
-            """.formatted(
-                COLOR_SURFACE_CARD,
-                COLOR_BORDER_CARD,
-                COLOR_INK_MUTED,
-                COLOR_INK_HEADING,
-                safeUrl,
-                COLOR_BRAND_PRIMARY,
-                safeUrl
-        );
-    }
-
-    private String renderSecurityCallout(String securityNoticeHtml) {
-        if (securityNoticeHtml == null || securityNoticeHtml.trim().isEmpty()) {
-            return "";
+        String logoHtml;
+        if (logo.toLowerCase().contains("pwa") || logo.toLowerCase().contains("favicon") || logo.toLowerCase().contains("icon")) {
+            // When pointing to square icon asset (e.g. pwa-512.png), render icon + text lockup
+            logoHtml = """
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+                  <tr>
+                    <td valign="middle" style="padding-right:14px;">
+                      <img src="%s" alt="AssessMate" width="48" height="48" style="display:block;width:48px;height:48px;border-radius:11px;border:0;outline:none;text-decoration:none;">
+                    </td>
+                    <td valign="middle">
+                      <span style="font-family:%s;font-size:26px;font-weight:800;letter-spacing:-0.4px;color:%s;line-height:1;text-decoration:none;display:inline-block;">AssessMate</span>
+                    </td>
+                  </tr>
+                </table>
+                """.formatted(esc(logo), FONT, COLOR_INK_HEADING);
+        } else {
+            // When pointing to full horizontal rectangular logo image (e.g. logo.png, 319x80)
+            logoHtml = "<img src=\"" + esc(logo) + "\" alt=\"AssessMate\" width=\"" + width + "\" height=\"" + height
+                    + "\" style=\"display:block;width:" + width + "px;height:auto;max-width:100%;border:0;outline:none;text-decoration:none;font-family:"
+                    + FONT + ";font-size:22px;font-weight:700;color:" + COLOR_INK_HEADING + ";\">";
         }
-        return """
-            <table border="0" cellpadding="0" cellspacing="0" width="100%%" role="presentation" style="margin: 24px 0; background-color: %s; border-left: 4px solid %s; border-radius: 0 8px 8px 0;">
-              <tr>
-                <td style="padding: 14px 16px;">
-                  <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 700; color: %s; text-transform: uppercase; letter-spacing: 0.06em;">
-                    &#x1F6E1;&#xFE0F; Security Notice
-                  </p>
-                  <p style="margin: 0; font-size: 13px; line-height: 1.5; color: %s;">
-                    %s
-                  </p>
-                </td>
-              </tr>
-            </table>
-            """.formatted(
-                COLOR_ACCENT_BG,
-                COLOR_ACCENT_ALERT,
-                COLOR_ACCENT_TITLE,
-                COLOR_ACCENT_TEXT,
-                securityNoticeHtml
-        );
+
+        Map<String, String> v = new LinkedHashMap<>();
+        v.put("TITLE", esc(heading));
+        v.put("BG", COLOR_BG_EMAIL);
+        v.put("CANVAS", COLOR_BG_CANVAS);
+        v.put("CARD", COLOR_BG_CONTENT);
+        v.put("BORDER", COLOR_BORDER);
+        v.put("PRIMARY", COLOR_BRAND_PRIMARY);
+        v.put("INK", COLOR_INK_HEADING);
+        v.put("MUTED", COLOR_INK_MUTED);
+        v.put("SUBTLE", COLOR_INK_SUBTLE);
+        v.put("LIGHT", COLOR_INK_LIGHT);
+        v.put("FONT", FONT);
+        v.put("PREHEADER", esc(preheader));
+        v.put("PAD", "&nbsp;&zwnj;".repeat(30));
+        v.put("SITE", esc(site));
+        v.put("LOGO_ELEMENT", logoHtml);
+        v.put("HEADING", esc(heading));
+        v.put("GREETING", esc(greeting));
+        v.put("BODY", bodyHtml);
+        v.put("SUPPORT", esc(supportAddress()));
+        v.put("YEAR", String.valueOf(Year.now().getValue()));
+        return render(LAYOUT, v);
     }
 
-    private String escapeOrDefault(String val, String fallback) {
-        if (val == null || val.trim().isEmpty()) {
+    // ---- Components ------------------------------------------------------------------------------------
+    private String p(String html) {
+        return "<p style=\"margin:0 0 16px 0;font-family:" + FONT + ";font-size:15px;line-height:1.6;color:" + COLOR_INK_BODY + ";\">" + html + "</p>\n";
+    }
+
+    private String pMuted(String html) {
+        return "<p style=\"margin:16px 0 0 0;font-family:" + FONT + ";font-size:13px;line-height:1.6;color:" + COLOR_INK_MUTED + ";\">" + html + "</p>\n";
+    }
+
+    private String pLabel(String html) {
+        return "<p style=\"margin:0 0 8px 0;font-family:" + FONT + ";font-size:15px;line-height:1.5;font-weight:600;color:" + COLOR_INK_HEADING + ";\">" + html + "</p>\n";
+    }
+
+    /**
+     * The code sits alone in its own table cell, as plain uninterrupted text. Styling is on the cell only;
+     * letter-spacing is CSS so the underlying text stays one value ("123456", not "1 2 3 4 5 6").
+     */
+    private String otpBox(String safeCode, OtpLayout layout) {
+        if (layout == OtpLayout.MINIMAL) {
+            return "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:0 0 20px 0;\"><tr>"
+                    + "<td align=\"center\" bgcolor=\"" + COLOR_BG_EMAIL + "\" style=\"background-color:" + COLOR_BG_EMAIL + ";border-radius:6px;padding:14px 12px;font-family:" + FONT
+                    + ";font-size:28px;font-weight:700;line-height:1.2;color:" + COLOR_INK_HEADING + ";user-select:all;-webkit-user-select:all;cursor:pointer;\">" + safeCode + "</td></tr></table>\n";
+        }
+        return "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:0 0 20px 0;\"><tr>"
+                + "<td class=\"otp\" align=\"center\" bgcolor=\"" + COLOR_BRAND_LIGHT + "\" style=\"background-color:" + COLOR_BRAND_LIGHT + ";border:1px solid " + COLOR_BRAND_BORDER
+                + ";border-radius:8px;padding:18px 12px;font-family:" + MONO + ";font-size:34px;font-weight:700;letter-spacing:6px;line-height:1.2;color:" + COLOR_INK_HEADING + ";user-select:all;-webkit-user-select:all;cursor:pointer;\">"
+                + safeCode + "</td></tr></table>\n";
+    }
+
+    private String button(String url, String text, Integer expiryMinutes) {
+        String u = esc(url);
+        String t = esc(text);
+        String expiry = expiryMinutes != null
+                ? "<p style=\"margin:10px 0 0 0;font-family:" + FONT + ";font-size:12px;color:" + COLOR_INK_MUTED + ";text-align:center;\">This link expires in " + expiryMinutes + " minutes.</p>"
+                : "";
+        return "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:24px 0 8px 0;\"><tr><td align=\"center\">"
+                + "<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td align=\"center\" bgcolor=\"" + COLOR_BRAND_PRIMARY + "\" style=\"border-radius:8px;background-color:" + COLOR_BRAND_PRIMARY + ";\">"
+                + "<!--[if mso]><v:roundrect xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:w=\"urn:schemas-microsoft-com:office:word\" href=\"" + u + "\" style=\"height:48px;v-text-anchor:middle;width:240px;\" arcsize=\"17%\" stroke=\"f\" fillcolor=\"" + COLOR_BRAND_PRIMARY + "\"><w:anchorlock/><center style=\"color:#FFFFFF;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;\">" + t + "</center></v:roundrect><![endif]-->"
+                + "<!--[if !mso]><!--><a href=\"" + u + "\" target=\"_blank\" style=\"display:inline-block;padding:14px 32px;border-radius:8px;border:1px solid " + COLOR_BRAND_DARK + ";background-color:" + COLOR_BRAND_PRIMARY
+                + ";font-family:" + FONT + ";font-size:15px;font-weight:600;line-height:1.2;color:#FFFFFF;text-decoration:none;\">" + t + "</a><!--<![endif]-->"
+                + "</td></tr></table>" + expiry + "</td></tr></table>\n";
+    }
+
+    private String linkFallback(String url) {
+        String u = esc(url);
+        return "<p style=\"margin:16px 0 4px 0;font-family:" + FONT + ";font-size:12px;line-height:1.5;color:" + COLOR_INK_MUTED + ";\">If the button does not work, copy and paste this link into your browser:</p>"
+                + "<p style=\"margin:0 0 8px 0;font-family:" + FONT + ";font-size:12px;line-height:1.5;word-break:break-all;\"><a href=\"" + u + "\" style=\"color:" + COLOR_BRAND_PRIMARY + ";text-decoration:underline;\">" + u + "</a></p>\n";
+    }
+
+    private String details(String title, List<Map.Entry<String, String>> rows) {
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, String> r : rows) {
+            sb.append("<tr><td valign=\"top\" style=\"padding:4px 0;width:38%;font-family:").append(FONT).append(";font-size:13px;color:").append(COLOR_INK_MUTED).append(";\">")
+              .append(esc(r.getKey())).append("</td><td valign=\"top\" style=\"padding:4px 0;font-family:").append(FONT).append(";font-size:13px;font-weight:600;color:")
+              .append(COLOR_INK_HEADING).append(";\">").append(esc(r.getValue())).append("</td></tr>");
+        }
+        return "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"" + COLOR_BG_EMAIL + "\" style=\"margin:8px 0 20px 0;background-color:" + COLOR_BG_EMAIL
+                + ";border:1px solid " + COLOR_BORDER + ";border-radius:8px;\"><tr><td style=\"padding:16px 20px;\">"
+                + "<p style=\"margin:0 0 8px 0;font-family:" + FONT + ";font-size:14px;font-weight:700;color:" + COLOR_INK_HEADING + ";\">" + esc(title) + "</p>"
+                + "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">" + sb + "</table></td></tr></table>\n";
+    }
+
+    private String alertNote(String title, String safeHtml) {
+        return "<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" bgcolor=\"" + COLOR_ACCENT_BG + "\" style=\"margin:8px 0 8px 0;background-color:" + COLOR_ACCENT_BG
+                + ";border-left:4px solid " + COLOR_ACCENT_ALERT + ";\"><tr><td style=\"padding:14px 16px;\">"
+                + "<p style=\"margin:0 0 4px 0;font-family:" + FONT + ";font-size:14px;font-weight:700;color:" + COLOR_ACCENT_TITLE + ";\">" + esc(title) + "</p>"
+                + "<p style=\"margin:0;font-family:" + FONT + ";font-size:13px;line-height:1.5;color:" + COLOR_ACCENT_TEXT + ";\">" + safeHtml + "</p></td></tr></table>\n";
+    }
+
+    // ---- Plain text ------------------------------------------------------------------------------------
+    private String plain(String heading, String greeting, String body) {
+        return "AssessMate\n\n" + heading + "\n\n" + greeting + "\n\n" + body + "\n\nThanks,\nThe AssessMate Team\n"
+                + configUrl(websiteUrl, DEFAULT_SITE, "app.mail.website-url") + "\n";
+    }
+
+    // ---- Helpers ---------------------------------------------------------------------------------------
+    private static final Pattern TOKEN = Pattern.compile("\\{\\{([A-Z_]+)}}");
+
+    /** Single-pass substitution so dynamic values are never re-scanned for template tokens. */
+    private static String render(String template, Map<String, String> values) {
+        Matcher m = TOKEN.matcher(template);
+        StringBuilder out = new StringBuilder();
+        while (m.find()) {
+            String v = values.get(m.group(1));
+            m.appendReplacement(out, Matcher.quoteReplacement(v != null ? v : m.group(0)));
+        }
+        m.appendTail(out);
+        return out.toString();
+    }
+
+    private static String esc(String s) {
+        return HtmlUtils.htmlEscape(s == null ? "" : s);
+    }
+
+    /** One trimmed line: no CR/LF (prevents header injection in subjects) and collapsed spaces. */
+    private static String oneLine(String s) {
+        return s == null ? "" : s.replaceAll("[\\r\\n\\t]+", " ").replaceAll(" {2,}", " ").trim();
+    }
+
+    private static String valueOrDefault(String value, String fallback) {
+        String v = oneLine(value);
+        return v.isEmpty() ? fallback : v;
+    }
+
+    private static String greeting(String name, String fallback) {
+        return "Hello " + valueOrDefault(name, fallback) + ",";
+    }
+
+    private String supportAddress() {
+        String s = oneLine(supportEmail);
+        return s.matches("[^\\s@<>\"]+@[^\\s@<>\"]+") ? s : DEFAULT_SUPPORT;
+    }
+
+    private static String deviceText(String access) {
+        String a = access == null ? "" : access.trim().toUpperCase(Locale.ROOT);
+        if (a.equals("DESKTOP") || a.equals("DESKTOP_ONLY")) return "Desktop or laptop with webcam and microphone";
+        if (a.equals("MOBILE") || a.equals("MOBILE_ONLY")) return "Mobile phone or tablet";
+        return "Desktop or mobile";
+    }
+
+    /** Link supplied by server code (invitation, reset, dashboard). Must be http(s); never echoed in errors. */
+    private static String requireHttpUrl(String url, String what) {
+        String u = url == null ? "" : url.trim();
+        if (!isHttpUrl(u)) {
+            throw new IllegalArgumentException(what + " must be an absolute http(s) URL");
+        }
+        return u;
+    }
+
+    /** Configured link: falls back to the default when invalid, and warns about localhost. */
+    private String configUrl(String value, String fallback, String property) {
+        String u = value == null ? "" : value.trim();
+        if (!isHttpUrl(u)) {
+            log.warn("Invalid email link configured in {}; using the default", property);
             return fallback;
         }
-        return HtmlUtils.htmlEscape(val.trim());
+        String host = URI.create(u).getHost();
+        if (host != null && (host.equalsIgnoreCase("localhost") || host.equals("127.0.0.1"))) {
+            log.warn("{} points at {}; recipients cannot open it. Use the public https URL in production", property, host);
+        }
+        return u;
+    }
+
+    private static boolean isHttpUrl(String u) {
+        if (u == null || u.isEmpty() || u.length() > 2048 || u.matches(".*[\\s\\p{Cntrl}<>\"].*")) return false;
+        try {
+            URI uri = URI.create(u);
+            String scheme = uri.getScheme();
+            return scheme != null && (scheme.equalsIgnoreCase("https") || scheme.equalsIgnoreCase("http"))
+                    && uri.getHost() != null && !uri.getHost().isEmpty();
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 }
-

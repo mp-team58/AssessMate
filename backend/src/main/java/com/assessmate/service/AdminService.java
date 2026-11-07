@@ -530,6 +530,12 @@ public class AdminService {
         invitation.setUsedAt(LocalDateTime.now());
         adminInvitationRepository.save(invitation);
 
+        try {
+            emailService.sendPasswordChangedNotification(user.getEmail(), user.getName());
+        } catch (Exception e) {
+            log.warn("Non-blocking failure dispatching password confirmation to {}: {}", user.getEmail(), e.getMessage());
+        }
+
         auditService.logAction(
                 user.getId(),
                 user.getEmail(),

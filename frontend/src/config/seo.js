@@ -13,17 +13,17 @@ export const getSiteUrl = () => {
 
 export const SEO_CONFIG = {
   siteName: 'AssessMate',
-  defaultTitle: 'AssessMate – Smart Online Examination & Assessment Platform',
+  defaultTitle: 'AssessMate – Online Examination & Assessment Platform',
   titleTemplate: (title) => {
-    if (!title) return 'AssessMate – Smart Online Examination & Assessment Platform';
+    if (!title) return 'AssessMate – Online Examination & Assessment Platform';
     if (title.includes('AssessMate')) return title;
     return `${title} | AssessMate`;
   },
   defaultDescription:
-    'Create, manage and conduct online assessments with AssessMate. Build exams, manage questions, evaluate candidates and monitor assessment performance through one platform.',
+    'Create online exams, generate questions, import Excel files, and conduct coding assessments with AssessMate, an online examination platform for educators.',
   defaultOgImage: '/og-image.png',
   defaultTwitterCard: 'summary_large_image',
-  contactEmail: 'mail.assessmate@gmail.com',
+  contactEmail: 'mail@assessmate.me',
 };
 
 /**
@@ -62,9 +62,9 @@ export const getWebsiteJsonLd = () => {
         'url': `${baseUrl}/`,
         'logo': {
           '@type': 'ImageObject',
-          'url': `${baseUrl}/apple-touch-icon.png`,
-          'width': 180,
-          'height': 180,
+          'url': `${baseUrl}/logo.png`,
+          'width': 319,
+          'height': 80,
         },
         'email': SEO_CONFIG.contactEmail,
         'sameAs': [],
@@ -77,12 +77,66 @@ export const getWebsiteJsonLd = () => {
         'operatingSystem': 'Web Browser',
         'url': `${baseUrl}/`,
         'description':
-          'Cloud-based online examination, question bank management, and assessment proctoring platform.',
+          'Cloud-based online examination, question bank management, AI question generation, and assessment proctoring platform.',
         'offers': {
           '@type': 'Offer',
           'price': '0',
           'priceCurrency': 'USD',
         },
+      },
+      {
+        '@type': 'FAQPage',
+        '@id': `${baseUrl}/#faq`,
+        'mainEntity': [
+          {
+            '@type': 'Question',
+            'name': 'What is AssessMate?',
+            'acceptedAnswer': {
+              '@type': 'Answer',
+              'text': 'AssessMate is an online examination and assessment management platform that allows educators, universities, and organizations to create, schedule, proctor, and evaluate tests.',
+            },
+          },
+          {
+            '@type': 'Question',
+            'name': 'How can teachers create online exams?',
+            'acceptedAnswer': {
+              '@type': 'Answer',
+              'text': 'Teachers can create assessments manually, generate questions with AI from syllabi or notes, or bulk import questions using Excel spreadsheets.',
+            },
+          },
+          {
+            '@type': 'Question',
+            'name': 'Does AssessMate support coding assessments?',
+            'acceptedAnswer': {
+              '@type': 'Answer',
+              'text': 'Yes, AssessMate integrates with Judge0 to execute code submissions in Python, Java, C, C++, and JavaScript with automated test case evaluation.',
+            },
+          },
+          {
+            '@type': 'Question',
+            'name': 'How do candidates join an exam?',
+            'acceptedAnswer': {
+              '@type': 'Answer',
+              'text': 'Candidates enter a 6-character assessment access code provided by their host to enter the test session without installing third-party apps.',
+            },
+          },
+          {
+            '@type': 'Question',
+            'name': 'Does AssessMate support question shuffling and negative marking?',
+            'acceptedAnswer': {
+              '@type': 'Answer',
+              'text': 'Yes, AssessMate provides automatic question and option shuffling, configurable negative marking per difficulty level, and customizable countdown timers.',
+            },
+          },
+          {
+            '@type': 'Question',
+            'name': 'Is AssessMate suitable for educational institutions?',
+            'acceptedAnswer': {
+              '@type': 'Answer',
+              'text': 'Yes, AssessMate is optimized for colleges, schools, tutoring centers, and corporate hiring teams requiring secure assessment workflows.',
+            },
+          },
+        ],
       },
     ],
   };
@@ -96,8 +150,8 @@ export const ROUTE_METADATA = [
   // Public Marketing & Auth
   [
     '/',
-    'AssessMate – Smart Online Examination & Assessment Platform',
-    'Create, manage and conduct online assessments with AssessMate. Build exams, manage questions, evaluate candidates and monitor assessment performance through one platform.',
+    'AssessMate – Online Examination & Assessment Platform',
+    'Create online exams, generate questions, import Excel files, and conduct coding assessments with AssessMate, an online examination platform for educators.',
     'index, follow',
     '/',
   ],
@@ -181,4 +235,3 @@ export const NOT_FOUND_SEO = [
   'noindex, nofollow',
   null,
 ];
-

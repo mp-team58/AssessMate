@@ -71,7 +71,7 @@ public class CandidateController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("type") String type, // "image" or "audio"
             Principal principal) {
-        String url = proctoringService.saveEvidence(file, type);
+        String url = proctoringService.saveEvidence(file, type, principal != null ? principal.getName() : null);
         return ResponseEntity.ok(Map.of("url", url));
     }
 

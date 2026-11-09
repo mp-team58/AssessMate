@@ -20,6 +20,7 @@ const NAV_LINKS = [
   { label: "For hosts", href: "#hosts" },
   { label: "For candidates", href: "#candidates" },
   { label: "How it works", href: "#how-it-works" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 const checkAnimStyles = `
@@ -239,14 +240,14 @@ export default function LandingPage() {
         {/* Hero */}
       <section className="w-full px-6 sm:px-10 lg:px-16 xl:px-20 pt-8 pb-20 md:pt-16 md:pb-28 grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
         <div>
-          <h1 className="font-display text-5xl md:text-6xl lg:text-7xl leading-[1.0] mb-4">
-            Exams that write themselves. Results you can trust.
+          <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.05] mb-4">
+            Online Examination &amp; Assessment Platform
           </h1>
-          <p className="text-xl text-secondary-700/80 leading-relaxed mb-5">
-            Generate questions from a topic, a document, or a paragraph of
-            notes. Add coding rounds with real test cases. Proctor and grade
-            it all from one dashboard — then share a single code and let
-            candidates in.
+          <p className="text-lg sm:text-xl font-medium text-brand-600 mb-2">
+            Exams that write themselves. Results you can trust.
+          </p>
+          <p className="text-lg text-secondary-700/80 leading-relaxed mb-5">
+            Generate questions from a topic, document, or lecture notes. Add coding rounds with real test cases. Proctor and grade it all from one dashboard &mdash; then share a single access code and let candidates in.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link
@@ -409,6 +410,52 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* Frequently Asked Questions */}
+      <section id="faq" className="scroll-mt-4 w-full px-6 sm:px-10 lg:px-16 xl:px-20 py-16 border-t border-secondary-900/10 bg-secondary-50/50">
+        <div className="mb-4">
+          <span className="text-base font-medium text-brand-600">Got questions?</span>
+        </div>
+        <h2 className="font-display text-4xl mb-10">Frequently asked questions</h2>
+        <div className="grid md:grid-cols-2 gap-8 lg:gap-10">
+          <div className="p-6 rounded-2xl border border-secondary-900/10 bg-white shadow-sm">
+            <h3 className="text-lg font-bold text-secondary-900 mb-2">What is AssessMate?</h3>
+            <p className="text-secondary-600 leading-relaxed text-sm">
+              AssessMate is a modern cloud-based online examination and assessment management platform built for teachers, colleges, universities, and educators to create, proctor, and evaluate tests securely.
+            </p>
+          </div>
+          <div className="p-6 rounded-2xl border border-secondary-900/10 bg-white shadow-sm">
+            <h3 className="text-lg font-bold text-secondary-900 mb-2">How can teachers create online exams?</h3>
+            <p className="text-secondary-600 leading-relaxed text-sm">
+              Teachers can author questions manually, generate grounded questions with Google Gemini AI from topic outlines or lecture notes, or bulk import questions directly via Excel spreadsheets.
+            </p>
+          </div>
+          <div className="p-6 rounded-2xl border border-secondary-900/10 bg-white shadow-sm">
+            <h3 className="text-lg font-bold text-secondary-900 mb-2">Does AssessMate support coding assessments?</h3>
+            <p className="text-secondary-600 leading-relaxed text-sm">
+              Yes. AssessMate provides a built-in programming assessment environment powered by Judge0, executing code with automated test cases across Python, Java, C, C++, and JavaScript.
+            </p>
+          </div>
+          <div className="p-6 rounded-2xl border border-secondary-900/10 bg-white shadow-sm">
+            <h3 className="text-lg font-bold text-secondary-900 mb-2">How do students join an examination?</h3>
+            <p className="text-secondary-600 leading-relaxed text-sm">
+              Students join simply by entering the 6-character access code provided by their host. No heavy browser extensions or invasive software installations are required.
+            </p>
+          </div>
+          <div className="p-6 rounded-2xl border border-secondary-900/10 bg-white shadow-sm">
+            <h3 className="text-lg font-bold text-secondary-900 mb-2">Does AssessMate support question shuffling and negative marking?</h3>
+            <p className="text-secondary-600 leading-relaxed text-sm">
+              Yes. Tests feature automated question and option randomization, per-difficulty negative marking rules, and flexible exam-level or question-level countdown timers.
+            </p>
+          </div>
+          <div className="p-6 rounded-2xl border border-secondary-900/10 bg-white shadow-sm">
+            <h3 className="text-lg font-bold text-secondary-900 mb-2">Is AssessMate suitable for educational institutions?</h3>
+            <p className="text-secondary-600 leading-relaxed text-sm">
+              AssessMate is designed for colleges, tutoring centers, university departments, and corporate hiring teams requiring rigorous evaluation, live proctoring, and comprehensive analytics.
+            </p>
+          </div>
+        </div>
+      </section>
       </main>
 
       {/* Footer */}
@@ -437,9 +484,7 @@ export default function LandingPage() {
             <div className="flex flex-col gap-2 text-sm text-secondary-600">
               {SITE.contactEmail && (
                 <a
-                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${SITE.contactEmail}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`mailto:${SITE.contactEmail}`}
                   className="inline-flex items-center gap-2 hover:text-secondary-900 transition-colors cursor-pointer w-fit break-all"
                 >
                   <Mail className="w-4 h-4 shrink-0" /> {SITE.contactEmail}

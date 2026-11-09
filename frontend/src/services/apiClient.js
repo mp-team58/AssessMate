@@ -1,19 +1,5 @@
-const resolveBaseUrl = () => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
-  }
-  if (import.meta.env.PROD && typeof window !== 'undefined' && !window.location.origin.includes('localhost')) {
-    if (window.location.origin.includes('assessmate.me')) {
-      console.warn(
-        '[AssessMate] VITE_API_BASE_URL is not configured for production. Defaulting to /api on the current origin. If your backend is hosted separately, set VITE_API_BASE_URL in repository secrets or build environment.'
-      );
-    }
-    return `${window.location.origin}/api`;
-  }
-  return 'http://localhost:8080/api';
-};
-
-const BASE_URL = resolveBaseUrl();
+// Fixed production backend URL for Render cloud deployment
+const BASE_URL = 'https://assessmate-p27x.onrender.com/api';
 
 export const API_BASE_URL = BASE_URL;
 
@@ -91,6 +77,13 @@ const createApiClient = (baseUrl) => {
 
   const client = async (endpoint, options = {}) => {
     let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+    // Prevent duplicate /api prefixes if callers provide /api/endpoint
+    if (cleanEndpoint.startsWith('/api/')) {
+      cleanEndpoint = cleanEndpoint.substring(4);
+    } else if (cleanEndpoint === '/api') {
+      cleanEndpoint = '';
+    }
 
     if (options.params && typeof options.params === 'object') {
       const searchParams = new URLSearchParams();

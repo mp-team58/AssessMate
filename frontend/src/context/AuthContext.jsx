@@ -1,7 +1,9 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import apiClient, { clearApiCache } from '../services/apiClient';
+import { clearMediaCache } from '../services/mediaService';
 
 export const clearAuthStorage = () => {
+  clearMediaCache();
   const keys = ['token', 'role', 'name', 'id', 'email', 'user', 'mustChangePassword', 'currentEnrollmentId', 'currentExamId'];
   keys.forEach((k) => {
     try { localStorage.removeItem(k); } catch (_) {}

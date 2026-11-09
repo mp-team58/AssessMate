@@ -16,7 +16,6 @@ import java.nio.file.*;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @lombok.extern.slf4j.Slf4j
 public class ProctoringService {
 
@@ -24,6 +23,37 @@ public class ProctoringService {
     private final com.assessmate.repository.ExamEnrollmentRepository enrollmentRepository;
     private final com.assessmate.repository.ProctoringLogRepository proctoringLogRepository;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final com.assessmate.service.storage.SupabaseStorageService supabaseStorageService;
+    private final com.assessmate.service.storage.StorageFileValidator storageFileValidator;
+    private final com.assessmate.service.storage.StorageFileNameGenerator storageFileNameGenerator;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ProctoringService(
+            com.assessmate.repository.ExamRepository examRepository,
+            com.assessmate.repository.ExamEnrollmentRepository enrollmentRepository,
+            com.assessmate.repository.ProctoringLogRepository proctoringLogRepository,
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) com.assessmate.service.storage.SupabaseStorageService supabaseStorageService,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) com.assessmate.service.storage.StorageFileValidator storageFileValidator,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) com.assessmate.service.storage.StorageFileNameGenerator storageFileNameGenerator
+    ) {
+        this.examRepository = examRepository;
+        this.enrollmentRepository = enrollmentRepository;
+        this.proctoringLogRepository = proctoringLogRepository;
+        this.jdbcTemplate = jdbcTemplate;
+        this.supabaseStorageService = supabaseStorageService;
+        this.storageFileValidator = storageFileValidator != null ? storageFileValidator : new com.assessmate.service.storage.StorageFileValidator();
+        this.storageFileNameGenerator = storageFileNameGenerator != null ? storageFileNameGenerator : new com.assessmate.service.storage.StorageFileNameGenerator();
+    }
+
+    public ProctoringService(
+            com.assessmate.repository.ExamRepository examRepository,
+            com.assessmate.repository.ExamEnrollmentRepository enrollmentRepository,
+            com.assessmate.repository.ProctoringLogRepository proctoringLogRepository,
+            org.springframework.jdbc.core.JdbcTemplate jdbcTemplate
+    ) {
+        this(examRepository, enrollmentRepository, proctoringLogRepository, jdbcTemplate, null, null, null);
+    }
 
     @jakarta.annotation.PostConstruct
     public void dropConstraint() {
@@ -156,15 +186,19 @@ public class ProctoringService {
     private String audioUploadDir;
 
     public String saveEvidence(MultipartFile file, String type) {
+        return saveEvidence(file, type, null);
+    }
+
+    public String saveEvidence(MultipartFile file, String type, String userEmail) {
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("Evidence file is empty.");
         }
 
         try {
             if ("image".equalsIgnoreCase(type)) {
-                return saveImage(file);
+                return saveImage(file, userEmail);
             } else if ("audio".equalsIgnoreCase(type)) {
-                return saveAudio(file);
+                return saveAudio(file, userEmail);
             } else {
                 throw new BadRequestException("Invalid evidence type: " + type);
             }
@@ -173,67 +207,58 @@ public class ProctoringService {
         }
     }
 
-    private String saveImage(MultipartFile file) throws IOException {
-        if (file.getSize() > 2 * 1024 * 1024) {
-            throw new BadRequestException("Image too large. Max 2MB.");
+    private String saveImage(MultipartFile file, String userEmail) throws IOException {
+        var validated = storageFileValidator != null ? storageFileValidator.validateImage(file) : null;
+        String ext = validated != null ? validated.extension() : ".jpg";
+        String mime = validated != null ? validated.mimeType() : "image/jpeg";
+
+        if (supabaseStorageService != null && supabaseStorageService.isConfigured()) {
+            String objectPath = storageFileNameGenerator.generateProctoringImageObjectPath(
+                    extractIdentifier(userEmail), ext);
+            supabaseStorageService.uploadFile(objectPath, file.getBytes(), mime);
+            return objectPath;
         }
 
-        String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png") && !contentType.equals("image/webp"))) {
-            throw new BadRequestException("Only JPEG, PNG, and WebP images are allowed.");
-        }
-
-        try {
-            java.awt.image.BufferedImage img = ImageIO.read(file.getInputStream());
-            if (img == null) {
-                throw new BadRequestException("File is not a valid image.");
-            }
-        } catch (Exception e) {
-            throw new BadRequestException("Could not read image file.");
-        }
-
+        // Local filesystem fallback
         Path uploadPath = Paths.get(imagesUploadDir);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
-        String extension = switch (contentType) {
-            case "image/jpeg" -> ".jpg";
-            case "image/png" -> ".png";
-            case "image/webp" -> ".webp";
-            default -> ".jpg";
-        };
-
-        String filename = UUID.randomUUID().toString() + extension;
+        String filename = UUID.randomUUID().toString() + ext;
         Files.copy(file.getInputStream(), uploadPath.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
 
         return "/uploads/proctoring/images/" + filename;
     }
 
-    private String saveAudio(MultipartFile file) throws IOException {
-        if (file.getSize() > 5 * 1024 * 1024) {
-            throw new BadRequestException("Audio too large. Max 5MB.");
+    private String saveAudio(MultipartFile file, String userEmail) throws IOException {
+        var validated = storageFileValidator != null ? storageFileValidator.validateAudio(file) : null;
+        String ext = validated != null ? validated.extension() : ".webm";
+        String mime = validated != null ? validated.mimeType() : "audio/webm";
+
+        if (supabaseStorageService != null && supabaseStorageService.isConfigured()) {
+            String objectPath = storageFileNameGenerator.generateProctoringAudioObjectPath(
+                    extractIdentifier(userEmail), ext);
+            supabaseStorageService.uploadFile(objectPath, file.getBytes(), mime);
+            return objectPath;
         }
 
-        String contentType = file.getContentType();
-        if (contentType == null || (!contentType.startsWith("audio/") && !contentType.startsWith("video/") && !contentType.equals("application/octet-stream"))) {
-            throw new BadRequestException("Invalid audio file format.");
-        }
-
+        // Local filesystem fallback
         Path uploadPath = Paths.get(audioUploadDir);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
-        String extension = ".webm";
-        if (contentType.startsWith("audio/ogg")) extension = ".ogg";
-        else if (contentType.startsWith("audio/wav")) extension = ".wav";
-        else if (contentType.startsWith("audio/mp4")) extension = ".mp4";
-
-        String filename = UUID.randomUUID().toString() + extension;
+        String filename = UUID.randomUUID().toString() + ext;
         Files.copy(file.getInputStream(), uploadPath.resolve(filename), StandardCopyOption.REPLACE_EXISTING);
 
         return "/uploads/proctoring/audio/" + filename;
+    }
+
+    private String extractIdentifier(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) return "ev";
+        String clean = userEmail.replaceAll("[^a-zA-Z0-9]", "");
+        return clean.length() > 8 ? clean.substring(0, 8) : clean;
     }
 
     @org.springframework.transaction.annotation.Transactional
@@ -261,7 +286,12 @@ public class ProctoringService {
     }
 
     private void deleteFileQuietly(String relativeUrl) {
+        if (relativeUrl == null || relativeUrl.isBlank()) return;
         try {
+            if (supabaseStorageService != null && supabaseStorageService.isConfigured()) {
+                supabaseStorageService.deleteFile(relativeUrl);
+                return;
+            }
             String type = relativeUrl.contains("/images/") ? "images" : "audio";
             String filename = relativeUrl.substring(relativeUrl.lastIndexOf('/') + 1);
             String dir = "images".equals(type) ? imagesUploadDir : audioUploadDir;

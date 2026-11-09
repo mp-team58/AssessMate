@@ -66,4 +66,7 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 
     @Transactional
     void deleteByExamId(Long examId);
+
+    @Query("SELECT q FROM Question q WHERE q.imageUrl = :path OR q.imageUrl = CONCAT('/', :path) OR q.imageUrl LIKE CONCAT('%', :filename)")
+    List<Question> findMatchingQuestions(@Param("path") String path, @Param("filename") String filename);
 }

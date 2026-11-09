@@ -26,6 +26,9 @@ public class QuestionService {
             questionRepository;
     private final ExamRepository examRepository;
     private final UserRepository userRepository;
+    private final com.assessmate.service.storage.SupabaseStorageService supabaseStorageService;
+    private final com.assessmate.service.storage.StorageFileValidator storageFileValidator;
+    private final com.assessmate.service.storage.StorageFileNameGenerator storageFileNameGenerator;
 
     @Value("${app.upload.dir:uploads/questions/}")
     private String uploadDir;
@@ -164,7 +167,7 @@ public class QuestionService {
 
         String imageUrl = null;
         if (image != null && !image.isEmpty()) {
-            imageUrl = saveImage(image);
+            imageUrl = saveImage(image, host.getId());
         }
 
         Question question = buildQuestion(
@@ -346,7 +349,7 @@ public class QuestionService {
 
         String imageUrl = null;
         if (image != null && !image.isEmpty()) {
-            imageUrl = saveImage(image);
+            imageUrl = saveImage(image, exam.getId());
         }
 
         // Save to global bank only if opted in
@@ -518,18 +521,12 @@ public class QuestionService {
 
         if (image != null && !image.isEmpty()) {
             if (question.getImageUrl() != null) {
-                try {
-                    Path oldPath = Paths.get(uploadDir, question.getImageUrl());
-                    Files.deleteIfExists(oldPath);
-                } catch (Exception ignored) {}
+                deleteImageSafely(question.getImageUrl());
             }
-            question.setImageUrl(saveImage(image));
+            question.setImageUrl(saveImage(image, question.getId()));
         } else if (Boolean.TRUE.equals(req.getRemoveImage())) {
             if (question.getImageUrl() != null) {
-                try {
-                    Path oldPath = Paths.get(uploadDir, question.getImageUrl());
-                    Files.deleteIfExists(oldPath);
-                } catch (Exception ignored) {}
+                deleteImageSafely(question.getImageUrl());
             }
             question.setImageUrl(null);
         }
@@ -592,6 +589,10 @@ public class QuestionService {
                             "while the exam is in DRAFT status");
         }
 
+        if (question.getImageUrl() != null) {
+            deleteImageSafely(question.getImageUrl());
+        }
+
         questionRepository.deleteById(id);
     }
 
@@ -635,63 +636,47 @@ public class QuestionService {
     }
 
     private String saveImage(
-            MultipartFile file) throws IOException {
+            MultipartFile file, Object entityId) throws IOException {
 
         if (file == null || file.isEmpty()) {
-            throw new BadRequestException(
-                "Image file is empty.");
+            throw new BadRequestException("Image file is empty.");
         }
 
-        if (file.getSize() > 5 * 1024 * 1024) {
-            throw new BadRequestException(
-                "Image too large. Max 5MB.");
+        var validated = storageFileValidator.validateImage(file);
+
+        if (supabaseStorageService != null && supabaseStorageService.isConfigured()) {
+            String objectPath = storageFileNameGenerator.generateQuestionObjectPath(entityId, validated.extension());
+            supabaseStorageService.uploadFile(objectPath, file.getBytes(), validated.mimeType());
+            return objectPath;
         }
 
-        String contentType = file.getContentType();
-        if (contentType == null
-                || (!contentType.equals("image/jpeg")
-                    && !contentType.equals("image/png")
-                    && !contentType.equals(
-                        "image/webp"))) {
-            throw new BadRequestException(
-                "Only JPEG, PNG, and WebP images " +
-                "are allowed.");
-        }
-
-        try {
-            java.awt.image.BufferedImage img =
-                ImageIO.read(file.getInputStream());
-            if (img == null) {
-                throw new BadRequestException(
-                    "File is not a valid image.");
-            }
-        } catch (Exception e) {
-            throw new BadRequestException(
-                "Could not read image file.");
-        }
-
-        Path uploadPath = Paths.get(
-            uploadDir); 
+        Path uploadPath = Paths.get(uploadDir);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
 
-        String extension = switch (contentType) {
-            case "image/jpeg" -> ".jpg";
-            case "image/png" -> ".png";
-            case "image/webp" -> ".webp";
-            default -> ".jpg";
-        };
-
-        String filename = UUID.randomUUID()
-            .toString() + extension;
+        String filename = "q_" + (entityId != null ? entityId : "gen") + "_" +
+                storageFileNameGenerator.generateShortHex() + validated.extension();
 
         Files.copy(
-            file.getInputStream(),
-            uploadPath.resolve(filename),
-            StandardCopyOption.REPLACE_EXISTING);
+                file.getInputStream(),
+                uploadPath.resolve(filename),
+                StandardCopyOption.REPLACE_EXISTING);
 
-        return "/uploads/questions/" + filename;
+        return "questions/" + filename;
+    }
+
+    private void deleteImageSafely(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return;
+        try {
+            if (supabaseStorageService != null && supabaseStorageService.isConfigured()) {
+                supabaseStorageService.deleteFile(imageUrl);
+            } else {
+                String filename = imageUrl.replace("/uploads/questions/", "").replace("questions/", "");
+                Path oldPath = Paths.get(uploadDir, filename);
+                Files.deleteIfExists(oldPath);
+            }
+        } catch (Exception ignored) {}
     }
 
     private Double getMarks(

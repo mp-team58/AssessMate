@@ -162,7 +162,7 @@ class P364SecurityVerificationIntegrationTest {
                 .subject("Cybersecurity")
                 .host(hostA)
                 .status(ExamStatus.LIVE)
-                .joinCode("SEC" + suffix.substring(0, 3).toUpperCase())
+                .joinCode("S" + UUID.randomUUID().toString().replace("-", "").substring(0, 5).toUpperCase())
                 .durationMinutes(60)
                 .gracePeriodMinutes(15)
                 .resultsPublished(true)

@@ -8,6 +8,7 @@ import Select from './ui/Select';
 import { Upload, X } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { getMediaUrl } from '../services/apiClient';
+import { SecureImage } from './SecureMedia';
 
 const schema = yup.object().shape({
   questionText: yup.string().trim().required('Question text is required'),
@@ -316,10 +317,30 @@ const QuestionForm = ({ initialData, onSubmit, onCancel, isLoading, isExamContex
       <div>
         <label className="block text-[14px] font-semibold text-secondary-800 mb-2">Image (Optional)</label>
         
-        {imageFile || existingImageUrl ? (
+        {imageFile ? (
           <div className="relative inline-block w-full h-48 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 group">
             <img 
-              src={imageFile ? previewUrl : getMediaUrl(existingImageUrl)} 
+              src={previewUrl} 
+              alt="Preview" 
+              className="w-full h-full object-contain p-2"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setImageFile(null);
+                setExistingImageUrl(null);
+                setIsImageRemoved(true);
+              }}
+              className="absolute top-3 right-3 p-1.5 bg-white shadow-sm border border-gray-200 text-red-600 rounded-lg hover:bg-red-50 hover:text-red-700 transition-colors opacity-100 group-hover:opacity-100 z-10"
+              title="Remove image"
+            >
+              <X className="w-4 h-4 font-bold" />
+            </button>
+          </div>
+        ) : existingImageUrl ? (
+          <div className="relative inline-block w-full h-48 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 group">
+            <SecureImage 
+              src={existingImageUrl} 
               alt="Preview" 
               className="w-full h-full object-contain p-2"
             />

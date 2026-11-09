@@ -3,6 +3,13 @@
 
 User-agent: *
 Allow: /
+Allow: /favicon.ico
+Allow: /favicon-48x48.png
+Allow: /favicon-96x96.png
+Allow: /favicon.svg
+Allow: /apple-touch-icon.png
+Allow: /manifest.json
+Allow: /sitemap.xml
 
 # Private Authentication & Account Management
 Disallow: /login

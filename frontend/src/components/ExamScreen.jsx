@@ -1,4 +1,4 @@
-﻿// Purely presentational. All state, timers, proctoring and API calls stay in pages/ActiveExam.jsx.
+// Purely presentational. All state, timers, proctoring and API calls stay in pages/ActiveExam.jsx.
 import React, { useEffect, useState } from 'react';
 import {
   Clock, Shield, AlertTriangle, ChevronLeft, ChevronRight, Flag, RotateCcw, Send, Camera,
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import MarkdownViewer from './MarkdownViewer';
 import { getMediaUrl } from '../services/apiClient';
+import { SecureImage } from './SecureMedia';
 
 /* ------------------------------------------------------------------ */
 /* Constants & helpers                                                  */
@@ -365,7 +366,7 @@ const McqBody = (p) => {
 
       {q.imageUrl && (
         <div className="rounded-2xl overflow-hidden border border-secondary-200 bg-white shadow-sm">
-          <img src={getMediaUrl(q.imageUrl)} alt="Diagram for this question" className="w-full object-contain max-h-80" />
+          <SecureImage src={q.imageUrl} alt="Diagram for this question" className="w-full object-contain max-h-80" />
         </div>
       )}
 

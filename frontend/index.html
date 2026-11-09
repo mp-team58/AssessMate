@@ -3,22 +3,25 @@
 
 <head>
   <meta charset="UTF-8" />
+  
+  <!-- Favicon Configuration (Standard, High-DPI, SVG, Apple Touch, Googlebot compliant) -->
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+  <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.json" />
 
   <meta name="theme-color" content="#16241F" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AssessMate &ndash; Smart Online Examination &amp; Assessment Platform</title>
+  <title>AssessMate – Online Examination &amp; Assessment Platform</title>
   <meta name="description"
-    content="Create, manage and conduct online assessments with AssessMate. Build exams, manage questions, evaluate candidates and monitor assessment performance through one platform." />
+    content="Create online exams, generate questions, import Excel files, and conduct coding assessments with AssessMate, an online examination platform for educators." />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://assessmate.me/" />
 
-  <!-- Single Page Apps for GitHub Pages routing restoration -->
+  <!-- Single Page Apps for Cloudflare/GitHub Pages routing restoration -->
   <script type="text/javascript">
     (function(l) {
       if (l.search[1] === '/' ) {
@@ -35,21 +38,122 @@
   <!-- Open Graph / Facebook / LinkedIn / WhatsApp -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="AssessMate" />
-  <meta property="og:title" content="AssessMate &ndash; Smart Online Examination &amp; Assessment Platform" />
+  <meta property="og:title" content="AssessMate – Online Examination &amp; Assessment Platform" />
   <meta property="og:description"
-    content="Create, manage and conduct online assessments with AssessMate. Build exams, manage questions, evaluate candidates and monitor assessment performance through one platform." />
+    content="Create online exams, generate questions, import Excel files, and conduct coding assessments with AssessMate, an online examination platform for educators." />
   <meta property="og:url" content="https://assessmate.me/" />
   <meta property="og:image" content="https://assessmate.me/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="AssessMate - Smart Online Examination &amp; Assessment Platform" />
+  <meta property="og:image:alt" content="AssessMate - Online Examination &amp; Assessment Platform" />
 
   <!-- Twitter / X Cards -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="AssessMate &ndash; Smart Online Examination &amp; Assessment Platform" />
+  <meta name="twitter:title" content="AssessMate – Online Examination &amp; Assessment Platform" />
   <meta name="twitter:description"
-    content="Create, manage and conduct online assessments with AssessMate. Build exams, manage questions, evaluate candidates and monitor assessment performance through one platform." />
+    content="Create online exams, generate questions, import Excel files, and conduct coding assessments with AssessMate, an online examination platform for educators." />
   <meta name="twitter:image" content="https://assessmate.me/og-image.png" />
+
+  <!-- JSON-LD Structured Data for Instant Search Engine Discovery -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://assessmate.me/#website",
+        "url": "https://assessmate.me/",
+        "name": "AssessMate",
+        "description": "Create online exams, generate questions, import Excel files, and conduct coding assessments with AssessMate, an online examination platform for educators.",
+        "publisher": {
+          "@id": "https://assessmate.me/#organization"
+        },
+        "inLanguage": "en-US"
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://assessmate.me/#organization",
+        "name": "AssessMate",
+        "url": "https://assessmate.me/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://assessmate.me/logo.png",
+          "width": 319,
+          "height": 80
+        },
+        "email": "mail@assessmate.me"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://assessmate.me/#software",
+        "name": "AssessMate",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Web Browser",
+        "url": "https://assessmate.me/",
+        "description": "Cloud-based online examination, question bank management, AI question generation, and assessment proctoring platform.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://assessmate.me/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is AssessMate?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "AssessMate is a modern cloud-based online examination and assessment management platform built for teachers, colleges, universities, and educators to create, proctor, and evaluate tests securely."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How can teachers create online exams?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Teachers can author questions manually, generate grounded questions with Google Gemini AI from topic outlines or lecture notes, or bulk import questions directly via Excel spreadsheets."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does AssessMate support coding assessments?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. AssessMate provides a built-in programming assessment environment powered by Judge0, executing code with automated test cases across Python, Java, C, C++, and JavaScript."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do students join an examination?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Students join simply by entering the 6-character access code provided by their host. No heavy browser extensions or invasive software installations are required."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does AssessMate support question shuffling and negative marking?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Tests feature automated question and option randomization, per-difficulty negative marking rules, and flexible exam-level or question-level countdown timers."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is AssessMate suitable for educational institutions?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "AssessMate is designed for colleges, tutoring centers, university departments, and corporate hiring teams requiring rigorous evaluation, live proctoring, and comprehensive analytics."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,8 +163,113 @@
 </head>
 
 <body>
-  <noscript>AssessMate needs JavaScript to run. Please enable JavaScript in your browser and reload the page.</noscript>
-  <div id="root"></div>
+  <div id="root">
+    <!-- Prerendered Semantic HTML: Provides instant crawlability, visible H1, product depth and 0% rendering risk before client JS hydration -->
+    <header style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto;">
+      <a href="/" style="font-weight: bold; font-size: 1.5rem; color: #16241F; text-decoration: none;">AssessMate</a>
+      <nav>
+        <a href="#hosts" style="margin-right: 1rem; color: #4b5563; text-decoration: none;">For Hosts</a>
+        <a href="#candidates" style="margin-right: 1rem; color: #4b5563; text-decoration: none;">For Candidates</a>
+        <a href="#how-it-works" style="margin-right: 1rem; color: #4b5563; text-decoration: none;">How It Works</a>
+        <a href="#faq" style="margin-right: 1rem; color: #4b5563; text-decoration: none;">FAQ</a>
+        <a href="/login" style="margin-right: 1rem; color: #16241F; font-weight: 500; text-decoration: none;">Log in</a>
+        <a href="/signup" style="background: #16684B; color: #ffffff; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 500;">Sign up</a>
+      </nav>
+    </header>
+
+    <main style="max-width: 1200px; margin: 0 auto; padding: 3rem 1.5rem;">
+      <section style="margin-bottom: 4rem;">
+        <h1 style="font-size: 2.75rem; font-weight: 800; color: #16241F; line-height: 1.15; margin-bottom: 1rem;">
+          Online Examination &amp; Assessment Platform
+        </h1>
+        <p style="font-size: 1.25rem; font-weight: 600; color: #16684B; margin-bottom: 1rem;">
+          Exams that write themselves. Results you can trust.
+        </p>
+        <p style="font-size: 1.1rem; line-height: 1.6; color: #4b5563; max-width: 800px; margin-bottom: 2rem;">
+          AssessMate is a modern cloud-based online examination and assessment management platform for educators, universities, and institutions. Generate questions from a topic or document with Google Gemini AI, import question banks from Excel, conduct multi-language coding assessments with Judge0, and monitor student integrity with intelligent anti-cheat proctoring.
+        </p>
+        <div style="display: flex; gap: 1rem;">
+          <a href="/signup?role=host" style="background: #16684B; color: #ffffff; padding: 0.85rem 1.75rem; border-radius: 6px; text-decoration: none; font-weight: 600;">Create an Exam</a>
+          <a href="/candidate/join" style="border: 2px solid #D97706; color: #D97706; padding: 0.85rem 1.75rem; border-radius: 6px; text-decoration: none; font-weight: 600;">Join Assessment</a>
+        </div>
+      </section>
+
+      <section id="hosts" style="margin-bottom: 4rem; border-top: 1px solid #e5e7eb; padding-top: 3rem;">
+        <h2 style="font-size: 2rem; font-weight: 700; color: #16241F; margin-bottom: 1.5rem;">Online Assessment Software for Exam Hosts &amp; Educators</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">AI-Generated Questions</h3>
+            <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.5;">Input a topic outline, paste notes, or upload a syllabus PDF/DOC to automatically generate balanced, topic-aligned questions verified against your materials.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">Automated Coding Rounds</h3>
+            <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.5;">Assign programming challenges evaluated in real-time across Python, Java, C, C++, and JavaScript using Judge0 sandbox execution and private test cases.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">Excel Bulk Question Import</h3>
+            <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.5;">Import pre-existing question banks and complex spreadsheets with a single click, supporting Single Choice, Multiple Select, Fill-in-the-Blank, and Numerical items.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">Intelligent Anti-Cheat Proctoring</h3>
+            <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.5;">Live detection of tab switching, window blurring, fullscreen violations, multi-face presence, and ambient noise alerts timestamped with evidentiary snapshots.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="candidates" style="margin-bottom: 4rem; border-top: 1px solid #e5e7eb; padding-top: 3rem;">
+        <h2 style="font-size: 2rem; font-weight: 700; color: #16241F; margin-bottom: 1.5rem;">Frictionless Candidate Examination Experience</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">One-Click Join Codes</h3>
+            <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.5;">Students enter exams in seconds using simple 6-character access codes without cumbersome software setups or third-party account friction.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">Offline Autosave Protection</h3>
+            <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.5;">Local storage caching ensures test progress and uncommitted answers are preserved during transient internet disconnects.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.25rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">Instant Results &amp; Feedback</h3>
+            <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.5;">Immediate score calculation, transparent question answer breakdowns, and topic-level mastery reviews upon submission.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" style="margin-bottom: 4rem; border-top: 1px solid #e5e7eb; padding-top: 3rem;">
+        <h2 style="font-size: 2rem; font-weight: 700; color: #16241F; margin-bottom: 1.5rem;">Frequently Asked Questions (FAQ)</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.15rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">What is AssessMate?</h3>
+            <p style="color: #4b5563; font-size: 0.9rem; line-height: 1.5;">AssessMate is a modern cloud-based online examination and assessment management platform built for teachers, colleges, universities, and educators to create, proctor, and evaluate tests securely.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.15rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">How can teachers create online exams?</h3>
+            <p style="color: #4b5563; font-size: 0.9rem; line-height: 1.5;">Teachers can author questions manually, generate grounded questions with Google Gemini AI from topic outlines or lecture notes, or bulk import questions directly via Excel spreadsheets.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.15rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">Does AssessMate support coding assessments?</h3>
+            <p style="color: #4b5563; font-size: 0.9rem; line-height: 1.5;">Yes. AssessMate provides a built-in programming assessment environment powered by Judge0, executing code with automated test cases across Python, Java, C, C++, and JavaScript.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.15rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">How do students join an examination?</h3>
+            <p style="color: #4b5563; font-size: 0.9rem; line-height: 1.5;">Students join simply by entering the 6-character access code provided by their host. No heavy browser extensions or invasive software installations are required.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.15rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">Does AssessMate support question shuffling and negative marking?</h3>
+            <p style="color: #4b5563; font-size: 0.9rem; line-height: 1.5;">Yes. Tests feature automated question and option randomization, per-difficulty negative marking rules, and flexible exam-level or question-level countdown timers.</p>
+          </div>
+          <div style="padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 12px; background: #ffffff;">
+            <h3 style="font-size: 1.15rem; font-weight: 600; color: #16241F; margin-bottom: 0.5rem;">Is AssessMate suitable for educational institutions?</h3>
+            <p style="color: #4b5563; font-size: 0.9rem; line-height: 1.5;">AssessMate is designed for colleges, tutoring centers, university departments, and corporate hiring teams requiring rigorous evaluation, live proctoring, and comprehensive analytics.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer style="border-top: 1px solid #e5e7eb; padding: 2rem 1.5rem; text-align: center; color: #6b7280; font-size: 0.875rem;">
+      <p>&copy; 2026 AssessMate. All rights reserved. Online Examination and Assessment Management Platform.</p>
+    </footer>
+  </div>
+  <noscript>AssessMate requires JavaScript enabled to run the interactive portal. Please enable JavaScript in your browser settings.</noscript>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

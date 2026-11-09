@@ -270,7 +270,7 @@ const HostCandidateReport = () => {
                     <p className="text-secondary-900 font-medium mb-4 whitespace-pre-wrap">{ans.questionText}</p>
                     
                     {ans.imageUrl && (
-                      <img src={getMediaUrl(ans.imageUrl)} alt="Question figure" className="max-w-full h-auto rounded-lg border border-secondary-200 mb-4 max-h-64 object-contain" />
+                      <SecureImage src={ans.imageUrl} alt="Question figure" className="max-w-full h-auto rounded-lg border border-secondary-200 mb-4 max-h-64 object-contain" />
                     )}
 
                     {ans.type === 'MCQ' && ans.options ? (

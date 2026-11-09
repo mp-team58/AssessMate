@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient, { API_BASE_URL } from './apiClient';
 
 /**
  * Get the status of an asynchronous AI generation job.
@@ -103,7 +103,7 @@ export const generateQuestionsFromFile = async ({
 
   formData.append('file', file);
 
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+  const BASE_URL = API_BASE_URL;
   const url = `${BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL}/exams/${examId}/questions/ai/file`;
 
   const initialResponse = await new Promise((resolve, reject) => {

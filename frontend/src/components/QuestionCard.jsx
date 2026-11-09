@@ -1,6 +1,7 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Pencil, Trash2, CheckCircle2, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { getMediaUrl } from '../services/apiClient';
+import { SecureImage } from './SecureMedia';
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D'];
 
@@ -127,7 +128,7 @@ const QuestionCard = ({
 
           {question.imageUrl && (
             <div className="mt-2 mb-1 border-2 border-gray-100 rounded-xl overflow-hidden bg-gray-50 flex justify-center max-h-[300px]">
-              <img src={getMediaUrl(question.imageUrl)} alt="Question context" className="max-w-full max-h-[300px] object-contain p-2" />
+              <SecureImage src={question.imageUrl} alt="Question context" className="max-w-full max-h-[300px] object-contain p-2" />
             </div>
           )}
 

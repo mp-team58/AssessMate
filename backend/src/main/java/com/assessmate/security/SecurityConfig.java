@@ -52,13 +52,15 @@ public class SecurityConfig {
                     .policy("camera=*, microphone=*, display-capture=*, geolocation=()")
                 );
                 headers.contentSecurityPolicy(csp -> csp
-                    .policyDirectives("default-src 'self'; frame-ancestors 'none'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:;")
+                    .policyDirectives("default-src 'self'; frame-ancestors 'none'; img-src 'self' data: blob: https://*.supabase.co https://vpdgjxmkluecxbhizzcd.supabase.co; media-src 'self' data: blob: https://*.supabase.co https://vpdgjxmkluecxbhizzcd.supabase.co; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://vpdgjxmkluecxbhizzcd.supabase.co https://assessmate-p27x.onrender.com;")
                 );
             })
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/health",
                     "/health",
+                    "/api/developer",
+                    "/developer",
                     "/api/auth/register/request-otp",
                     "/api/auth/register/verify-otp",
                     "/api/auth/forgot-password/request-otp",
@@ -79,6 +81,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/coding/run", "/api/coding/submit").hasRole("CANDIDATE")
                 .requestMatchers("/api/coding/{id}").hasRole("HOST")
                 .requestMatchers("/api/proctoring/**").hasRole("HOST")
+                .requestMatchers("/api/storage/**").authenticated()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
             )

@@ -14,4 +14,10 @@ public interface ProctoringLogRepository extends JpaRepository<ProctoringLog, Lo
     java.util.List<ProctoringLog> findByEnrollmentId(Long enrollmentId);
     java.util.Optional<ProctoringLog> findByImageUrl(String imageUrl);
     java.util.Optional<ProctoringLog> findByAudioUrl(String audioUrl);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM ProctoringLog p WHERE p.imageUrl = :path OR p.imageUrl = CONCAT('/', :path) OR p.imageUrl LIKE CONCAT('%', :filename)")
+    java.util.List<ProctoringLog> findMatchingImages(@org.springframework.data.repository.query.Param("path") String path, @org.springframework.data.repository.query.Param("filename") String filename);
+
+    @org.springframework.data.jpa.repository.Query("SELECT p FROM ProctoringLog p WHERE p.audioUrl = :path OR p.audioUrl = CONCAT('/', :path) OR p.audioUrl LIKE CONCAT('%', :filename)")
+    java.util.List<ProctoringLog> findMatchingAudios(@org.springframework.data.repository.query.Param("path") String path, @org.springframework.data.repository.query.Param("filename") String filename);
 }

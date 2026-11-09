@@ -43,6 +43,7 @@ public class ExamService {
     private final ExamEnrollmentRepository enrollmentRepository;
     private final ResultRepository resultRepository;
     private final ProctoringLogRepository proctoringLogRepository;
+    private final com.assessmate.service.storage.SupabaseStorageService supabaseStorageService;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String JOIN_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -472,10 +473,15 @@ public class ExamService {
     }
 
     private void deleteImageFile(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return;
         try {
-            String filename = imageUrl.replace("/uploads/questions/", "");
-            Path filePath = Paths.get("uploads/questions/", filename);
-            Files.deleteIfExists(filePath);
+            if (supabaseStorageService != null && supabaseStorageService.isConfigured()) {
+                supabaseStorageService.deleteFile(imageUrl);
+            } else {
+                String filename = imageUrl.replace("/uploads/questions/", "").replace("questions/", "");
+                Path filePath = Paths.get("uploads/questions/", filename);
+                Files.deleteIfExists(filePath);
+            }
         } catch (Exception e) {
             log.warn("Could not delete image file: {}", imageUrl);
         }

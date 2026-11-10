@@ -45,14 +45,14 @@ const Login = () => {
 
   return (
     <AuthLayout>
-      <div className="mb-8 text-center lg:text-left">
-        <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Welcome back</h2>
-        <p className="text-secondary-500 text-sm">{SUBTITLE[role]}</p>
+      <div className="mb-4 sm:mb-6 text-center lg:text-left">
+        <h2 className="text-xl sm:text-2xl font-extrabold text-secondary-900 mb-1.5 sm:mb-2 tracking-tight">Welcome back</h2>
+        <p className="text-secondary-500 text-xs sm:text-sm">{SUBTITLE[role]}</p>
       </div>
 
       <Toggle activeRole={role} onChange={(r) => { setRole(r); setFormError(''); }} />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5 sm:space-y-4" noValidate>
         <Input
           label={AUTH_COPY.emailLabel}
           type="email"
@@ -72,7 +72,7 @@ const Login = () => {
             error={errors.password}
           />
           <div className="flex justify-end -mt-2">
-            <Link to="/forgot-password" className="text-sm text-brand-600 hover:text-brand-500 font-medium">
+            <Link to="/forgot-password" className="text-xs sm:text-sm text-brand-600 hover:text-brand-500 font-medium">
               {AUTH_COPY.forgotLink}
             </Link>
           </div>
@@ -80,12 +80,12 @@ const Login = () => {
 
         <FormAlert>{formError}</FormAlert>
 
-        <Button type="submit" disabled={isLoading} className="mt-2 w-full">
+        <Button type="submit" disabled={isLoading} className="mt-2 w-full py-2.5 sm:py-3 min-h-[44px]">
           {isLoading ? AUTH_COPY.signingIn : `Sign in as ${role === 'host' ? 'host' : 'candidate'}`}
         </Button>
       </form>
 
-      <p className="mt-8 text-center text-sm font-medium text-secondary-500">
+      <p className="mt-5 sm:mt-8 text-center text-xs sm:text-sm font-medium text-secondary-500">
         Don’t have an account?{' '}
         <Link to="/signup" className="text-brand-600 hover:text-brand-700 font-bold ml-1">
           Create one now

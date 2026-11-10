@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -191,21 +191,21 @@ const ForgotPassword = () => {
 
   if (isAdmin) {
     return (
-      <div className="min-h-screen bg-[#111915] flex items-center justify-center p-4 font-sans">
+      <div className="min-h-dvh bg-[#111915] flex items-center justify-center p-3 xs:p-4 sm:p-6 font-sans">
         <div className="max-w-md w-full">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#2F6F4E] text-white shadow-lg mb-4">
-              <Shield size={28} />
+          <div className="text-center mb-5 sm:mb-8">
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#2F6F4E] text-white shadow-lg mb-3 sm:mb-4">
+              <Shield size={26} />
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">AssessMate Admin</h1>
-            <p className="text-xs text-brand-400/80 font-medium tracking-wide uppercase mt-1">
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">AssessMate Admin</h1>
+            <p className="text-[11px] sm:text-xs text-brand-400/80 font-medium tracking-wide uppercase mt-1">
               Master Password Recovery
             </p>
           </div>
 
-          <div className="bg-[#16241F] border border-secondary-700/40 rounded-2xl p-6 sm:p-8 shadow-2xl">
+          <div className="bg-[#16241F] border border-secondary-700/40 rounded-2xl p-4 xs:p-5 sm:p-8 shadow-2xl">
             {step === 'EMAIL' ? (
-              <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-4">
+              <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-3.5 sm:space-y-4">
                 <div>
                   <h2 className="text-base font-bold text-white">Reset Administrator Password</h2>
                   <p className="text-xs text-gray-400 mt-1">
@@ -224,7 +224,7 @@ const ForgotPassword = () => {
                       required
                       placeholder={AUTH_COPY.emailPlaceholder}
                       {...registerEmail('email')}
-                      className="w-full pl-10 pr-4 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition min-h-[44px]"
                     />
                   </div>
                   {emailErrors.email && (
@@ -235,7 +235,7 @@ const ForgotPassword = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full mt-2 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full mt-2 py-3 min-h-[44px] bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>{isLoading ? 'Sending Code...' : 'Send Recovery Code'}</span>
                   {!isLoading && <ArrowRight size={16} />}
@@ -244,7 +244,7 @@ const ForgotPassword = () => {
                 <div className="pt-2 text-center">
                   <Link
                     to="/admin"
-                    className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition"
+                    className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition py-1.5"
                   >
                     <ArrowLeft size={14} />
                     <span>Back to Admin Login</span>
@@ -252,12 +252,12 @@ const ForgotPassword = () => {
                 </div>
               </form>
             ) : (
-              <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-4">
+              <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-3.5 sm:space-y-4">
                 <div>
                   <button
                     type="button"
                     onClick={() => setStep('EMAIL')}
-                    className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white mb-3 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white mb-2 sm:mb-3 transition cursor-pointer py-1"
                   >
                     <ArrowLeft size={14} />
                     <span>Back</span>
@@ -281,12 +281,12 @@ const ForgotPassword = () => {
                       type={showNewPassword ? 'text' : 'password'}
                       placeholder="••••••••••••"
                       {...registerReset('newPassword')}
-                      className="w-full pl-10 pr-11 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                      className="w-full pl-10 pr-11 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition min-h-[44px]"
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword((prev) => !prev)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer p-1 rounded-lg"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer p-1.5 rounded-lg"
                       aria-label={showNewPassword ? 'Hide password' : 'Show password'}
                       tabIndex={-1}
                     >
@@ -306,12 +306,12 @@ const ForgotPassword = () => {
                       type={showConfirmPassword ? 'text' : 'password'}
                       placeholder="••••••••••••"
                       {...registerReset('confirmPassword')}
-                      className="w-full pl-10 pr-11 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                      className="w-full pl-10 pr-11 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition min-h-[44px]"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword((prev) => !prev)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer p-1 rounded-lg"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors cursor-pointer p-1.5 rounded-lg"
                       aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                       tabIndex={-1}
                     >
@@ -326,7 +326,7 @@ const ForgotPassword = () => {
                 <button
                   type="submit"
                   disabled={isLoading || otp.length !== 6}
-                  className="w-full mt-2 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full mt-2 py-3 min-h-[44px] bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>{isLoading ? 'Resetting...' : 'Reset Master Password'}</span>
                   {!isLoading && <ArrowRight size={16} />}
@@ -342,7 +342,7 @@ const ForgotPassword = () => {
                       type="button"
                       onClick={handleResend}
                       disabled={isLoading}
-                      className="text-brand-400 hover:text-brand-300 font-semibold cursor-pointer disabled:opacity-50"
+                      className="text-brand-400 hover:text-brand-300 font-semibold cursor-pointer disabled:opacity-50 py-1"
                     >
                       Resend Code
                     </button>
@@ -352,7 +352,7 @@ const ForgotPassword = () => {
             )}
           </div>
 
-          <p className="text-center text-xs text-gray-500 mt-6">
+          <p className="text-center text-xs text-gray-500 mt-4 sm:mt-6">
             Admin recovery requests are audited and rate-limited.
           </p>
         </div>
@@ -362,15 +362,15 @@ const ForgotPassword = () => {
 
   return (
     <AuthLayout>
-      <div className="w-full min-h-[440px] flex flex-col justify-between">
+      <div className="w-full min-h-0 lg:min-h-[440px] flex flex-col justify-between">
         {step === 'EMAIL' ? (
         <>
-          <div className="mb-8 text-center lg:text-left">
-            <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Forgot Password</h2>
-            <p className="text-secondary-500 text-sm">Enter the email address associated with your AssessMate account.</p>
+          <div className="mb-4 sm:mb-6 lg:mb-8 text-center lg:text-left">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-secondary-900 mb-1.5 sm:mb-2 tracking-tight">Forgot Password</h2>
+            <p className="text-secondary-500 text-xs sm:text-sm">Enter the email address associated with your AssessMate account.</p>
           </div>
 
-          <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-4">
+          <form onSubmit={handleEmailSubmit(onEmailSubmit)} className="space-y-3.5 sm:space-y-4">
             <Input
               label="Email"
               type="email"
@@ -379,13 +379,13 @@ const ForgotPassword = () => {
               error={emailErrors.email}
             />
 
-            <Button type="submit" disabled={isLoading} className="mt-6 w-full">
+            <Button type="submit" disabled={isLoading} className="mt-4 sm:mt-6 w-full min-h-[44px]">
               {isLoading ? 'Sending...' : 'Send Verification Code'}
             </Button>
           </form>
 
-          <div className="mt-8 text-center">
-            <Link to="/login" className="text-secondary-500 hover:text-secondary-800 text-sm font-medium flex items-center justify-center gap-1 transition-colors">
+          <div className="mt-5 sm:mt-8 text-center">
+            <Link to="/login" className="text-secondary-500 hover:text-secondary-800 text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-1 transition-colors py-1.5">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
@@ -395,32 +395,32 @@ const ForgotPassword = () => {
         </>
       ) : (
         <div className="flex flex-col animate-in fade-in duration-300">
-          <div className="mb-8 text-center lg:text-left">
+          <div className="mb-4 sm:mb-6 lg:mb-8 text-center lg:text-left">
             <button
               onClick={() => {
                 setStep('EMAIL');
               }}
-              className="text-secondary-400 hover:text-secondary-700 text-sm font-medium mb-6 flex items-center gap-1 transition-colors"
+              className="text-secondary-400 hover:text-secondary-700 text-xs sm:text-sm font-medium mb-3 sm:mb-6 inline-flex items-center gap-1 transition-colors py-1"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
               Back
             </button>
-            <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Reset Password</h2>
-            <p className="text-secondary-600 text-sm leading-relaxed">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-secondary-900 mb-1.5 sm:mb-2 tracking-tight">Reset Password</h2>
+            <p className="text-secondary-600 text-xs sm:text-sm leading-relaxed">
               We've sent a verification code to<br />
               <span className="font-bold text-secondary-900 break-all">{maskEmail(resetEmail)}</span>
             </p>
           </div>
 
-          <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-6">
-            <div className="space-y-3">
-              <label className="block text-sm font-bold text-secondary-700">Verification Code</label>
+          <form onSubmit={handleResetSubmit(onResetSubmit)} className="space-y-4 sm:space-y-6">
+            <div className="space-y-2 sm:space-y-3">
+              <label className="block text-xs sm:text-sm font-bold text-secondary-700">Verification Code</label>
               <OtpInput value={otp} onChange={setOtp} length={6} disabled={isLoading} />
             </div>
 
-            <div className="space-y-4 pt-2">
+            <div className="space-y-3 sm:space-y-4 pt-1">
               <Input
                 label="New Password"
                 type="password"
@@ -438,12 +438,12 @@ const ForgotPassword = () => {
               />
             </div>
 
-            <Button type="submit" disabled={isLoading || otp.length !== 6} className="w-full shadow-md">
+            <Button type="submit" disabled={isLoading || otp.length !== 6} className="w-full shadow-md min-h-[44px]">
               {isLoading ? 'Resetting...' : 'Reset Password'}
             </Button>
           </form>
 
-          <div className="mt-8 text-center text-sm">
+          <div className="mt-5 sm:mt-8 text-center text-xs sm:text-sm">
             {cooldown > 0 ? (
               <span className="text-secondary-400 font-medium flex items-center justify-center gap-2">
                 Resend code in <Countdown seconds={cooldown} onComplete={() => clearCooldown()} />
@@ -452,7 +452,7 @@ const ForgotPassword = () => {
               <button
                 onClick={handleResend}
                 disabled={isLoading}
-                className="text-brand-600 hover:text-brand-700 font-bold disabled:opacity-50 transition-colors"
+                className="text-brand-600 hover:text-brand-700 font-bold disabled:opacity-50 transition-colors py-1"
               >
                 Resend Code
               </button>

@@ -172,18 +172,18 @@ const Signup = () => {
 
   return (
     <AuthLayout>
-      <div className="w-full min-h-[480px] flex flex-col justify-between">
+      <div className="w-full min-h-0 lg:min-h-[480px] flex flex-col justify-between">
         {step === 'FORM' ? (
           <div className="flex-1 flex flex-col justify-between transition-opacity duration-200 motion-reduce:transition-none">
             <div>
-              <div className="mb-6 text-center lg:text-left">
-                <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Create an account</h2>
-                <p className="text-secondary-500 text-sm">Join AssessMate to get started</p>
+              <div className="mb-4 sm:mb-6 text-center lg:text-left">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-secondary-900 mb-1.5 sm:mb-2 tracking-tight">Create an account</h2>
+                <p className="text-secondary-500 text-xs sm:text-sm">Join AssessMate to get started</p>
               </div>
 
               <Toggle activeRole={role} onChange={setRole} />
 
-              <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-3.5 mt-4">
+              <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-2.5 sm:space-y-3.5 mt-2 sm:mt-4">
                 <Input
                   label="Full Name"
                   type="text"
@@ -216,13 +216,13 @@ const Signup = () => {
                   error={errors.confirmPassword}
                 />
 
-                <Button type="submit" disabled={isLoading} className="mt-5 w-full">
+                <Button type="submit" disabled={isLoading} className="mt-4 sm:mt-5 w-full py-2.5 sm:py-3 min-h-[44px]">
                   {isLoading ? 'Sending verification code...' : `Sign up as ${role === 'host' ? 'Host' : 'Candidate'}`}
                 </Button>
               </form>
             </div>
 
-            <p className="mt-6 text-center text-sm font-medium text-secondary-500">
+            <p className="mt-4 sm:mt-6 text-center text-xs sm:text-sm font-medium text-secondary-500">
               Already have an account?{' '}
               <Link to="/login" className="text-brand-500 hover:text-brand-600 font-bold ml-1">
                 Log in instead
@@ -232,13 +232,13 @@ const Signup = () => {
         ) : (
           <div className="flex-1 flex flex-col justify-between transition-opacity duration-200 motion-reduce:transition-none">
             <div>
-              <div className="mb-6 text-center lg:text-left">
+              <div className="mb-4 sm:mb-6 text-center lg:text-left">
                 <button 
                   type="button"
                   onClick={() => {
                     setStep('FORM');
                   }} 
-                  className="text-secondary-500 hover:text-secondary-800 text-sm font-semibold mb-4 inline-flex items-center gap-1.5 transition-colors cursor-pointer group"
+                  className="text-secondary-500 hover:text-secondary-800 text-xs sm:text-sm font-semibold mb-3 sm:mb-4 inline-flex items-center gap-1.5 transition-colors cursor-pointer group"
                   aria-label="Return to registration form"
                 >
                   <svg className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -246,27 +246,27 @@ const Signup = () => {
                   </svg>
                   <span>Back to registration</span>
                 </button>
-                <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Verify Your Email</h2>
-                <p className="text-secondary-600 text-sm leading-relaxed">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-secondary-900 mb-1.5 sm:mb-2 tracking-tight">Verify Your Email</h2>
+                <p className="text-secondary-600 text-xs sm:text-sm leading-relaxed">
                   We've sent a 6-digit verification code to<br/>
                   <span className="font-bold text-secondary-900 break-all">{maskEmail(registrationData?.email)}</span>
                 </p>
               </div>
 
-              <form onSubmit={onVerifyOtp} className="space-y-6 mt-6">
-                <div className="space-y-3">
-                  <label className="block text-sm font-bold text-secondary-700">Verification Code</label>
+              <form onSubmit={onVerifyOtp} className="space-y-4 sm:space-y-6 mt-4 sm:mt-6">
+                <div className="space-y-2 sm:space-y-3">
+                  <label className="block text-xs sm:text-sm font-bold text-secondary-700">Verification Code</label>
                   <OtpInput value={otp} onChange={setOtp} length={6} disabled={isLoading} />
                 </div>
 
-                <Button type="submit" disabled={isLoading || otp.length !== 6} className="w-full shadow-md">
+                <Button type="submit" disabled={isLoading || otp.length !== 6} className="w-full py-2.5 sm:py-3 min-h-[44px] shadow-md">
                   {isLoading ? 'Verifying...' : 'Verify Email'}
                 </Button>
               </form>
             </div>
 
-            <div className="mt-8 text-center text-sm">
-              <p className="text-secondary-500 mb-2">Didn't receive the code?</p>
+            <div className="mt-5 sm:mt-8 text-center text-xs sm:text-sm">
+              <p className="text-secondary-500 mb-1.5 sm:mb-2">Didn't receive the code?</p>
               {cooldown > 0 ? (
                 <span className="text-secondary-400 font-medium flex items-center justify-center gap-2">
                   Resend code in <Countdown seconds={cooldown} onComplete={() => clearCooldown()} />

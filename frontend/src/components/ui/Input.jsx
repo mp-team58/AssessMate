@@ -7,13 +7,13 @@ const Input = forwardRef(({ label, error, type, className = '', containerClassNa
   const effectiveType = isPassword ? (showPassword ? 'text' : 'password') : type;
 
   return (
-    <div className={`mb-5 group ${containerClassName}`}>
-      {label && <label className="block text-sm font-semibold text-secondary-700 mb-2 group-focus-within:text-brand-600 transition-colors">{label}</label>}
+    <div className={`mb-3.5 sm:mb-5 group ${containerClassName}`}>
+      {label && <label className="block text-xs sm:text-sm font-semibold text-secondary-700 mb-1.5 sm:mb-2 group-focus-within:text-brand-600 transition-colors">{label}</label>}
       <div className="relative">
         <input
           ref={ref}
           type={effectiveType}
-          className={`w-full px-4 py-3 text-[15px] bg-secondary-50/50 hover:bg-white focus:bg-white border rounded-xl focus:outline-none focus:ring-[3px] focus:border-brand-500 transition-all duration-300 shadow-sm ${
+          className={`w-full px-3.5 sm:px-4 py-2.5 sm:py-3 min-h-[44px] text-[15px] bg-secondary-50/50 hover:bg-white focus:bg-white border rounded-xl focus:outline-none focus:ring-[3px] focus:border-brand-500 transition-all duration-300 shadow-sm ${
             isPassword ? 'pr-11' : ''
           } ${
             error ? 'border-red-400 focus:ring-red-500/20' : 'border-secondary-200 focus:ring-brand-500/15 hover:border-brand-400 text-secondary-900'

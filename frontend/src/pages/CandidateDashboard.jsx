@@ -120,28 +120,28 @@ const CandidateDashboard = () => {
   const recentAssessments = assessments.slice(0, 5);
 
   return (
-    <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
+    <div className="w-full space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-300">
       {/* Hero Welcome Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#16241F] via-[#1d352b] to-[#2F6F4E] p-6 sm:p-8 md:p-10 text-white shadow-xl border border-secondary-800">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#16241F] via-[#1d352b] to-[#2F6F4E] p-4 sm:p-8 md:p-10 text-white shadow-xl border border-secondary-800">
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-xs font-semibold uppercase tracking-wider text-amber-300 mb-3 sm:mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-xs font-semibold uppercase tracking-wider text-amber-300 mb-2.5 sm:mb-4">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             <span>Candidate Portal</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight mb-2 sm:mb-3 text-white">
+          <h1 className="text-xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight mb-2 sm:mb-3 text-white break-words">
             Welcome back, {user?.name || 'Candidate'}!
           </h1>
-          <p className="text-brand-100 text-sm sm:text-base md:text-lg mb-6 sm:mb-8 leading-relaxed opacity-90">
+          <p className="text-brand-100 text-xs sm:text-base md:text-lg mb-5 sm:mb-8 leading-relaxed opacity-90">
             Stay on top of your proctored assessments, review personalized AI diagnostic feedback, and track your learning progress.
           </p>
 
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-4 w-full sm:w-auto">
             <Link
               to="/candidate/join"
               onMouseEnter={() => prefetchRoute('/candidate/join')}
               onFocus={() => prefetchRoute('/candidate/join')}
-              className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 bg-amber-400 text-[#16241F] rounded-xl font-bold hover:bg-amber-300 hover:scale-[1.01] transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300 text-sm sm:text-base"
+              className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 min-h-[44px] bg-amber-400 text-[#16241F] rounded-xl font-bold hover:bg-amber-300 hover:scale-[1.01] transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300 text-sm sm:text-base w-full sm:w-auto"
             >
               <KeyRound className="w-4 h-4 text-[#16241F]" />
               <span>Join Assessment</span>
@@ -150,7 +150,7 @@ const CandidateDashboard = () => {
               to="/candidate/my-assessments"
               onMouseEnter={() => prefetchRoute('/candidate/my-assessments')}
               onFocus={() => prefetchRoute('/candidate/my-assessments')}
-              className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl font-bold hover:bg-white/20 transition-all focus:outline-none focus:ring-2 focus:ring-white/40 text-sm sm:text-base"
+              className="inline-flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 min-h-[44px] bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl font-bold hover:bg-white/20 transition-all focus:outline-none focus:ring-2 focus:ring-white/40 text-sm sm:text-base w-full sm:w-auto"
             >
               <FileText className="w-4 h-4 text-brand-300" />
               <span>My Assessments</span>

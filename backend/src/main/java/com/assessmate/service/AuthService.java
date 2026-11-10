@@ -59,22 +59,21 @@ public class AuthService {
         String otp = generateOtp();
         String otpHash = passwordEncoder.encode(otp);
 
-        otpRepository.deleteByEmailAndPurpose(email, OtpPurpose.REGISTER);
-        otpRepository.flush();
+        OtpVerification otpVerification = otpRepository.findByEmailAndPurpose(email, OtpPurpose.REGISTER)
+                .orElseGet(() -> OtpVerification.builder()
+                        .email(email)
+                        .purpose(OtpPurpose.REGISTER)
+                        .build());
 
-        OtpVerification otpVerification = OtpVerification.builder()
-                .email(email)
-                .purpose(OtpPurpose.REGISTER)
-                .otpHash(otpHash)
-                .expiresAt(LocalDateTime.now().plusMinutes(otpExpiryMinutes))
-                .attempts(0)
-                .createdAt(LocalDateTime.now())
-                .pendingName(req.getName())
-                .pendingPasswordHash(passwordEncoder.encode(req.getPassword()))
-                .pendingRole(Role.valueOf(req.getRole().toUpperCase(Locale.ROOT)))
-                .build();
+        otpVerification.setOtpHash(otpHash);
+        otpVerification.setExpiresAt(LocalDateTime.now().plusMinutes(otpExpiryMinutes));
+        otpVerification.setAttempts(0);
+        otpVerification.setCreatedAt(LocalDateTime.now());
+        otpVerification.setPendingName(req.getName());
+        otpVerification.setPendingPasswordHash(passwordEncoder.encode(req.getPassword()));
+        otpVerification.setPendingRole(Role.valueOf(req.getRole().toUpperCase(Locale.ROOT)));
 
-        otpRepository.save(otpVerification);
+        otpRepository.saveAndFlush(otpVerification);
         emailService.sendRegistrationOtp(email, req.getName(), otp);
     }
 
@@ -145,19 +144,18 @@ public class AuthService {
         String otp = generateOtp();
         String otpHash = passwordEncoder.encode(otp);
 
-        otpRepository.deleteByEmailAndPurpose(email, OtpPurpose.FORGOT_PASSWORD);
-        otpRepository.flush();
+        OtpVerification otpVerification = otpRepository.findByEmailAndPurpose(email, OtpPurpose.FORGOT_PASSWORD)
+                .orElseGet(() -> OtpVerification.builder()
+                        .email(email)
+                        .purpose(OtpPurpose.FORGOT_PASSWORD)
+                        .build());
 
-        OtpVerification otpVerification = OtpVerification.builder()
-                .email(email)
-                .purpose(OtpPurpose.FORGOT_PASSWORD)
-                .otpHash(otpHash)
-                .expiresAt(LocalDateTime.now().plusMinutes(otpExpiryMinutes))
-                .attempts(0)
-                .createdAt(LocalDateTime.now())
-                .build();
+        otpVerification.setOtpHash(otpHash);
+        otpVerification.setExpiresAt(LocalDateTime.now().plusMinutes(otpExpiryMinutes));
+        otpVerification.setAttempts(0);
+        otpVerification.setCreatedAt(LocalDateTime.now());
 
-        otpRepository.save(otpVerification);
+        otpRepository.saveAndFlush(otpVerification);
         emailService.sendPasswordResetOtp(email, otp);
     }
 

@@ -4,13 +4,13 @@ import { BookOpenCheck } from 'lucide-react';
 
 const AuthLayout = ({ children }) => {
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-6 md:p-12 relative overflow-hidden">
+    <div className="min-h-screen min-h-dvh bg-surface flex items-center justify-center p-3 xs:p-4 sm:p-6 md:p-12 py-5 sm:py-8 relative overflow-hidden">
       {/* Dynamic decorative moving ambient gradients */}
       <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-brand-400 rounded-full blur-[120px] opacity-25 animate-pulse mix-blend-multiply pointer-events-none"></div>
       <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-amber-300 rounded-full blur-[120px] opacity-25 mix-blend-multiply animate-pulse pointer-events-none" style={{ animationDelay: '2s' }}></div>
 
       {/* Floating App Window */}
-      <div className="relative w-full max-w-4xl bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] flex flex-col lg:flex-row overflow-hidden min-h-[550px] z-10 border border-white/60 animate-in fade-in zoom-in-[0.98] duration-700">
+      <div className="relative w-full max-w-4xl bg-white/90 backdrop-blur-xl rounded-2xl sm:rounded-[2rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.08)] flex flex-col lg:flex-row overflow-hidden min-h-0 lg:min-h-[550px] z-10 border border-white/60 animate-in fade-in zoom-in-[0.98] duration-700">
         
         {/* Left Marketing Panel */}
         <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-secondary-50/80 to-white/60 p-10 lg:p-12 flex-col justify-between relative overflow-hidden border-r border-secondary-200/50">
@@ -41,16 +41,16 @@ const AuthLayout = ({ children }) => {
         </div>
 
         {/* Right Form Panel */}
-        <div className="flex-1 flex flex-col justify-center items-center p-6 lg:p-10 bg-white relative">
+        <div className="flex-1 flex flex-col justify-center items-center p-4 xs:p-5 sm:p-8 lg:p-10 bg-white relative">
           <div className="w-full max-w-md">
-            <Link to="/" aria-label="AssessMate home" className="lg:hidden flex items-center justify-center gap-2 mb-8 text-xl font-extrabold tracking-tight text-secondary-900">
+            <Link to="/" aria-label="AssessMate home" className="lg:hidden flex items-center justify-center gap-2 mb-4 sm:mb-6 text-xl font-extrabold tracking-tight text-secondary-900">
               <span className="p-1.5 bg-brand-100 rounded-lg">
                 <BookOpenCheck className="w-6 h-6 text-brand-600" />
               </span>
               <span>AssessMate<span className="text-brand-500">.</span></span>
             </Link>
             {children}
-            <p className="lg:hidden mt-8 text-center text-xs font-medium text-secondary-400">
+            <p className="lg:hidden mt-4 sm:mt-6 text-center text-xs font-medium text-secondary-400">
               © {new Date().getFullYear()} AssessMate. All rights reserved.
             </p>
           </div>

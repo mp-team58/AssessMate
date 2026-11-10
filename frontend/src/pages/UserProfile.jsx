@@ -16,16 +16,16 @@ const inputCls = (hasError) =>
   }`;
 
 const Card = ({ icon: Icon, title, description, children, className = '', innerRef }) => (
-  <section ref={innerRef} className={`bg-white rounded-2xl border shadow-sm p-6 md:p-8 ${className || 'border-secondary-200'}`}>
-    <div className="flex items-start gap-3.5 mb-6">
+  <section ref={innerRef} className={`bg-white rounded-2xl border shadow-sm p-4 sm:p-6 md:p-8 ${className || 'border-secondary-200'}`}>
+    <div className="flex items-start gap-3 sm:gap-3.5 mb-5 sm:mb-6">
       {Icon && (
         <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 border border-brand-200 flex items-center justify-center shrink-0 shadow-sm">
           <Icon className="w-5 h-5" aria-hidden="true" />
         </div>
       )}
       <div>
-        <h2 className="text-lg font-bold text-secondary-900 tracking-tight">{title}</h2>
-        {description && <p className="text-sm text-secondary-500 mt-0.5">{description}</p>}
+        <h2 className="text-base sm:text-lg font-bold text-secondary-900 tracking-tight">{title}</h2>
+        {description && <p className="text-xs sm:text-sm text-secondary-500 mt-0.5">{description}</p>}
       </div>
     </div>
     {children}
@@ -287,11 +287,11 @@ const UserProfile = () => {
                 </div>
               </div>
 
-              <div className="mt-6 flex items-center gap-3">
+              <div className="mt-5 sm:mt-6 flex flex-wrap items-center gap-2.5 sm:gap-3">
                 <button
                   type="submit"
                   disabled={!nameDirty || savingName}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 min-h-[44px] rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer w-full sm:w-auto"
                 >
                   {savingName ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Save className="w-4 h-4" aria-hidden="true" />}
                   Save changes
@@ -300,7 +300,7 @@ const UserProfile = () => {
                   <button
                     type="button"
                     onClick={() => { setName(savedName); setNameError(''); }}
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold text-secondary-700 hover:bg-secondary-100 transition"
+                    className="px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-semibold text-secondary-700 hover:bg-secondary-100 transition cursor-pointer"
                   >
                     Discard
                   </button>
@@ -351,7 +351,7 @@ const UserProfile = () => {
                 <button
                   type="submit"
                   disabled={!canChangePassword}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-2.5 min-h-[44px] rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto cursor-pointer"
                 >
                   {changingPassword ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Lock className="w-4 h-4" aria-hidden="true" />}
                   Update password

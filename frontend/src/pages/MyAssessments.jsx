@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCandidateHistory } from '../services/candidateService';
 import { checkDeviceAccess } from '../utils/deviceDetection';
@@ -107,12 +107,12 @@ const MyAssessments = () => {
   const inProgressCount = totalCount - completedCount;
 
   return (
-    <div className="w-full space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
+    <div className="w-full space-y-4 sm:space-y-6 lg:space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
       {/* Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#16241F] tracking-tight">Assessments</h1>
-          <p className="text-secondary-600 mt-1 text-sm sm:text-base">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#16241F] tracking-tight">Assessments</h1>
+          <p className="text-secondary-600 mt-0.5 sm:mt-1 text-xs sm:text-sm md:text-base">
             Track your proctored examinations, resume active sessions, and review AI reports.
           </p>
         </div>
@@ -120,7 +120,7 @@ const MyAssessments = () => {
           onClick={() => navigate('/candidate/join')}
           onMouseEnter={() => prefetchRoute('/candidate/join')}
           onFocus={() => prefetchRoute('/candidate/join')}
-          className="!w-full sm:!w-auto px-6 py-2.5 text-sm font-bold shadow-md bg-amber-400 text-[#16241F] hover:bg-amber-300"
+          className="!w-full sm:!w-auto px-5 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold shadow-md bg-amber-400 text-[#16241F] hover:bg-amber-300 min-h-[44px]"
         >
           <KeyRound className="w-4 h-4 mr-1.5" />
           <span>Join Assessment</span>
@@ -247,7 +247,7 @@ const MyAssessments = () => {
             return (
               <div
                 key={exam.enrollmentId}
-                className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 hover:border-brand-400 hover:shadow-md transition-all duration-200 flex flex-col justify-between h-full group relative overflow-hidden"
+                className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-secondary-200 hover:border-brand-400 hover:shadow-md transition-all duration-200 flex flex-col justify-between h-full group relative overflow-hidden"
               >
                 {/* Top Accent Line */}
                 <div

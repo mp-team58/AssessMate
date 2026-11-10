@@ -225,21 +225,21 @@ const HostProctoring = () => {
   });
 
   return (
-    <div className="w-full h-full space-y-8 animate-in fade-in duration-500 pb-12">
-      <header className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="w-full h-full space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-500 pb-12">
+      <header className="mb-4 sm:mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
-          <button onClick={() => navigate(`/host/exams/${id}/manage`)} className="text-brand-600 hover:text-brand-700 flex items-center gap-2 font-bold text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100 mb-2 cursor-pointer">
+          <button onClick={() => navigate(`/host/exams/${id}/manage`)} className="text-brand-600 hover:text-brand-700 flex items-center gap-2 font-bold text-xs sm:text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100 mb-2 cursor-pointer min-h-[36px]">
             <ArrowLeft className="w-4 h-4" />
             Back to Exam Details
           </button>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-secondary-900 tracking-tight flex items-center gap-3">
-            <ShieldAlert className="w-8 h-8 text-purple-600" />
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-secondary-900 tracking-tight flex items-center gap-2 sm:gap-3">
+            <ShieldAlert className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
             Proctoring
           </h1>
-          <p className="text-secondary-500 mt-2 text-lg">Review candidate monitoring events and flagged activity for {data.examTitle}.</p>
+          <p className="text-secondary-500 mt-1 text-xs sm:text-sm md:text-base">Review candidate monitoring events and flagged activity for {data.examTitle}.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
             Auto-refreshing (6s)
@@ -248,7 +248,7 @@ const HostProctoring = () => {
             variant="outline"
             onClick={() => fetchProctoring(true)}
             disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs h-auto bg-white cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs h-auto min-h-[36px] bg-white cursor-pointer"
           >
             <RefreshCcw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>Sync</span>
@@ -257,7 +257,7 @@ const HostProctoring = () => {
       </header>
 
       {/* Totals Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-4">
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-secondary-200">
           <p className="text-xs text-secondary-500 font-bold uppercase tracking-wider mb-1">Candidates</p>
           <span className="text-2xl font-extrabold text-secondary-900">{totalCandidates}</span>

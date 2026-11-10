@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import useModalScrollLock from '../hooks/useModalScrollLock';
 import useModalAccessibility from '../hooks/useModalAccessibility';
@@ -130,30 +130,30 @@ const JoinAssessment = () => {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
+    <div className="w-full max-w-5xl mx-auto space-y-4 sm:space-y-6 lg:space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
       <header>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#16241F] tracking-tight">Join Assessment</h1>
-        <p className="text-secondary-600 mt-1 text-sm sm:text-base">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#16241F] tracking-tight">Join Assessment</h1>
+        <p className="text-secondary-600 mt-1 text-xs sm:text-sm md:text-base">
           Enter your unique access code to verify your credentials and begin your proctored assessment session.
         </p>
       </header>
 
       {/* Access Code Input Card */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-6">
-        <div className="flex items-center gap-3.5 pb-4 border-b border-secondary-100">
-          <div className="bg-brand-50 text-[#2F6F4E] p-3 rounded-2xl border border-brand-100 shadow-inner">
-            <KeyRound className="w-6 h-6" />
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-secondary-200 space-y-4 sm:space-y-6">
+        <div className="flex items-center gap-3 sm:gap-3.5 pb-3 sm:pb-4 border-b border-secondary-100">
+          <div className="bg-brand-50 text-[#2F6F4E] p-2.5 sm:p-3 rounded-2xl border border-brand-100 shadow-inner">
+            <KeyRound className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-[#16241F]">Exam Access Code</h2>
-            <p className="text-secondary-500 text-xs mt-0.5">
+            <h2 className="text-base sm:text-xl font-bold text-[#16241F]">Exam Access Code</h2>
+            <p className="text-secondary-500 text-[11px] sm:text-xs mt-0.5">
               Enter the unique alphanumeric join code provided by your instructor or organization
             </p>
           </div>
         </div>
 
         {errorBanner && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-800 text-xs sm:text-sm font-medium flex items-start gap-2.5 animate-in fade-in duration-200">
+          <div className="p-3 sm:p-4 bg-red-50 border border-red-200 rounded-2xl text-red-800 text-xs sm:text-sm font-medium flex items-start gap-2.5 animate-in fade-in duration-200">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             <div className="flex-1">
               <span>{errorBanner}</span>
@@ -161,7 +161,7 @@ const JoinAssessment = () => {
           </div>
         )}
 
-        <form onSubmit={handleJoin} className="space-y-5">
+        <form onSubmit={handleJoin} className="space-y-4 sm:space-y-5">
           <div>
             <label htmlFor="exam-access-code" className="block text-xs font-bold text-secondary-700 uppercase tracking-wider mb-2">
               Access Code
@@ -177,7 +177,7 @@ const JoinAssessment = () => {
                 }}
                 placeholder="e.g. EXAM-8492"
                 autoComplete="off"
-                className="w-full px-5 py-4 text-base sm:text-lg bg-secondary-50/60 border-2 border-secondary-200 rounded-2xl focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 transition-all font-mono tracking-widest text-[#16241F] uppercase placeholder:text-secondary-400 font-bold"
+                className="w-full px-4 sm:px-5 py-3 sm:py-4 text-base sm:text-lg bg-secondary-50/60 border-2 border-secondary-200 rounded-2xl focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 transition-all font-mono tracking-widest text-[#16241F] uppercase placeholder:text-secondary-400 font-bold min-h-[48px]"
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-secondary-400">
                 <Lock className="w-5 h-5" />
@@ -188,7 +188,7 @@ const JoinAssessment = () => {
           <Button
             type="submit"
             disabled={isLoading || !joinCode.trim()}
-            className="w-full py-3.5 text-sm sm:text-base font-bold shadow-lg shadow-brand-600/20 bg-[#16241F] hover:bg-secondary-800 text-white"
+            className="w-full py-3 sm:py-3.5 text-sm sm:text-base font-bold shadow-lg shadow-brand-600/20 bg-[#16241F] hover:bg-secondary-800 text-white min-h-[44px]"
           >
             {isLoading ? (
               <>
@@ -206,7 +206,7 @@ const JoinAssessment = () => {
       </div>
 
       {/* Pre-Assessment Rules Card */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-5">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-secondary-200 space-y-4 sm:space-y-5">
         <div className="flex items-center gap-2.5 pb-2 border-b border-secondary-100">
           <ShieldAlert className="w-5 h-5 text-[#2F6F4E]" />
           <h3 className="text-base sm:text-lg font-bold text-[#16241F]">Before You Start — Examination Rules</h3>

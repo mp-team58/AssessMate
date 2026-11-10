@@ -1,4 +1,4 @@
-﻿import React, { useRef } from 'react';
+import React, { useRef } from 'react';
 
 const OtpInput = ({ value = '', onChange, length = 6, disabled = false, isDark = false }) => {
   const inputRefs = useRef([]);
@@ -61,7 +61,7 @@ const OtpInput = ({ value = '', onChange, length = 6, disabled = false, isDark =
     <div
       role="group"
       aria-label="Verification code input"
-      className="flex items-center justify-between gap-1.5 sm:gap-2.5 w-full max-w-sm mx-auto select-none"
+      className="flex items-center justify-between gap-1 xs:gap-1.5 sm:gap-2.5 w-full max-w-sm mx-auto select-none"
     >
       {Array.from({ length }).map((_, index) => {
         const digit = (value || '')[index] || '';
@@ -79,8 +79,8 @@ const OtpInput = ({ value = '', onChange, length = 6, disabled = false, isDark =
             onKeyDown={(e) => handleKeyDown(e, index)}
             disabled={disabled}
             className={`
-              flex-1 min-w-0 max-w-[48px] h-12 sm:h-14 min-h-[48px]
-              text-center text-lg sm:text-xl font-bold rounded-xl outline-none shadow-sm
+              flex-1 min-w-0 max-w-[42px] sm:max-w-[48px] h-11 sm:h-14 min-h-[44px]
+              text-center text-base sm:text-xl font-bold rounded-xl outline-none shadow-sm
               transition-all duration-200
               disabled:opacity-50 disabled:cursor-not-allowed
               ${isDark

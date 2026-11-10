@@ -1,4 +1,4 @@
-﻿// Place at: src/pages/CreateExam.jsx  (helpers live in src/utils/examForm.js)
+// Place at: src/pages/CreateExam.jsx  (helpers live in src/utils/examForm.js)
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useForm } from 'react-hook-form';
@@ -675,25 +675,25 @@ const CreateExam = () => {
 
   return (
     <div className="w-full pb-16">
-      <header className="mb-6 flex items-start justify-between gap-4">
+      <header className="mb-4 sm:mb-6 flex items-start justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-secondary-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-secondary-900 tracking-tight break-words">
             {isEditMode ? 'Edit exam' : 'Create new exam'}
           </h1>
-          <p className="text-secondary-600 mt-1.5">
+          <p className="text-secondary-600 mt-1 text-xs sm:text-sm md:text-base">
             {isEditMode ? 'Update your assessment details and structure.' : 'Set up the schedule, marking and monitoring. You add questions next.'}
           </p>
         </div>
         <Link
           to={isEditMode ? `/host/exams/${id}/manage` : EXAMS_LIST_PATH}
-          className="shrink-0 px-4 py-2 text-sm font-semibold text-secondary-600 hover:text-secondary-900 rounded-lg hover:bg-secondary-100 transition"
+          className="shrink-0 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-secondary-600 hover:text-secondary-900 rounded-lg hover:bg-secondary-100 transition min-h-[36px] inline-flex items-center"
         >
           Cancel
         </Link>
       </header>
 
       {/* Step indicator */}
-      <nav aria-label="Progress" className="mb-6">
+      <nav aria-label="Progress" className="mb-4 sm:mb-6 overflow-x-auto pb-1">
         <ol className="flex items-center">
           {STEPS.map((s, i) => (
             <li key={s.label} className={`flex items-center ${i < LAST_STEP ? 'flex-1' : ''}`}>
@@ -1077,7 +1077,7 @@ const CreateExam = () => {
           {/* ---------------- Navigation ---------------- */}
           <div className="flex items-center justify-between gap-3 pt-2">
             {step > 0 ? (
-              <button key="back" type="button" onClick={goBack} className="px-6 py-3 rounded-xl border border-secondary-300 bg-white text-secondary-800 font-semibold hover:bg-secondary-50 transition">
+              <button key="back" type="button" onClick={goBack} className="px-5 sm:px-6 py-2.5 sm:py-3 min-h-[44px] rounded-xl border border-secondary-300 bg-white text-secondary-800 font-semibold hover:bg-secondary-50 transition text-sm cursor-pointer">
                 Back
               </button>
             ) : <span />}
@@ -1087,12 +1087,12 @@ const CreateExam = () => {
                 key="submit"
                 type="submit"
                 disabled={isLoading}
-                className="px-8 py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                className="px-6 sm:px-8 py-2.5 sm:py-3 min-h-[44px] rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 disabled:opacity-60 disabled:cursor-not-allowed transition text-sm cursor-pointer"
               >
                 {isLoading ? (isEditMode ? 'Saving…' : 'Creating…') : isEditMode ? 'Save changes' : 'Create exam'}
               </button>
             ) : (
-              <button key="next" type="submit" className="px-8 py-3 rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 transition">
+              <button key="next" type="submit" className="px-6 sm:px-8 py-2.5 sm:py-3 min-h-[44px] rounded-xl bg-brand-600 text-white font-semibold hover:bg-brand-700 transition text-sm cursor-pointer">
                 Next
               </button>
             )}

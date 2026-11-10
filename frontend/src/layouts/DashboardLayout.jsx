@@ -150,7 +150,7 @@ const DashboardLayout = () => {
 
       {/* Main Content Area */}
       <main id="app-scroll-container" className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden relative h-full">
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 xl:p-10 z-10 w-full max-w-[1600px] mx-auto">
+        <div className="flex-1 p-3 xs:p-4 sm:p-6 lg:p-8 xl:p-10 z-10 w-full max-w-[1600px] mx-auto">
           <React.Suspense fallback={<ContentSkeleton />}>
             <ErrorBoundary routeLevel>
               <Outlet />

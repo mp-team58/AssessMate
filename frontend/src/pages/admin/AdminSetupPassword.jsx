@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import adminService from '../../services/adminService';
 import { useToast } from '../../contexts/ToastContext';
@@ -81,41 +81,41 @@ export default function AdminSetupPassword() {
   };
 
   return (
-    <div className="min-h-screen bg-[#111915] flex items-center justify-center p-4 font-sans">
+    <div className="min-h-dvh bg-[#111915] flex items-center justify-center p-3 xs:p-4 sm:p-6 font-sans">
       <div className="max-w-md w-full">
         {/* Branding */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#2F6F4E] text-white shadow-lg mb-4">
-            <Shield size={28} />
+        <div className="text-center mb-5 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#2F6F4E] text-white shadow-lg mb-3 sm:mb-4">
+            <Shield size={26} />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">AssessMate Admin</h1>
-          <p className="text-xs text-brand-400/80 font-medium tracking-wide uppercase mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">AssessMate Admin</h1>
+          <p className="text-[11px] sm:text-xs text-brand-400/80 font-medium tracking-wide uppercase mt-1">
             Administrator Account Setup
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-[#16241F] border border-secondary-700/40 rounded-2xl p-6 sm:p-8 shadow-2xl">
+        <div className="bg-[#16241F] border border-secondary-700/40 rounded-2xl p-4 xs:p-5 sm:p-8 shadow-2xl">
           {validating ? (
             <div className="py-12 text-center space-y-4">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500 mx-auto" />
               <p className="text-sm text-gray-300 font-medium">Validating invitation credentials...</p>
             </div>
           ) : tokenError ? (
-            <div className="text-center space-y-5 py-4">
+            <div className="text-center space-y-4 sm:space-y-5 py-3 sm:py-4">
               <div className="w-12 h-12 rounded-full bg-red-950/60 border border-red-800 text-red-400 flex items-center justify-center mx-auto">
                 <AlertTriangle size={24} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5 sm:space-y-2">
                 <h2 className="text-base font-bold text-white">Invalid or Expired Invitation</h2>
-                <p className="text-xs text-gray-400 leading-relaxed px-2">
+                <p className="text-xs text-gray-400 leading-relaxed px-1 sm:px-2">
                   {tokenError}
                 </p>
               </div>
               <div className="pt-2">
                 <Link
                   to="/admin"
-                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 bg-[#2F6F4E] hover:bg-[#25583E] text-white text-xs font-bold rounded-xl transition"
+                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 min-h-[44px] bg-[#2F6F4E] hover:bg-[#25583E] text-white text-xs font-bold rounded-xl transition"
                 >
                   <span>Return to Admin Login</span>
                   <ArrowRight size={14} />
@@ -123,11 +123,11 @@ export default function AdminSetupPassword() {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
               <div className="pb-3 border-b border-emerald-950">
                 <p className="text-xs text-gray-400">Welcome,</p>
                 <p className="text-sm font-bold text-white">{invitationData?.name || 'Administrator'}</p>
-                <p className="text-xs text-brand-400 font-mono mt-0.5">{invitationData?.email}</p>
+                <p className="text-xs text-brand-400 font-mono mt-0.5 break-all">{invitationData?.email}</p>
               </div>
 
               <div>
@@ -142,12 +142,12 @@ export default function AdminSetupPassword() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter strong password"
-                    className="w-full pl-10 pr-10 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                    className="w-full pl-10 pr-10 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition min-h-[44px]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 cursor-pointer p-1 rounded-lg"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 cursor-pointer p-1.5 rounded-lg"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     tabIndex={-1}
                   >
@@ -168,12 +168,12 @@ export default function AdminSetupPassword() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter password"
-                    className="w-full pl-10 pr-10 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition"
+                    className="w-full pl-10 pr-10 py-2.5 bg-[#111915] border border-secondary-700/50 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#2F6F4E] transition min-h-[44px]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 cursor-pointer p-1 rounded-lg"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 cursor-pointer p-1.5 rounded-lg"
                     aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                     tabIndex={-1}
                   >
@@ -216,7 +216,7 @@ export default function AdminSetupPassword() {
               <button
                 type="submit"
                 disabled={submitting || !isValid}
-                className="w-full mt-4 py-3 bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full mt-3 sm:mt-4 py-3 min-h-[44px] bg-[#2F6F4E] hover:bg-[#25583E] text-white font-medium text-sm rounded-xl transition shadow-lg shadow-brand-950/50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>{submitting ? 'Setting Password...' : 'Activate Admin Account'}</span>
                 {!submitting && <ArrowRight size={16} />}
@@ -225,7 +225,7 @@ export default function AdminSetupPassword() {
           )}
         </div>
 
-        <p className="text-center text-xs text-gray-500 mt-6">
+        <p className="text-center text-xs text-gray-500 mt-4 sm:mt-6">
           System Administration • Single-use setup token expires after 30 minutes.
         </p>
       </div>

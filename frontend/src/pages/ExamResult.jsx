@@ -227,16 +227,16 @@ const ExamResult = () => {
   const isPassed = !!result.passed || Number(percentage) >= 50;
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300 pb-12">
+    <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300 pb-12">
       {/* Top Banner Header Card */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl md:text-3xl font-extrabold text-secondary-900 tracking-tight">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-secondary-200">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-secondary-900 tracking-tight break-words">
               {result.examTitle}
             </h1>
             <span
-              className={`px-3.5 py-1 text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-sm ${
+              className={`px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-sm ${
                 isPassed
                   ? 'bg-green-100 text-green-800 border border-green-200'
                   : 'bg-amber-100 text-amber-800 border border-amber-200'
@@ -255,16 +255,16 @@ const ExamResult = () => {
               )}
             </span>
           </div>
-          <p className="text-secondary-600 text-sm font-medium">
+          <p className="text-secondary-600 text-xs sm:text-sm font-medium">
             Candidate Performance &amp; AI Diagnostic Evaluation Report
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-start sm:justify-end">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-start sm:justify-end">
           <Button
             onClick={() => navigate('/candidate/my-assessments')}
             variant="outline"
-            className="!w-auto px-4 py-2 text-xs"
+            className="flex-1 sm:!w-auto px-4 py-2 text-xs min-h-[38px]"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Assessments</span>
@@ -272,7 +272,7 @@ const ExamResult = () => {
           <Button
             onClick={() => navigate('/candidate/dashboard')}
             variant="secondary"
-            className="!w-auto px-4 py-2 text-xs"
+            className="flex-1 sm:!w-auto px-4 py-2 text-xs min-h-[38px]"
           >
             <span>Dashboard</span>
           </Button>
@@ -280,7 +280,7 @@ const ExamResult = () => {
       </div>
 
       {/* Score Summary & Key Performance Metrics */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-6">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-secondary-200 space-y-4 sm:space-y-6">
         <div className="flex items-center justify-between border-b border-secondary-100 pb-4">
           <h2 className="text-xl font-bold text-secondary-900 flex items-center gap-2">
             <Award className="w-5 h-5 text-brand-600" />
@@ -393,19 +393,19 @@ const ExamResult = () => {
       </div>
 
       {/* Gemini AI Personalized Feedback */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-secondary-900 flex items-center gap-2">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-secondary-200 space-y-3 sm:space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h2 className="text-lg sm:text-xl font-bold text-secondary-900 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-brand-600" />
             <span>Personalized AI Diagnostic Feedback</span>
           </h2>
-          <span className="bg-brand-50 text-brand-700 px-3 py-1 rounded-xl text-xs font-bold border border-brand-100 shadow-inner">
+          <span className="bg-brand-50 text-brand-700 px-3 py-1 rounded-xl text-xs font-bold border border-brand-100 shadow-inner w-fit">
             Powered by Gemini AI
           </span>
         </div>
 
-        <div className="bg-secondary-50 p-6 rounded-2xl border border-secondary-200/80">
-          <p className="text-secondary-800 leading-relaxed text-sm md:text-base font-sans whitespace-pre-line">
+        <div className="bg-secondary-50 p-4 sm:p-6 rounded-2xl border border-secondary-200/80">
+          <p className="text-secondary-800 leading-relaxed text-xs sm:text-sm md:text-base font-sans whitespace-pre-line">
             {result.aiFeedback ||
               'Great effort on completing this assessment! Keep reviewing your key concepts and practicing standard problem patterns.'}
           </p>
@@ -413,27 +413,27 @@ const ExamResult = () => {
       </div>
 
       {/* Weak Topics / Diagnostic Insights */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-4">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-secondary-200 space-y-3 sm:space-y-4">
         <div className="flex items-center gap-2">
           <Target className="w-5 h-5 text-brand-600" />
-          <h2 className="text-xl font-bold text-secondary-900">Weak Topics &amp; Focus Areas</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-secondary-900">Weak Topics &amp; Focus Areas</h2>
         </div>
-        <p className="text-secondary-600 text-sm">
+        <p className="text-secondary-600 text-xs sm:text-sm">
           Specific conceptual domains identified by AI where targeted study will produce maximum performance improvement.
         </p>
 
         {weakTopics.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1 sm:pt-2">
             {weakTopics.map((topic, idx) => (
               <div
                 key={idx}
-                className="bg-secondary-50 p-5 rounded-2xl border border-secondary-200 flex items-start gap-3.5 hover:border-brand-300 transition-all shadow-sm"
+                className="bg-secondary-50 p-4 sm:p-5 rounded-2xl border border-secondary-200 flex items-start gap-3 sm:gap-3.5 hover:border-brand-300 transition-all shadow-sm"
               >
-                <div className="p-2.5 rounded-xl bg-amber-100 text-amber-800 mt-0.5 flex-shrink-0">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-amber-100 text-amber-800 mt-0.5 flex-shrink-0">
                   <Lightbulb className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-secondary-900 text-base mb-1">{topic}</h4>
+                  <h4 className="font-bold text-secondary-900 text-sm sm:text-base mb-1">{topic}</h4>
                   <p className="text-xs text-secondary-600 leading-relaxed">
                     Review foundational concepts, study implementation examples, and solve targeted practice problems.
                   </p>
@@ -442,9 +442,9 @@ const ExamResult = () => {
             ))}
           </div>
         ) : (
-          <div className="bg-green-50/70 p-6 rounded-2xl border border-green-200 text-center space-y-1.5">
-            <CheckCircle2 className="w-7 h-7 text-green-600 mx-auto" />
-            <h4 className="text-base font-bold text-green-900">Strong Conceptual Mastery</h4>
+          <div className="bg-green-50/70 p-4 sm:p-6 rounded-2xl border border-green-200 text-center space-y-1.5">
+            <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7 text-green-600 mx-auto" />
+            <h4 className="text-sm sm:text-base font-bold text-green-900">Strong Conceptual Mastery</h4>
             <p className="text-xs text-green-700 max-w-md mx-auto">
               No significant weak topics detected. You demonstrated strong comprehension across the assessed domains.
             </p>
@@ -456,7 +456,7 @@ const ExamResult = () => {
 
       {/* Detailed Answers Section */}
       {result.answers && result.answers.length > 0 && (
-        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200 space-y-6">
+        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-secondary-200 space-y-4 sm:space-y-6">
           <div className="flex items-center gap-2 border-b border-secondary-100 pb-4">
             <FileCheck2 className="w-5 h-5 text-brand-600" />
             <h2 className="text-xl font-bold text-secondary-900">Detailed Answer Review</h2>

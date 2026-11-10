@@ -68,21 +68,19 @@ const CandidateResults = () => {
   const passedCount = scoredList.filter((r) => Number(r.percentage) >= 50).length;
 
   return (
-    <div className="w-full space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
+    <div className="w-full space-y-4 sm:space-y-6 lg:space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
       {/* Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Assessment Results</h1>
-          <p className="text-secondary-600 mt-1.5 text-base">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-secondary-900 tracking-tight">Assessment Results</h1>
+          <p className="text-secondary-600 mt-1 text-xs sm:text-sm md:text-base">
             Review detailed AI diagnostic evaluations, topic breakdowns, and scores for all completed exams.
           </p>
         </div>
       </header>
 
-
-
       {/* Metric Cards Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5">
         <div className="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-secondary-200/80 hover:shadow-md transition-all flex flex-col justify-between h-full">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-secondary-500 uppercase tracking-wider">Completed Tests</span>

@@ -95,12 +95,12 @@ const CandidatePerformance = () => {
   const scoreTrend = [...scoredExams].reverse();
 
   return (
-    <div className="w-full space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
+    <div className="w-full space-y-4 sm:space-y-6 lg:space-y-7 animate-in fade-in slide-in-from-bottom-3 duration-300">
       {/* Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-secondary-900 tracking-tight">Performance Analytics</h1>
-          <p className="text-secondary-600 mt-1.5 text-base">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-secondary-900 tracking-tight">Performance Analytics</h1>
+          <p className="text-secondary-600 mt-0.5 sm:mt-1.5 text-xs sm:text-sm md:text-base">
             Detailed breakdown of your assessment metrics, score trajectory, and subject proficiency.
           </p>
         </div>
@@ -108,14 +108,12 @@ const CandidatePerformance = () => {
         <button
           onClick={fetchHistory}
           disabled={isLoading}
-          className="p-2.5 text-secondary-600 hover:text-secondary-900 hover:bg-secondary-100 rounded-xl border border-secondary-200 bg-white transition-all shadow-sm flex items-center gap-2 text-xs font-bold"
+          className="p-2.5 text-secondary-600 hover:text-secondary-900 hover:bg-secondary-100 rounded-xl border border-secondary-200 bg-white transition-all shadow-sm flex items-center gap-2 text-xs font-bold min-h-[42px] cursor-pointer"
         >
           <RotateCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           <span>Refresh Data</span>
         </button>
       </header>
-
-
 
       {assessments.length === 0 && !isLoading ? (
         <EmptyState
@@ -128,7 +126,7 @@ const CandidatePerformance = () => {
       ) : (
         <>
           {/* Primary Key Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-secondary-200 flex items-start gap-4">
           <div className="p-3.5 bg-brand-50 text-brand-700 border border-brand-100 rounded-xl flex-shrink-0">
             <Award className="w-7 h-7" />
@@ -278,8 +276,8 @@ const CandidatePerformance = () => {
               </div>
 
               {/* CSS Bar Chart */}
-              <div className="pt-6 pb-2">
-                <div className="h-52 flex items-end justify-between gap-3 sm:gap-6 border-b border-secondary-200 pb-2 px-2">
+              <div className="pt-6 pb-2 overflow-x-auto">
+                <div className="h-52 min-w-[280px] flex items-end justify-between gap-2 sm:gap-6 border-b border-secondary-200 pb-2 px-2">
                   {scoreTrend.map((exam, index) => {
                     const rawScore = Number(exam.percentage || 0);
                     const score = Math.round(rawScore * 100) / 100;

@@ -83,46 +83,46 @@ const HostCandidateReport = () => {
   };
 
   return (
-    <div className="w-full h-full space-y-8 animate-in fade-in duration-500 pb-12">
+    <div className="w-full h-full space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-500 pb-12">
       {/* Back Button */}
-      <button onClick={() => navigate(`/host/exams/${examId}/results`)} className="text-brand-600 hover:text-brand-700 flex items-center gap-2 font-bold text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100">
+      <button onClick={() => navigate(`/host/exams/${examId}/results`)} className="text-brand-600 hover:text-brand-700 flex items-center gap-2 font-bold text-xs sm:text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100 min-h-[36px] cursor-pointer">
         <ArrowLeft className="w-4 h-4" />
         Back to Results
       </button>
 
       {/* Header Profile */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-secondary-200/80 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center shrink-0">
-            <User className="w-8 h-8" />
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl shadow-sm border border-secondary-200/80 flex flex-col md:flex-row gap-4 sm:gap-6 items-start md:items-center justify-between">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-brand-100 text-brand-600 rounded-full flex items-center justify-center shrink-0">
+            <User className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
-          <div>
-            <h1 className="text-2xl font-extrabold text-secondary-900">{report.candidateName}</h1>
-            <p className="text-secondary-500 flex items-center gap-2 mt-1">
-              <Mail className="w-4 h-4" /> {report.candidateEmail}
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-secondary-900 break-words">{report.candidateName}</h1>
+            <p className="text-secondary-500 flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 text-xs sm:text-sm break-all">
+              <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" /> {report.candidateEmail}
             </p>
-            <p className="text-sm font-semibold text-brand-700 bg-brand-50 inline-block px-2 py-0.5 rounded mt-2">
+            <p className="text-xs sm:text-sm font-semibold text-brand-700 bg-brand-50 inline-block px-2 py-0.5 rounded mt-1.5 sm:mt-2">
               {report.examTitle}
             </p>
           </div>
         </div>
         
-        <div className="flex gap-4">
-          <div className="text-center bg-secondary-50 p-4 rounded-xl border border-secondary-200 min-w-[120px]">
+        <div className="flex flex-wrap sm:flex-nowrap gap-2.5 sm:gap-4 w-full md:w-auto">
+          <div className="flex-1 sm:flex-none text-center bg-secondary-50 p-3 sm:p-4 rounded-xl border border-secondary-200 min-w-0 sm:min-w-[120px]">
             <p className="text-xs text-secondary-500 font-bold uppercase mb-1">Score</p>
-            <p className="text-2xl font-extrabold text-secondary-900">{result.totalScore} <span className="text-sm text-secondary-500 font-normal">/ {result.maxScore}</span></p>
+            <p className="text-xl sm:text-2xl font-extrabold text-secondary-900">{result.totalScore} <span className="text-xs sm:text-sm text-secondary-500 font-normal">/ {result.maxScore}</span></p>
           </div>
-          <div className="text-center bg-secondary-50 p-4 rounded-xl border border-secondary-200 min-w-[120px] flex flex-col items-center justify-center">
+          <div className="flex-1 sm:flex-none text-center bg-secondary-50 p-3 sm:p-4 rounded-xl border border-secondary-200 min-w-0 sm:min-w-[120px] flex flex-col items-center justify-center">
             <p className="text-xs text-secondary-500 font-bold uppercase mb-1">Result</p>
             {result.passed ? (
-              <p className="text-2xl font-extrabold text-emerald-600 mb-2">PASSED</p>
+              <p className="text-xl sm:text-2xl font-extrabold text-emerald-600 mb-1.5 sm:mb-2">PASSED</p>
             ) : (
-              <p className="text-2xl font-extrabold text-red-600 mb-2">FAILED</p>
+              <p className="text-xl sm:text-2xl font-extrabold text-red-600 mb-1.5 sm:mb-2">FAILED</p>
             )}
             <button 
               onClick={handleToggleResult}
               disabled={isToggling}
-              className={`text-[10px] font-bold px-3 py-1.5 rounded transition-all ${
+              className={`text-[10px] font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded transition-all cursor-pointer min-h-[30px] ${
                 result.passed 
                   ? 'bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:shadow-sm' 
                   : 'bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:shadow-sm'

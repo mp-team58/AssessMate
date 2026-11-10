@@ -44,15 +44,15 @@ export default function AdminLogin() {
   return (
     <AuthLayout>
       {/* Same structure as the host/candidate page; the pill is the only thing that marks this as the restricted portal. */}
-      <div className="mb-8 text-center lg:text-left">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 mb-4 rounded-full bg-brand-50 text-brand-700 border border-brand-200 text-xs font-bold">
+      <div className="mb-4 sm:mb-6 lg:mb-8 text-center lg:text-left">
+        <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 mb-3 sm:mb-4 rounded-full bg-brand-50 text-brand-700 border border-brand-200 text-xs font-bold">
           <Shield className="w-3.5 h-3.5" aria-hidden="true" /> Admin portal
         </span>
-        <h2 className="text-2xl font-extrabold text-secondary-900 mb-2 tracking-tight">Administrator sign in</h2>
-        <p className="text-secondary-500 text-sm">Restricted area. Sign in with your administrator account.</p>
+        <h2 className="text-xl sm:text-2xl font-extrabold text-secondary-900 mb-1.5 sm:mb-2 tracking-tight">Administrator sign in</h2>
+        <p className="text-secondary-500 text-xs sm:text-sm">Restricted area. Sign in with your administrator account.</p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5 sm:space-y-4" noValidate>
         <Input
           label={AUTH_COPY.emailLabel}
           type="email"
@@ -72,7 +72,7 @@ export default function AdminLogin() {
             error={errors.password}
           />
           <div className="flex justify-end -mt-2">
-            <Link to="/admin/forgot-password" className="text-sm text-brand-600 hover:text-brand-500 font-medium">
+            <Link to="/admin/forgot-password" className="text-xs sm:text-sm text-brand-600 hover:text-brand-500 font-medium py-1">
               {AUTH_COPY.forgotLink}
             </Link>
           </div>
@@ -80,12 +80,12 @@ export default function AdminLogin() {
 
         <FormAlert>{formError}</FormAlert>
 
-        <Button type="submit" disabled={isLoading} className="mt-2 w-full">
+        <Button type="submit" disabled={isLoading} className="mt-2 w-full min-h-[44px]">
           {isLoading ? AUTH_COPY.signingIn : 'Sign in'}
         </Button>
       </form>
 
-      <p className="mt-8 text-center text-sm font-medium text-secondary-500">
+      <p className="mt-5 sm:mt-8 text-center text-xs sm:text-sm font-medium text-secondary-500">
         Access is logged and audited. Unauthorized attempts are monitored.
       </p>
     </AuthLayout>

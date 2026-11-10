@@ -197,10 +197,10 @@ const ErrorGate = ({ error, navigate }) => (
 /* Small building blocks for the exam screen                            */
 /* ------------------------------------------------------------------ */
 const TimeChip = ({ label, value, tone = 'ok', title }) => (
-  <div role="timer" aria-label={`${label}: ${value}`} title={title} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${TIME_TONES[tone]}`}>
-    <Clock className="w-4 h-4 shrink-0" aria-hidden="true" />
+  <div role="timer" aria-label={`${label}: ${value}`} title={title} className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm ${TIME_TONES[tone]}`}>
+    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" aria-hidden="true" />
     <span className="hidden md:inline text-xs opacity-80">{label}</span>
-    <span className="font-mono tabular-nums text-sm font-bold">{value}</span>
+    <span className="font-mono tabular-nums text-xs sm:text-sm font-bold">{value}</span>
   </div>
 );
 
@@ -327,18 +327,18 @@ const OptionRow = ({ letter, text, selected, multi, disabled, onClick }) => (
     aria-checked={selected}
     disabled={disabled}
     onClick={onClick}
-    className={`w-full text-left flex items-center gap-4 px-5 py-3.5 min-h-[58px] sm:min-h-[62px] rounded-xl border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
+    className={`w-full text-left flex items-start sm:items-center gap-2.5 sm:gap-4 px-3 sm:px-5 py-2.5 sm:py-3.5 min-h-[48px] sm:min-h-[58px] rounded-xl border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${
       disabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
     } ${selected ? 'border-brand-600 bg-brand-50/70 shadow-sm' : 'border-secondary-200 bg-white hover:border-brand-300 hover:bg-secondary-50/80'}`}
   >
     <span
-      className={`shrink-0 w-8 h-8 flex items-center justify-center border-2 text-sm font-bold transition ${
+      className={`shrink-0 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center border-2 text-xs sm:text-sm font-bold transition mt-0.5 sm:mt-0 ${
         multi ? 'rounded-md' : 'rounded-full'
       } ${selected ? 'bg-brand-600 border-brand-600 text-white' : 'bg-white border-secondary-300 text-secondary-700'}`}
     >
-      {multi && selected ? <CheckCircle2 className="w-4 h-4" aria-hidden="true" /> : letter}
+      {multi && selected ? <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" /> : letter}
     </span>
-    <span className="text-[16px] sm:text-[17px] font-medium text-secondary-900 leading-snug pt-0.5">{text}</span>
+    <span className="text-sm sm:text-[17px] font-medium text-secondary-900 leading-snug pt-0.5 break-words min-w-0 flex-1">{text}</span>
   </button>
 );
 
@@ -352,15 +352,15 @@ const McqBody = (p) => {
   const selectedList = currentAnswer ? String(currentAnswer).split(',') : [];
 
   return (
-    <div className="w-full max-w-[760px] mx-auto px-4 sm:px-8 py-8 my-auto space-y-7">
+    <div className="w-full max-w-[760px] mx-auto px-3 sm:px-8 py-4 sm:py-8 my-auto space-y-4 sm:space-y-7">
       {expired && (
-        <div role="alert" className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2.5 text-rose-800 text-sm font-semibold">
+        <div role="alert" className="p-3 sm:p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 sm:gap-2.5 text-rose-800 text-xs sm:text-sm font-semibold">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" aria-hidden="true" />
           Time for this question is over. Your answer was saved and can't be changed.
         </div>
       )}
 
-      <div className="text-[19px] sm:text-[21px] font-bold text-secondary-900 leading-relaxed tracking-tight">
+      <div className="text-base sm:text-[21px] font-bold text-secondary-900 leading-relaxed tracking-tight break-words">
         <MarkdownViewer content={q.questionText} />
       </div>
 
@@ -740,10 +740,10 @@ const ExamWorkspace = (p) => {
 
       {/* Header */}
       <header className="shrink-0 bg-[#16241F] text-[#F1F4F2] border-b border-black/30">
-        <div className="h-14 px-3 sm:px-5 flex items-center gap-3">
-          <BookOpenCheck className="w-5 h-5 text-brand-400 shrink-0" aria-hidden="true" />
+        <div className="h-12 sm:h-14 px-2.5 sm:px-5 flex items-center gap-1.5 sm:gap-3">
+          <BookOpenCheck className="w-4 h-4 sm:w-5 sm:h-5 text-brand-400 shrink-0" aria-hidden="true" />
           <div className="min-w-0">
-            <h1 className="text-sm font-bold leading-tight truncate max-w-[36vw] sm:max-w-sm">
+            <h1 className="text-xs sm:text-sm font-bold leading-tight truncate max-w-[80px] xs:max-w-[120px] sm:max-w-sm">
               {examData?.examTitle || 'Proctored assessment'}
             </h1>
             <p className="text-xs text-secondary-400 leading-tight hidden sm:block">
@@ -766,26 +766,26 @@ const ExamWorkspace = (p) => {
           <button
             type="button"
             onClick={() => setShowInstructionsModal(true)}
-            className="p-2 rounded-lg text-secondary-300 hover:text-white hover:bg-white/10 transition"
+            className="p-1.5 sm:p-2 rounded-lg text-secondary-300 hover:text-white hover:bg-white/10 transition cursor-pointer"
             aria-label="Exam instructions"
             title="Exam instructions"
           >
-            <HelpCircle className="w-5 h-5" />
+            <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <button
             type="button"
             onClick={() => setMobilePaletteOpen(true)}
-            className="lg:hidden flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition"
+            className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-bold transition cursor-pointer"
             aria-label="Open question palette"
           >
-            <LayoutGrid className="w-4 h-4 text-brand-400" aria-hidden="true" />
-            <span className="font-mono tabular-nums">{answeredTotal}/{total}</span>
+            <LayoutGrid className="w-3.5 h-3.5 text-brand-400" aria-hidden="true" />
+            <span className="font-mono tabular-nums text-xs">{answeredTotal}/{total}</span>
           </button>
           <button
             type="button"
             onClick={() => setShowSubmitModal(true)}
             disabled={!canSubmit}
-            className="lg:hidden px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold transition"
+            className="lg:hidden px-2.5 sm:px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold transition cursor-pointer"
           >
             Submit
           </button>
@@ -856,26 +856,28 @@ const ExamWorkspace = (p) => {
           </div>
 
           {/* Action bar */}
-          <div className="shrink-0 bg-white border-t border-secondary-200 px-3 sm:px-6 py-3 flex items-center gap-2 sm:gap-3">
+          <div className="shrink-0 bg-white border-t border-secondary-200 px-2 sm:px-6 py-2.5 sm:py-3 flex items-center gap-1.5 sm:gap-3">
             <button
               type="button"
               onClick={() => handleToggleFlag(currentQuestion.id)}
               aria-pressed={isCurrentFlagged}
-              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-lg border text-sm font-semibold transition ${
+              className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg border text-xs sm:text-sm font-semibold transition min-h-[42px] cursor-pointer ${
                 isCurrentFlagged ? 'bg-amber-50 border-amber-400 text-amber-800' : 'border-secondary-300 text-secondary-700 hover:bg-secondary-50'
               }`}
             >
-              <Flag className={`w-4 h-4 ${isCurrentFlagged ? 'fill-current' : ''}`} aria-hidden="true" />
+              <Flag className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isCurrentFlagged ? 'fill-current' : ''}`} aria-hidden="true" />
               <span className="hidden sm:inline">{isCurrentFlagged ? 'Marked for review' : 'Mark for review'}</span>
+              <span className="sm:hidden">{isCurrentFlagged ? 'Flagged' : 'Flag'}</span>
             </button>
             <button
               type="button"
               onClick={() => handleClearAnswer(currentQuestion.id)}
               disabled={!isAnswered(answers[currentQuestion.id]) || isCoding || isCurrentQuestionExpired}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-secondary-300 text-secondary-700 hover:bg-secondary-50 disabled:opacity-40 text-sm font-semibold transition"
+              className="flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg border border-secondary-300 text-secondary-700 hover:bg-secondary-50 disabled:opacity-40 text-xs sm:text-sm font-semibold transition min-h-[42px] cursor-pointer"
             >
-              <RotateCcw className="w-4 h-4" aria-hidden="true" />
+              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
               <span className="hidden sm:inline">Clear response</span>
+              <span className="sm:hidden">Clear</span>
             </button>
 
             <span className="hidden xl:flex items-center gap-1.5 text-xs text-secondary-500 ml-2">
@@ -888,25 +890,25 @@ const ExamWorkspace = (p) => {
               type="button"
               onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
               disabled={currentIndex === 0}
-              className="flex items-center gap-1 px-4 py-2.5 rounded-lg border border-secondary-300 text-secondary-800 hover:bg-secondary-50 disabled:opacity-40 text-sm font-semibold transition"
+              className="flex items-center justify-center gap-1 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg border border-secondary-300 text-secondary-800 hover:bg-secondary-50 disabled:opacity-40 text-xs sm:text-sm font-semibold transition min-h-[42px] cursor-pointer"
             >
-              <ChevronLeft className="w-4 h-4" aria-hidden="true" /> <span className="hidden sm:inline">Previous</span>
+              <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" /> <span className="hidden sm:inline">Previous</span><span className="sm:hidden">Prev</span>
             </button>
             {!isLast ? (
               <button
                 type="button"
                 onClick={handleAdvanceQuestion}
-                className="flex items-center gap-1 px-5 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold transition"
+                className="flex items-center justify-center gap-1 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs sm:text-sm font-bold transition min-h-[42px] cursor-pointer"
               >
-                Save &amp; next <ChevronRight className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Save &amp; next</span><span className="sm:hidden">Next</span> <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => setShowSubmitModal(true)}
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition"
+                className="flex items-center justify-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold transition min-h-[42px] cursor-pointer"
               >
-                Review &amp; submit <Send className="w-4 h-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Review &amp; submit</span><span className="sm:hidden">Submit</span> <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
               </button>
             )}
           </div>

@@ -1,4 +1,4 @@
-﻿import { createPortal } from 'react-dom';
+import { createPortal } from 'react-dom';
 import useModalScrollLock from '../hooks/useModalScrollLock';
 import useModalAccessibility from '../hooks/useModalAccessibility';
 import React, { useState, useEffect } from 'react';
@@ -55,22 +55,23 @@ const BankQuestionRow = ({ question, onEdit, onDelete }) => {
           </h3>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 sm:gap-2 shrink-0" onClick={e => e.stopPropagation()}>
           <button 
             onClick={() => onEdit(question)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-100 hover:border-brand-200 rounded-lg transition-colors"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-100 hover:border-brand-200 rounded-lg transition-colors cursor-pointer min-h-[36px]"
           >
-            <Pencil className="w-3.5 h-3.5" /> Edit
+            <Pencil className="w-3.5 h-3.5" /> <span>Edit</span>
           </button>
           <button 
             onClick={() => onDelete(question.id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 rounded-lg transition-colors"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-100 hover:border-red-200 rounded-lg transition-colors cursor-pointer min-h-[36px]"
           >
-            <Trash2 className="w-3.5 h-3.5" /> Delete
+            <Trash2 className="w-3.5 h-3.5" /> <span>Delete</span>
           </button>
           <button 
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100 rounded-lg transition-colors ml-2"
+            className="p-1.5 text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100 rounded-lg transition-colors ml-auto sm:ml-2 cursor-pointer"
+            aria-label={isExpanded ? "Collapse details" : "Expand details"}
           >
             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </button>
@@ -555,16 +556,16 @@ const QuestionBank = () => {
     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[#16241F] tracking-tight">Question Bank</h1>
-          <p className="text-secondary-600 mt-1">Manage your global repository of MCQs and coding challenges.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#16241F] tracking-tight">Question Bank</h1>
+          <p className="text-secondary-600 mt-0.5 sm:mt-1 text-xs sm:text-sm">Manage your global repository of MCQs and coding challenges.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {activeBankTab === 'mcq' ? (
-            <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
-              <Plus className="w-5 h-5" /> Add MCQ to Bank
+            <Button onClick={() => setIsModalOpen(true)} className="flex items-center justify-center gap-2 w-full sm:w-auto min-h-[44px]">
+              <Plus className="w-5 h-5" /> <span>Add MCQ to Bank</span>
             </Button>
           ) : (
             <Button
@@ -572,26 +573,26 @@ const QuestionBank = () => {
                 setEditingCodingProblem(null);
                 setIsCodingModalOpen(true);
               }}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto min-h-[44px]"
             >
-              <Plus className="w-5 h-5" /> Add Coding Problem
+              <Plus className="w-5 h-5" /> <span>Add Coding Problem</span>
             </Button>
           )}
         </div>
       </div>
 
       {/* Tab Switcher: MCQ Bank vs Coding Problem Bank */}
-      <div className="flex items-center gap-3 border-b border-secondary-200 pb-2">
+      <div className="flex items-center gap-2 sm:gap-3 border-b border-secondary-200 pb-2 overflow-x-auto">
         <button
           onClick={() => setActiveBankTab('mcq')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
             activeBankTab === 'mcq'
               ? 'bg-[#16241F] text-amber-300 shadow-sm'
               : 'bg-white text-secondary-600 hover:bg-secondary-50 border border-secondary-200'
           }`}
         >
           <span>MCQ Bank</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+          <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
             activeBankTab === 'mcq' ? 'bg-amber-400/20 text-amber-300' : 'bg-secondary-100 text-secondary-600'
           }`}>
             {Array.isArray(questions) ? questions.length : 0}
@@ -600,7 +601,7 @@ const QuestionBank = () => {
 
         <button
           onClick={() => setActiveBankTab('coding')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
             activeBankTab === 'coding'
               ? 'bg-[#16241F] text-amber-300 shadow-sm'
               : 'bg-white text-secondary-600 hover:bg-secondary-50 border border-secondary-200'
@@ -608,7 +609,7 @@ const QuestionBank = () => {
         >
           <Code2 className="w-4 h-4" />
           <span>Coding Problem Bank</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+          <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
             activeBankTab === 'coding' ? 'bg-amber-400/20 text-amber-300' : 'bg-secondary-100 text-secondary-600'
           }`}>
             {Array.isArray(codingProblems) ? codingProblems.length : 0}

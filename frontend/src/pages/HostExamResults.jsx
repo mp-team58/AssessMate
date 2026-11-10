@@ -136,31 +136,31 @@ const HostExamResults = () => {
   };
 
   return (
-    <div className="w-full h-full space-y-8 animate-in fade-in duration-500 pb-12">
+    <div className="w-full h-full space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-500 pb-12">
       
       {/* Header */}
-      <header className="mb-6 flex flex-col gap-4">
-        <button onClick={() => navigate(`/host/exams/${id}/manage`)} className="text-brand-600 hover:text-brand-700 flex items-center gap-2 font-bold text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100">
+      <header className="mb-4 sm:mb-6 flex flex-col gap-3 sm:gap-4">
+        <button onClick={() => navigate(`/host/exams/${id}/manage`)} className="text-brand-600 hover:text-brand-700 flex items-center gap-2 font-bold text-xs sm:text-sm transition-colors bg-brand-50 px-3 py-1.5 rounded-lg w-fit hover:bg-brand-100 min-h-[36px] cursor-pointer">
           <ArrowLeft className="w-4 h-4" />
           Back to Exam Details
         </button>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
           <div>
-            <h1 className="text-3xl md:text-4xl font-extrabold text-secondary-900 tracking-tight">{results.examTitle}</h1>
-            <p className="text-secondary-500 mt-2 text-lg">Exam Results & Candidate Performance</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-secondary-900 tracking-tight break-words">{results.examTitle}</h1>
+            <p className="text-secondary-500 mt-1 text-sm sm:text-base md:text-lg">Exam Results & Candidate Performance</p>
           </div>
           {results.resultsPublished ? (
-            <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl font-bold flex items-center gap-2 shadow-sm">
-                <CheckCircle className="w-5 h-5" />
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <div className="px-3 sm:px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow-sm min-h-[42px]">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                 Results Published
               </div>
-              <Button onClick={handleUnpublishResults} disabled={isPublishing} variant="outline" className="border-secondary-300 text-secondary-600 hover:bg-secondary-50">
+              <Button onClick={handleUnpublishResults} disabled={isPublishing} variant="outline" className="border-secondary-300 text-secondary-600 hover:bg-secondary-50 min-h-[42px] text-xs sm:text-sm">
                 {isPublishing ? 'Hiding...' : 'Hide Results'}
               </Button>
             </div>
           ) : (
-            <Button onClick={handlePublishResults} disabled={isPublishing} className="flex items-center gap-2">
+            <Button onClick={handlePublishResults} disabled={isPublishing} className="flex items-center justify-center gap-2 w-full sm:w-auto min-h-[42px] text-xs sm:text-sm">
               <Send className="w-4 h-4" />
               {isPublishing ? 'Publishing...' : 'Publish Results'}
             </Button>
@@ -169,7 +169,7 @@ const HostExamResults = () => {
       </header>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-4">
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-secondary-200">
           <p className="text-xs text-secondary-500 font-bold uppercase tracking-wider mb-1">Candidates</p>
           <div className="flex items-center gap-2">

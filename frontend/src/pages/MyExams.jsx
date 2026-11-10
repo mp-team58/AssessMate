@@ -133,18 +133,18 @@ const MyExams = () => {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-300 relative z-10 font-sans">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="flex flex-col h-full space-y-4 sm:space-y-6 animate-in fade-in duration-300 relative z-10 font-sans">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-black text-secondary-900 tracking-tight">My Exams</h1>
-          <p className="text-secondary-600 mt-1 text-sm font-medium">Manage your drafts, live assessments, and past exams</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-secondary-900 tracking-tight">My Exams</h1>
+          <p className="text-secondary-600 mt-0.5 sm:mt-1 text-xs sm:text-sm font-medium">Manage your drafts, live assessments, and past exams</p>
         </div>
         {exams.length > 0 && (
           <Link
             to="/host/create-exam"
             onMouseEnter={() => prefetchRoute('/host/create-exam')}
             onFocus={() => prefetchRoute('/host/create-exam')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-sm hover:shadow transition-all text-sm shrink-0"
+            className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow-sm hover:shadow transition-all text-xs sm:text-sm shrink-0 min-h-[42px]"
           >
             <PlusCircle className="w-4 h-4" />
             Create Exam
@@ -285,11 +285,11 @@ const MyExams = () => {
           />
         )
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 w-full">
           {filteredAndSortedExams.map((exam) => (
             <div
               key={exam.id}
-              className="bg-white rounded-[1.25rem] p-6 shadow-sm border border-secondary-200/60 hover:border-brand-200 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 flex flex-col h-full group relative overflow-hidden"
+              className="bg-white rounded-2xl sm:rounded-[1.25rem] p-4 sm:p-6 shadow-sm border border-secondary-200/60 hover:border-brand-200 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 flex flex-col h-full group relative overflow-hidden"
             >
               {/* Top soft gradient bar */}
               <div className={`absolute top-0 left-0 right-0 h-1.5 opacity-90 ${exam.status === 'LIVE' ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' :

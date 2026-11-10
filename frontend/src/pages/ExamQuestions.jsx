@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getExamQuestions, getExamQuestionStats, addQuestionManually,
@@ -398,17 +398,17 @@ const ExamQuestions = () => {
       <div className="w-full h-full space-y-6 animate-in fade-in duration-500 pb-28">
 
       {/* Top Header Section */}
-      <div className="relative bg-white rounded-3xl shadow-sm border border-secondary-200 overflow-hidden p-6 md:p-8">
+      <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-secondary-200 overflow-hidden p-4 sm:p-6 md:p-8">
 
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 sm:gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-secondary-800 tracking-tight">{examInfo?.title || `Exam #${examId}`}</h1>
-            <div className="flex flex-wrap items-center gap-3 mt-3">
-              <span className="bg-brand-50 text-brand-700 px-3 py-1 rounded-md text-sm font-bold border border-brand-100 shadow-sm">{examInfo?.subject || 'Subject'}</span>
-              <span className="font-mono text-sm bg-secondary-100 px-3 py-1 rounded-md font-bold text-secondary-700 border border-secondary-200 shadow-sm">Code: {examInfo?.joinCode || 'N/A'}</span>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-secondary-800 tracking-tight break-words">{examInfo?.title || `Exam #${examId}`}</h1>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 sm:mt-3">
+              <span className="bg-brand-50 text-brand-700 px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-bold border border-brand-100 shadow-sm">{examInfo?.subject || 'Subject'}</span>
+              <span className="font-mono text-xs sm:text-sm bg-secondary-100 px-2.5 sm:px-3 py-1 rounded-md font-bold text-secondary-700 border border-secondary-200 shadow-sm">Code: {examInfo?.joinCode || 'N/A'}</span>
               {examInfo?.hasCodingSection && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-bold bg-secondary-900 text-white shadow-sm">
-                  <Code2 className="w-4 h-4 text-brand-400" /> Coding Enabled
+                <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-bold bg-secondary-900 text-white shadow-sm">
+                  <Code2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-400" /> Coding Enabled
                 </span>
               )}
             </div>
@@ -417,17 +417,17 @@ const ExamQuestions = () => {
 
         {/* Section Navigation Tabs (MCQ vs Coding Section) */}
         {examInfo?.hasCodingSection && (
-          <div className="flex items-center gap-2 mt-6 pt-6 border-t border-secondary-100">
+          <div className="flex items-center gap-2 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-secondary-100 overflow-x-auto pb-1">
             <button
               onClick={() => setSectionTab('mcq')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
                 sectionTab === 'mcq'
                   ? 'bg-[#16241F] text-amber-300 shadow-sm'
                   : 'bg-secondary-50 text-secondary-600 hover:bg-secondary-100 border border-secondary-200'
               }`}
             >
               <span>MCQ Section</span>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+              <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
                 sectionTab === 'mcq' ? 'bg-amber-400/20 text-amber-300' : 'bg-secondary-200 text-secondary-700'
               }`}>
                 {questions.length} / {stats?.totalRequired || 0}
@@ -436,7 +436,7 @@ const ExamQuestions = () => {
 
             <button
               onClick={() => setSectionTab('coding')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer ${
                 sectionTab === 'coding'
                   ? 'bg-[#16241F] text-amber-300 shadow-sm'
                   : 'bg-secondary-50 text-secondary-600 hover:bg-secondary-100 border border-secondary-200'
@@ -444,7 +444,7 @@ const ExamQuestions = () => {
             >
               <Code2 className="w-4 h-4" />
               <span>Coding Section</span>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+              <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
                 isCodingSufficient
                   ? 'bg-emerald-100 text-emerald-800'
                   : 'bg-amber-100 text-amber-800 border border-amber-300'
@@ -1082,35 +1082,35 @@ const ExamQuestions = () => {
       />
 
       {/* Bottom Publish Bar */}
-      <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-white/95 backdrop-blur-md border-t border-gray-200 p-4 shadow-[0_-4px_12px_-1px_rgba(0,0,0,0.08)] z-40">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-xs font-semibold">
+      <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-white/95 backdrop-blur-md border-t border-gray-200 p-3 sm:p-4 shadow-[0_-4px_12px_-1px_rgba(0,0,0,0.08)] z-40">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <div className="text-xs font-semibold text-center sm:text-left">
             {canPublishFinal ? (
-              <span className="text-green-700 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              <span className="text-green-700 flex items-center justify-center sm:justify-start gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
                 All requirements fulfilled. Exam is ready to publish!
               </span>
             ) : !isMcqSufficient ? (
-              <span className="text-amber-700 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                {stats?.message || 'MCQ requirements incomplete or unverified questions remain.'}
+              <span className="text-amber-700 flex flex-wrap items-center justify-center sm:justify-start gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>{stats?.message || 'MCQ requirements incomplete or unverified questions remain.'}</span>
                 {stats?.unverifiedCount > 0 && (
-                  <button type="button" onClick={scrollToReview} className="ml-3 underline font-bold cursor-pointer">Review now</button>
+                  <button type="button" onClick={scrollToReview} className="underline font-bold cursor-pointer ml-1">Review now</button>
                 )}
               </span>
             ) : (
-              <span className="text-amber-700 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
+              <span className="text-amber-700 flex items-center justify-center sm:justify-start gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                 Publish Guard: Coding pool needs {requiredCodingCount} problems (currently {codingPoolCount}).
               </span>
             )}
           </div>
 
-          <div className="relative group">
+          <div className="relative group w-full sm:w-auto">
             <Button
               onClick={handlePublish}
               disabled={!canPublishFinal}
-              className={`flex items-center gap-2 px-8 ${
+              className={`flex items-center justify-center gap-2 px-6 sm:px-8 py-2.5 min-h-[44px] w-full sm:w-auto ${
                 canPublishFinal ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20 shadow-lg text-white' : ''
               }`}
             >

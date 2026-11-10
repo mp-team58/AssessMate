@@ -16,33 +16,31 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Dispatches AssessMate transactional emails.
+ * Primary delivery is handled via Brevo's REST API over HTTPS (port 443),
+ * completely bypassing outbound SMTP port restrictions on hosting platforms like Render Free.
  *
- * Outgoing structure is the simplest standards-compliant one:
- *   multipart/alternative
- *     text/plain  (first)
- *     text/html   (last, preferred by clients)
- * The logo is a normal https image inside the HTML (no CID attachment, no multipart/related, no base64).
- * Falls back to plain text if MIME is unavailable.
+ * If Brevo REST API is not configured (e.g., in unit tests), it falls back to JavaMailSender.
  */
 @Service
 @Slf4j
 public class EmailService {
 
+    private final BrevoEmailService brevoEmailService;
     private final JavaMailSender mailSender;
-    private EmailTemplateService emailTemplateService = new EmailTemplateService();
+    private EmailTemplateService emailTemplateService;
 
     @Value("${app.mail.from:mail@assessmate.me}")
-    private String fromAddress;
+    private String fromAddress = "mail@assessmate.me";
 
     @Value("${app.mail.sender-name:AssessMate}")
-    private String senderName;
+    private String senderName = "AssessMate";
 
     /** Replies go to support (defaults to app.mail.support-email). */
     @Value("${app.mail.reply-to:${app.mail.support-email:mail@assessmate.me}}")
-    private String replyTo;
+    private String replyTo = "mail@assessmate.me";
 
     @Value("${app.otp.expiry-minutes:10}")
-    private int otpExpiryMinutes;
+    private int otpExpiryMinutes = 10;
 
     @Value("${spring.mail.username:}")
     private String mailUsername;
@@ -50,12 +48,24 @@ public class EmailService {
     @Value("${spring.mail.password:}")
     private String mailPassword;
 
+    public EmailService() {
+        this(new BrevoEmailService(), null, new EmailTemplateService());
+    }
+
     public EmailService(JavaMailSender mailSender) {
-        this(mailSender, new EmailTemplateService());
+        this(new BrevoEmailService(), mailSender, new EmailTemplateService());
+    }
+
+    public EmailService(JavaMailSender mailSender, EmailTemplateService emailTemplateService) {
+        this(new BrevoEmailService(), mailSender, emailTemplateService);
     }
 
     @Autowired
-    public EmailService(JavaMailSender mailSender, EmailTemplateService emailTemplateService) {
+    public EmailService(
+            @Autowired(required = false) BrevoEmailService brevoEmailService,
+            @Autowired(required = false) JavaMailSender mailSender,
+            @Autowired(required = false) EmailTemplateService emailTemplateService) {
+        this.brevoEmailService = brevoEmailService != null ? brevoEmailService : new BrevoEmailService();
         this.mailSender = mailSender;
         this.emailTemplateService = emailTemplateService != null ? emailTemplateService : new EmailTemplateService();
     }
@@ -67,8 +77,9 @@ public class EmailService {
     }
 
     public boolean isMailConfigured() {
-        return mailUsername != null && !mailUsername.trim().isEmpty() &&
-               mailPassword != null && !mailPassword.trim().isEmpty();
+        return (brevoEmailService != null && brevoEmailService.isConfigured()) ||
+               (mailUsername != null && !mailUsername.trim().isEmpty() &&
+                mailPassword != null && !mailPassword.trim().isEmpty());
     }
 
     // -------------------------------------------------------------------------
@@ -76,75 +87,97 @@ public class EmailService {
     // -------------------------------------------------------------------------
 
     public void sendRegistrationOtp(String toEmail, String name, String otp) {
-        send(toEmail, emailTemplateService.buildRegistrationOtpEmail(name, otp, otpExpiryMinutes));
+        send(toEmail, name, emailTemplateService.buildRegistrationOtpEmail(name, otp, otpExpiryMinutes));
     }
 
     public void sendConfirmationCodeEmail(String toEmail, String name, String otp) {
-        send(toEmail, emailTemplateService.buildConfirmationCodeEmail(name, otp, otpExpiryMinutes));
+        send(toEmail, name, emailTemplateService.buildConfirmationCodeEmail(name, otp, otpExpiryMinutes));
     }
 
     public void sendPasswordResetOtp(String toEmail, String otp) {
-        send(toEmail, emailTemplateService.buildPasswordResetOtpEmail(otp, otpExpiryMinutes));
+        send(toEmail, null, emailTemplateService.buildPasswordResetOtpEmail(otp, otpExpiryMinutes));
     }
 
     public boolean sendPasswordResetEmail(String toEmail, String name, String resetUrl, int expiryMinutes) {
-        return send(toEmail, emailTemplateService.buildPasswordResetEmail(name, resetUrl, expiryMinutes));
+        return send(toEmail, name, emailTemplateService.buildPasswordResetEmail(name, resetUrl, expiryMinutes));
     }
 
     public boolean sendWelcomeEmail(String toEmail, String name, String role) {
-        return send(toEmail, emailTemplateService.buildWelcomeEmail(name, role, null));
+        return send(toEmail, name, emailTemplateService.buildWelcomeEmail(name, role, null));
     }
 
     public boolean sendHostInvitation(String toEmail, String name, String invitationUrl, String organizationName, int expiryMinutes) {
-        return send(toEmail, emailTemplateService.buildHostInvitationEmail(name, invitationUrl, organizationName, expiryMinutes));
+        return send(toEmail, name, emailTemplateService.buildHostInvitationEmail(name, invitationUrl, organizationName, expiryMinutes));
     }
 
     public boolean sendCandidateInvitation(String toEmail, String name, String invitationUrl, String organizationName, int expiryMinutes) {
-        return send(toEmail, emailTemplateService.buildCandidateInvitationEmail(name, invitationUrl, organizationName, expiryMinutes));
+        return send(toEmail, name, emailTemplateService.buildCandidateInvitationEmail(name, invitationUrl, organizationName, expiryMinutes));
     }
 
     public boolean sendPasswordChangedNotification(String toEmail, String name) {
-        return send(toEmail, emailTemplateService.buildPasswordChangedNotificationEmail(name, toEmail, null));
+        return send(toEmail, name, emailTemplateService.buildPasswordChangedNotificationEmail(name, toEmail, null));
     }
 
     public boolean sendPasswordResetSuccessNotification(String toEmail, String name) {
-        return send(toEmail, emailTemplateService.buildPasswordResetSuccessEmail(name, toEmail));
+        return send(toEmail, name, emailTemplateService.buildPasswordResetSuccessEmail(name, toEmail));
     }
 
     public boolean sendAdminInvitation(String toEmail, String name, String setupUrl) {
-        return send(toEmail, emailTemplateService.buildAdminInvitationEmail(name, setupUrl, 30));
+        return send(toEmail, name, emailTemplateService.buildAdminInvitationEmail(name, setupUrl, 30));
     }
 
     public boolean sendAdminInvitationResend(String toEmail, String name, String setupUrl) {
-        return send(toEmail, emailTemplateService.buildAdminInvitationResendEmail(name, setupUrl, 30));
+        return send(toEmail, name, emailTemplateService.buildAdminInvitationResendEmail(name, setupUrl, 30));
     }
 
     public boolean sendAdminAccountActivated(String toEmail, String name, String dashboardUrl) {
-        return send(toEmail, emailTemplateService.buildAdminAccountActivatedEmail(name, dashboardUrl));
+        return send(toEmail, name, emailTemplateService.buildAdminAccountActivatedEmail(name, dashboardUrl));
     }
 
     public boolean sendExamInvitation(
             String toEmail, String candidateName, String examTitle, String subject, String joinCode,
             String scheduledStart, Integer durationMinutes, String deviceAccess, String joinUrl
     ) {
-        return send(toEmail, emailTemplateService.buildExamInvitationEmail(
+        return send(toEmail, candidateName, emailTemplateService.buildExamInvitationEmail(
                 candidateName, examTitle, subject, joinCode, scheduledStart, durationMinutes, deviceAccess, joinUrl));
     }
 
     /** Package-private: used only by the mail-test profile runner to send pre-built content. */
     boolean sendContent(String toEmail, EmailContent content) {
-        return send(toEmail, content);
+        return send(toEmail, null, content);
     }
 
     // -------------------------------------------------------------------------
     // Core dispatch
     // -------------------------------------------------------------------------
 
-    private boolean send(String toEmail, EmailContent content) {
+    private boolean send(String toEmail, String toName, EmailContent content) {
         // Content (codes, links, tokens) is never logged.
         log.info("Email dispatch: To={}, Subject='{}' (content redacted)", toEmail, content.getSubject());
+
+        // 1. Primary delivery: Brevo REST API over HTTPS (port 443)
+        if (brevoEmailService != null && brevoEmailService.isConfigured()) {
+            return brevoEmailService.sendEmail(
+                    toEmail,
+                    toName,
+                    content.getSubject(),
+                    content.getHtmlBody(),
+                    content.getPlainTextBody()
+            );
+        }
+
+        // 2. Fallback delivery: JavaMailSender (if configured and Brevo REST API key is absent)
+        if (mailSender != null) {
+            return sendViaJavaMailSender(toEmail, toName, content);
+        }
+
+        log.warn("Cannot dispatch email to {}: neither Brevo API nor JavaMailSender is configured", toEmail);
+        return false;
+    }
+
+    private boolean sendViaJavaMailSender(String toEmail, String toName, EmailContent content) {
         try {
-            MimeMessage mimeMessage = mailSender != null ? mailSender.createMimeMessage() : null;
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
             if (mimeMessage != null) {
                 MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, StandardCharsets.UTF_8.name());
                 if (senderName != null && !senderName.trim().isEmpty()) {
@@ -173,7 +206,7 @@ public class EmailService {
 
                 mailSender.send(mimeMessage);
                 return true;
-            } else if (mailSender != null) {
+            } else {
                 // Fallback for plain senders without MIME support
                 SimpleMailMessage message = new SimpleMailMessage();
                 if (senderName != null && !senderName.trim().isEmpty()) {
@@ -186,12 +219,9 @@ public class EmailService {
                 message.setText(content.getPlainTextBody());
                 mailSender.send(message);
                 return true;
-            } else {
-                log.warn("Cannot dispatch email to {}: JavaMailSender is null", toEmail);
-                return false;
             }
         } catch (Exception e) {
-            log.error("Failed to send email to {}: Subject='{}', error={}", toEmail, content.getSubject(), e.getMessage());
+            log.error("Failed to send email via SMTP to {}: Subject='{}', error={}", toEmail, content.getSubject(), e.getMessage());
             return false;
         }
     }
